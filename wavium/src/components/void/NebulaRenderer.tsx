@@ -1,0 +1,230 @@
+/**
+ * WAVIUM - Nebula Renderer
+ * Audio-reactive cosmic nebula using Skia shaders
+ */
+
+import React, { useEffect, useMemo } from 'react';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import {
+  Canvas,
+  vec,
+  RadialGradient,
+  Group,
+  BlurMask,
+  Circle,
+} from '@shopify/react-native-skia';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+  interpolate,
+} from 'react-native-reanimated';
+import { useThemeStore } from '../../stores/useThemeStore';
+import { nebula } from '../../theme/animations';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+interface NebulaRendererProps {
+  audioLevel: number;
+  gyroX: number;
+  gyroY: number;
+}
+
+// Nebula cloud component (simpler approach without complex shaders)
+const NebulaCloud = ({
+  x,
+  y,
+  radius,
+  color,
+  opacity,
+  blur,
+}: {
+  x: number;
+  y: number;
+  radius: number;
+  color: string;
+  opacity: number;
+  blur: number;
+}) => (
+  <Circle cx={x} cy={y} r={radius} opacity={opacity}>
+    <RadialGradient
+      c={vec(x, y)}
+      r={radius}
+      colors={[color, `${color}60`, `${color}20`, 'transparent']}
+    />
+    <BlurMask blur={blur} style="normal" />
+  </Circle>
+);
+
+export default function NebulaRenderer({
+  audioLevel,
+  gyroX,
+  gyroY,
+}: NebulaRendererProps) {
+  const { colors, timeOfDay } = useThemeStore();
+
+  // Animation values
+  const morphProgress = useSharedValue(0);
+  const pulseValue = useSharedValue(0);
+
+  useEffect(() => {
+    // Slow morphing animation
+    morphProgress.value = withRepeat(
+      withTiming(1, { duration: 20000, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true
+    );
+
+    // Pulse animation
+    pulseValue.value = withRepeat(
+      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true
+    );
+  }, []);
+
+  // Nebula colors based on time of day
+  const nebulaColors = useMemo(() => {
+    switch (timeOfDay) {
+      case 'morning':
+        return {
+          primary: '#ff9f43',
+          secondary: '#ff6b6b',
+          tertiary: '#ffeaa7',
+        };
+      case 'afternoon':
+        return {
+          primary: '#a78bfa',
+          secondary: '#60a5fa',
+          tertiary: '#f0abfc',
+        };
+      case 'evening':
+        return {
+          primary: '#f59e0b',
+          secondary: '#ef4444',
+          tertiary: '#fcd34d',
+        };
+      case 'night':
+      default:
+        return {
+          primary: '#8b5cf6',
+          secondary: '#6366f1',
+          tertiary: '#ec4899',
+        };
+    }
+  }, [timeOfDay]);
+
+  // Nebula cloud positions with parallax
+  const clouds = useMemo(() => [
+    {
+      id: 1,
+      baseX: SCREEN_WIDTH * 0.3,
+      baseY: SCREEN_HEIGHT * 0.25,
+      radius: 200,
+      color: nebulaColors.primary,
+      opacity: 0.15,
+      blur: 80,
+      parallaxFactor: 0.15,
+    },
+    {
+      id: 2,
+      baseX: SCREEN_WIDTH * 0.7,
+      baseY: SCREEN_HEIGHT * 0.35,
+      radius: 180,
+      color: nebulaColors.secondary,
+      opacity: 0.12,
+      blur: 70,
+      parallaxFactor: 0.2,
+    },
+    {
+      id: 3,
+      baseX: SCREEN_WIDTH * 0.5,
+      baseY: SCREEN_HEIGHT * 0.6,
+      radius: 220,
+      color: nebulaColors.tertiary,
+      opacity: 0.1,
+      blur: 90,
+      parallaxFactor: 0.1,
+    },
+    {
+      id: 4,
+      baseX: SCREEN_WIDTH * 0.2,
+      baseY: SCREEN_HEIGHT * 0.75,
+      radius: 160,
+      color: nebulaColors.primary,
+      opacity: 0.08,
+      blur: 60,
+      parallaxFactor: 0.25,
+    },
+    {
+      id: 5,
+      baseX: SCREEN_WIDTH * 0.8,
+      baseY: SCREEN_HEIGHT * 0.8,
+      radius: 140,
+      color: nebulaColors.secondary,
+      opacity: 0.1,
+      blur: 50,
+      parallaxFactor: 0.18,
+    },
+  ], [nebulaColors]);
+
+  // Calculate cloud positions with gyro offset
+  const getCloudPosition = (cloud: typeof clouds[0]) => {
+    const gyroOffsetX = gyroX * cloud.parallaxFactor * 50;
+    const gyroOffsetY = gyroY * cloud.parallaxFactor * 50;
+    return {
+      x: cloud.baseX + gyroOffsetX,
+      y: cloud.baseY + gyroOffsetY,
+    };
+  };
+
+  // Audio-reactive scale
+  const audioScale = 1 + audioLevel * nebula.bassIntensityMultiplier;
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      pulseValue.value,
+      [0, 1],
+      [1, 1.02]
+    ) * audioScale;
+
+    return {
+      transform: [{ scale }],
+      opacity: 0.8 + audioLevel * 0.2,
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.container, animatedStyle]}>
+      <Canvas style={styles.canvas}>
+        <Group>
+          {clouds.map((cloud) => {
+            const pos = getCloudPosition(cloud);
+            return (
+              <NebulaCloud
+                key={cloud.id}
+                x={pos.x}
+                y={pos.y}
+                radius={cloud.radius * audioScale}
+                color={cloud.color}
+                opacity={cloud.opacity + audioLevel * 0.05}
+                blur={cloud.blur}
+              />
+            );
+          })}
+        </Group>
+      </Canvas>
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  canvas: {
+    flex: 1,
+  },
+});
