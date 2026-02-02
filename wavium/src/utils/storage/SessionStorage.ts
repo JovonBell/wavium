@@ -7,7 +7,7 @@
  * - Native encryption support
  * - Sessions can exceed SecureStore's 2KB limit
  */
-import { MMKV } from "react-native-mmkv"
+import { createMMKV } from "react-native-mmkv"
 import * as SecureStore from "expo-secure-store"
 import * as Crypto from "expo-crypto"
 
@@ -28,7 +28,7 @@ const getOrCreateEncryptionKey = (): string => {
 }
 
 // Initialize encrypted MMKV storage
-const storage = new MMKV({
+const storage = createMMKV({
   id: "supabase-session",
   encryptionKey: getOrCreateEncryptionKey(),
 })
@@ -46,5 +46,5 @@ export const setItem = (key: string, value: string): void => {
 }
 
 export const removeItem = (key: string): void => {
-  storage.delete(key)
+  storage.remove(key)
 }
