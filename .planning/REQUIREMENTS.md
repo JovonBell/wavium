@@ -9,8 +9,8 @@ Requirements for MVP release. Each maps to roadmap phases.
 
 ### Security
 
-- [ ] **SEC-01**: Rotate Groq API key and remove from git history
-- [ ] **SEC-02**: Secure all secrets via environment variables with validation
+- [x] **SEC-01**: Rotate Groq API key and remove from git history
+- [x] **SEC-02**: Secure all secrets via environment variables with validation
 - [ ] **SEC-03**: User can create account with email and password via Supabase
 - [ ] **SEC-04**: User receives email verification after signup
 - [ ] **SEC-05**: User can reset password via email link
@@ -44,7 +44,7 @@ Requirements for MVP release. Each maps to roadmap phases.
 ### Audio
 
 - [ ] **AUDIO-01**: Background audio assets exist (ocean, rain, forest, campfire, space, silence)
-- [ ] **AUDIO-02**: Audio generation works on all platforms (cross-platform paths)
+- [x] **AUDIO-02**: Audio generation works on all platforms (cross-platform paths)
 - [ ] **AUDIO-03**: User can download audio for offline playback
 - [ ] **AUDIO-04**: User sees clear error message when generation fails
 - [ ] **AUDIO-05**: Failed generation can be retried
@@ -59,7 +59,7 @@ Requirements for MVP release. Each maps to roadmap phases.
 
 ### Reliability
 
-- [ ] **REL-01**: Python __init__.py files added for proper imports
+- [x] **REL-01**: Python __init__.py files added for proper imports
 - [ ] **REL-02**: FFmpeg calls wrapped with asyncio (non-blocking)
 - [ ] **REL-03**: Rate limiting enforced on generation endpoints
 - [ ] **REL-04**: Request validation rejects malformed input
@@ -123,10 +123,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 1 | Pending |
-| SEC-02 | Phase 1 | Pending |
-| AUDIO-02 | Phase 1 | Pending |
-| REL-01 | Phase 1 | Pending |
+| SEC-01 | Phase 1 | Complete |
+| SEC-02 | Phase 1 | Complete |
+| AUDIO-02 | Phase 1 | Complete |
+| REL-01 | Phase 1 | Complete |
 | SEC-03 | Phase 2 | Pending |
 | SEC-04 | Phase 2 | Pending |
 | SEC-05 | Phase 2 | Pending |
