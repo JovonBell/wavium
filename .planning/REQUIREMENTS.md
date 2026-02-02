@@ -125,6 +125,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | SEC-01 | Phase 1 | Pending |
 | SEC-02 | Phase 1 | Pending |
+| AUDIO-02 | Phase 1 | Pending |
+| REL-01 | Phase 1 | Pending |
 | SEC-03 | Phase 2 | Pending |
 | SEC-04 | Phase 2 | Pending |
 | SEC-05 | Phase 2 | Pending |
@@ -149,7 +151,6 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FLOW-07 | Phase 4 | Pending |
 | FLOW-08 | Phase 4 | Pending |
 | AUDIO-01 | Phase 4 | Pending |
-| AUDIO-02 | Phase 1 | Pending |
 | AUDIO-03 | Phase 4 | Pending |
 | AUDIO-04 | Phase 4 | Pending |
 | AUDIO-05 | Phase 4 | Pending |
@@ -158,7 +159,6 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MINDI-03 | Phase 5 | Pending |
 | MINDI-04 | Phase 5 | Pending |
 | MINDI-05 | Phase 5 | Pending |
-| REL-01 | Phase 1 | Pending |
 | REL-02 | Phase 6 | Pending |
 | REL-03 | Phase 6 | Pending |
 | REL-04 | Phase 6 | Pending |
@@ -170,6 +170,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Mapped to phases: 39
 - Unmapped: 0 ✓
 
+**Phase Distribution:**
+- Phase 1 (Security & Foundation): 4 requirements
+- Phase 2 (Supabase Authentication): 6 requirements
+- Phase 3 (Database Integration): 9 requirements
+- Phase 4 (Core Flow & Audio): 12 requirements
+- Phase 5 (Mindi Character Animations): 5 requirements
+- Phase 6 (Reliability & Polish): 5 requirements
+
 ---
 *Requirements defined: 2026-02-02*
-*Last updated: 2026-02-02 after initial definition*
+*Last updated: 2026-02-02 after roadmap creation*
