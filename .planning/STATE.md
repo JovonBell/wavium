@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 2 of 6 (Supabase Authentication)
-Plan: 3 of 5 complete
+Plan: 4 of 5 complete
 Status: In progress
-Last activity: 2026-02-02 - Completed 02-03-PLAN.md (Frontend Auth Implementation)
+Last activity: 2026-02-02 - Completed 02-04-PLAN.md (Protect Backend Endpoints)
 
-Progress: [███░░░░░░░] 32% (1.6/5 phases complete)
+Progress: [████░░░░░░] 36% (1.8/5 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 5.3 min
-- Total execution time: 0.53 hours
+- Total plans completed: 7
+- Average duration: 5.1 min
+- Total execution time: 0.60 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-security-foundation | 3 | 12 min | 4 min |
-| 02-supabase-authentication | 3 | 22 min | 7.3 min |
+| 02-supabase-authentication | 4 | 26 min | 6.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (5 min), 02-02 (7 min), 02-01 (10 min), 02-03 (5 min)
+- Last 5 plans: 02-02 (7 min), 02-01 (10 min), 02-03 (5 min), 02-04 (4 min)
 - Trend: Stable at ~5-10 min per plan
 
 *Updated after each plan completion*
@@ -60,6 +60,8 @@ Recent decisions affecting current work:
 - 02-03: Linking.createURL() for dynamic deep link URLs
 - 02-03: PASSWORD_RECOVERY event triggers isPasswordRecovery flag for UI routing
 - 02-03: AuthContext combines useAuth state with auth methods - single import for components
+- 02-04: user_id captured in protected endpoints for future use (logging, rate limiting, storage)
+- 02-04: Public endpoints (/, /health, /api/voices) remain unauthenticated for health checks
 
 ### Pending Todos
 
@@ -85,7 +87,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-02
-Stopped at: Completed 02-03-PLAN.md (Frontend Auth Implementation)
+Stopped at: Completed 02-04-PLAN.md (Protect Backend Endpoints)
 Resume file: None
 
 ---
