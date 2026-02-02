@@ -47,10 +47,14 @@ Plans:
   3. User can reset password via email link
   4. Backend validates JWT tokens on all protected routes
   5. CORS configured for production (specific origins only, not wildcard)
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md - Frontend Supabase infrastructure (client, encrypted storage, deep links)
+- [ ] 02-02-PLAN.md - Backend JWT validation infrastructure (PyJWT, JWKS, CORS)
+- [ ] 02-03-PLAN.md - Frontend auth implementation (auth methods, useAuth hook, AuthContext)
+- [ ] 02-04-PLAN.md - Backend route protection (add JWT validation to endpoints)
+- [ ] 02-05-PLAN.md - Integration verification (env templates, end-to-end testing)
 
 ### Phase 3: Database Integration
 **Goal**: User data persists to Supabase and syncs across devices
@@ -124,7 +128,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Security & Foundation | 3/3 | Complete | 2026-02-02 |
-| 2. Supabase Authentication | 0/TBD | Not started | - |
+| 2. Supabase Authentication | 0/5 | Ready | - |
 | 3. Database Integration | 0/TBD | Not started | - |
 | 4. Core Flow & Audio | 0/TBD | Not started | - |
 | 5. Mindi Character Animations | 0/TBD | Not started | - |
