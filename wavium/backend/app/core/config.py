@@ -5,7 +5,9 @@ WAVIUM Backend Configuration
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import List
+from pathlib import Path
 import os
+import tempfile
 
 
 class Settings(BaseSettings):
@@ -31,8 +33,11 @@ class Settings(BaseSettings):
     R2_BUCKET: str = "wavium-audio"
     R2_PUBLIC_URL: str = ""
 
-    # Audio settings
-    AUDIO_TEMP_DIR: str = "/tmp/wavium"
+    # Audio settings - cross-platform temp directory
+    AUDIO_TEMP_DIR: str = Field(
+        default_factory=lambda: str(Path(tempfile.gettempdir()) / "wavium"),
+        description="Temp directory for audio processing"
+    )
     MAX_DURATION_MINUTES: int = 60
     DEFAULT_SAMPLE_RATE: int = 44100
 
