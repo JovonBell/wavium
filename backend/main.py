@@ -63,6 +63,11 @@ class VoiceInfo(BaseModel):
     description: str
 
 
+class UserInfoResponse(BaseModel):
+    user_id: str
+    email: str | None = None
+
+
 # Endpoints
 @app.get("/")
 async def root():
@@ -132,6 +137,22 @@ async def api_get_voices():
     """
     voices = await get_available_voices()
     return [VoiceInfo(id=v["id"], name=v["name"], description=v["description"]) for v in voices]
+
+
+@app.get("/api/me", response_model=UserInfoResponse)
+async def api_get_me(
+    user: dict = Depends(get_current_user),
+):
+    """
+    Get current authenticated user info.
+
+    Returns user ID and email from JWT claims.
+    Useful for frontend to verify authentication status.
+    """
+    return UserInfoResponse(
+        user_id=user["sub"],
+        email=user.get("email"),
+    )
 
 
 if __name__ == "__main__":
