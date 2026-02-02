@@ -9,12 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from dotenv import load_dotenv
 
+from core.config import settings
 from services.groq_service import generate_affirmations
 from services.tts_service import generate_audio, get_available_voices
-
-load_dotenv()
 
 app = FastAPI(
     title="Wavium API",
@@ -22,13 +20,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS for React Native
+# CORS configuration
+# Origins from settings - specific domains, not wildcard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Serve audio files
