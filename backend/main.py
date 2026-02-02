@@ -75,9 +75,14 @@ async def health_check():
 
 
 @app.post("/api/generate-affirmations", response_model=GenerateAffirmationsResponse)
-async def api_generate_affirmations(request: GenerateAffirmationsRequest):
+async def api_generate_affirmations(
+    request: GenerateAffirmationsRequest,
+    user_id: str = Depends(get_current_user_id),
+):
     """
-    Generate personalized affirmations based on user's intention
+    Generate personalized affirmations based on user's intention.
+
+    Requires authentication via Bearer token.
     """
     if not request.intention.strip():
         raise HTTPException(status_code=400, detail="Intention cannot be empty")
@@ -93,9 +98,14 @@ async def api_generate_affirmations(request: GenerateAffirmationsRequest):
 
 
 @app.post("/api/generate-audio", response_model=GenerateAudioResponse)
-async def api_generate_audio(request: GenerateAudioRequest):
+async def api_generate_audio(
+    request: GenerateAudioRequest,
+    user_id: str = Depends(get_current_user_id),
+):
     """
-    Generate audio from affirmations using TTS
+    Generate audio from affirmations using TTS.
+
+    Requires authentication via Bearer token.
     """
     if not request.affirmations:
         raise HTTPException(status_code=400, detail="Affirmations list cannot be empty")
