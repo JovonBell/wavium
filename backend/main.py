@@ -4,13 +4,14 @@ FastAPI server for AI affirmation generation and TTS
 """
 
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.config import settings
+from core.security import get_current_user, get_current_user_id
 from services.groq_service import generate_affirmations
 from services.tts_service import generate_audio, get_available_voices
 
