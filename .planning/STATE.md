@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 2 of 6 (Supabase Authentication)
-Plan: 2 of 3 complete
+Plan: 2 of 5 complete
 Status: In progress
-Last activity: 2026-02-02 - Completed 02-02-PLAN.md
+Last activity: 2026-02-02 - Completed 02-01-PLAN.md (Supabase Client Infrastructure)
 
-Progress: [██░░░░░░░░] 25% (1.3/6 phases complete)
+Progress: [██░░░░░░░░] 28% (1.4/5 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 4.75 min
-- Total execution time: 0.3 hours
+- Total plans completed: 5
+- Average duration: 5.4 min
+- Total execution time: 0.45 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-security-foundation | 3 | 12 min | 4 min |
-| 02-supabase-authentication | 1 | 7 min | 7 min |
+| 02-supabase-authentication | 2 | 17 min | 8.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (4 min), 01-03 (5 min), 02-02 (7 min)
-- Trend: Stable
+- Last 5 plans: 01-02 (4 min), 01-03 (5 min), 02-02 (7 min), 02-01 (10 min)
+- Trend: Slightly increasing (frontend TypeScript complexity)
 
 *Updated after each plan completion*
 
@@ -53,6 +53,9 @@ Recent decisions affecting current work:
 - 02-02: JWKS endpoint with 600s cache lifespan matching Supabase edge cache
 - 02-02: pydantic-settings over python-dotenv for type-safe config with fail-fast validation
 - 02-02: Specific CORS origins over wildcard for production security
+- 02-01: MMKV v4 createMMKV() factory instead of class constructor
+- 02-01: Path alias @/* for cleaner src imports
+- 02-01: expo-linking plugin for platform-specific scheme registration
 
 ### Pending Todos
 
@@ -73,11 +76,12 @@ None yet.
 
 **Current blocker:**
 - SUPABASE_URL must be set in backend/.env before backend can start (fail-fast validation)
+- EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set for frontend
 
 ## Session Continuity
 
 Last session: 2026-02-02
-Stopped at: Completed 02-02-PLAN.md
+Stopped at: Completed 02-01-PLAN.md (Supabase Client Infrastructure)
 Resume file: None
 
 ---
