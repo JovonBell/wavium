@@ -3,6 +3,7 @@ WAVIUM Backend Configuration
 """
 
 from pydantic_settings import BaseSettings
+from pydantic import Field
 from typing import List
 import os
 
@@ -16,10 +17,10 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: List[str] = ["*"]
 
-    # Groq (LLM)
-    GROQ_API_KEY: str = ""
+    # Groq (LLM) - Required, app fails at startup if missing
+    GROQ_API_KEY: str = Field(min_length=1, description="Groq API key for LLM")
 
-    # Supabase
+    # Optional for Phase 1 - Required in Phase 2
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
 
