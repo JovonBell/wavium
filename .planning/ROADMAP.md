@@ -72,7 +72,7 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 03-01-PLAN.md - Create Supabase schema migrations (tables, RLS, triggers)
+- [x] 03-01-PLAN.md - Create Supabase schema migrations (tables, RLS, triggers)
 - [ ] 03-02-PLAN.md - Create PostgreSQL RPC functions and subliminal service with Realtime hook
 - [ ] 03-03-PLAN.md - Create session and Mindi state services
 - [ ] 03-04-PLAN.md - Integrate Zustand store with Supabase services
@@ -135,7 +135,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Security & Foundation | 3/3 | Complete | 2026-02-02 |
 | 2. Supabase Authentication | 7/7 | Complete | 2026-02-03 |
-| 3. Database Integration | 0/5 | Ready | - |
+| 3. Database Integration | 1/5 | In progress | - |
 | 4. Core Flow & Audio | 0/TBD | Not started | - |
 | 5. Mindi Character Animations | 0/TBD | Not started | - |
 | 6. Reliability & Polish | 0/TBD | Not started | - |
