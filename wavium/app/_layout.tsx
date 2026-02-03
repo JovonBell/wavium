@@ -12,6 +12,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useThemeStore } from '../src/stores/useThemeStore';
 import { useMindiStore } from '../src/stores/useMindiStore';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
+import { useMindiSync } from '@/hooks/useMindiSync';
 
 // Keep splash screen visible while loading
 SplashScreen.preventAutoHideAsync();
@@ -25,6 +26,16 @@ function RootNavigator() {
   const [isHydrated, setIsHydrated] = useState(false);
   const updateTimeOfDay = useThemeStore((state) => state.updateTimeOfDay);
   const { session, loading, isPasswordRecovery } = useAuthContext();
+
+  // Sync Mindi state and subliminals when user logs in
+  const { error: syncError } = useMindiSync();
+
+  // Log sync errors for debugging
+  useEffect(() => {
+    if (syncError) {
+      console.warn('Mindi sync error:', syncError);
+    }
+  }, [syncError]);
 
   // Wait for Zustand store to hydrate from MMKV
   useEffect(() => {
