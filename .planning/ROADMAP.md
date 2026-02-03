@@ -69,10 +69,14 @@ Plans:
   4. User's listening sessions are recorded automatically
   5. User's streak count updates after completing sessions
   6. Mindi's glow level and XP persist across app restarts
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md - Create Supabase schema migrations (tables, RLS, triggers)
+- [ ] 03-02-PLAN.md - Create PostgreSQL RPC functions and subliminal service with Realtime hook
+- [ ] 03-03-PLAN.md - Create session and Mindi state services
+- [ ] 03-04-PLAN.md - Integrate Zustand store with Supabase services
+- [ ] 03-05-PLAN.md - Apply migrations and verify end-to-end integration
 
 ### Phase 4: Core Flow & Audio
 **Goal**: Users can complete the full workflow from intention to playback with proper audio assets
@@ -131,11 +135,11 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Security & Foundation | 3/3 | Complete | 2026-02-02 |
 | 2. Supabase Authentication | 7/7 | Complete | 2026-02-03 |
-| 3. Database Integration | 0/TBD | Not started | - |
+| 3. Database Integration | 0/5 | Ready | - |
 | 4. Core Flow & Audio | 0/TBD | Not started | - |
 | 5. Mindi Character Animations | 0/TBD | Not started | - |
 | 6. Reliability & Polish | 0/TBD | Not started | - |
 
 ---
 *Created: 2026-02-02*
-*Last updated: 2026-02-03 (Phase 2 complete)*
+*Last updated: 2026-02-03 (Phase 3 planned)*
