@@ -1,11 +1,16 @@
 /**
  * WAVIUM - Simplified Store
  * Focused on what matters: creating and playing subliminals
+ * Integrates with Supabase for persistence
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  saveSubliminal as saveSubliminalToSupabase,
+  deleteSubliminal as deleteSubliminalFromSupabase,
+} from '@/services/subliminalService';
 
 // Mindi's current state (for animations)
 export type MindiState =
@@ -69,6 +74,20 @@ export interface CreationState {
   audioUrl: string | null;
 }
 
+// Evolution state from Mindi
+export interface EvolutionState {
+  xp: number;
+  glowLevel: number;
+  totalSessions: number;
+  totalMinutes: number;
+}
+
+// Streak data from sessions
+export interface StreakData {
+  currentStreak: number;
+  longestStreak: number;
+}
+
 interface MindiStoreState {
   // Identity
   name: string;
@@ -77,11 +96,21 @@ interface MindiStoreState {
   // Mindi state
   currentState: MindiState;
 
-  // Library of saved subliminals
+  // Library of saved subliminals (synced from Supabase)
   subliminals: Subliminal[];
 
   // Current creation flow
   creation: CreationState;
+
+  // Evolution state (synced from Supabase)
+  xp: number;
+  glowLevel: number;
+  totalSessions: number;
+  totalMinutes: number;
+
+  // Streak data (synced from Supabase)
+  currentStreak: number;
+  longestStreak: number;
 
   // Actions
   setName: (name: string) => void;
@@ -95,10 +124,20 @@ interface MindiStoreState {
   setAudioUrl: (audioUrl: string) => void;
   clearCreation: () => void;
 
-  // Subliminal library actions
+  // Subliminal library actions (Supabase-backed)
+  setSubliminals: (subliminals: Subliminal[]) => void;
+  saveSubliminalToDb: (title: string, audioUrl: string) => Promise<Subliminal>;
+  deleteSubliminalFromDb: (id: string) => Promise<void>;
+  /**
+   * @deprecated Use saveSubliminalToDb instead. This is kept for offline fallback.
+   */
   saveSubliminal: (title: string, audioUrl: string) => Subliminal;
   deleteSubliminal: (id: string) => void;
   getSubliminal: (id: string) => Subliminal | undefined;
+
+  // Evolution state actions
+  setEvolutionState: (state: EvolutionState) => void;
+  setStreakData: (data: StreakData) => void;
 
   // Reset for development/testing
   resetOnboarding: () => void;
@@ -120,6 +159,16 @@ export const useMindiStore = create<MindiStoreState>()(
       currentState: 'idle',
       subliminals: [],
       creation: { ...initialCreation },
+
+      // Evolution state defaults
+      xp: 0,
+      glowLevel: 1,
+      totalSessions: 0,
+      totalMinutes: 0,
+
+      // Streak data defaults
+      currentStreak: 0,
+      longestStreak: 0,
 
       // Actions
       setName: (name) => set({ name }),
@@ -149,7 +198,33 @@ export const useMindiStore = create<MindiStoreState>()(
 
       clearCreation: () => set({ creation: { ...initialCreation } }),
 
-      // Library
+      // Subliminal library (Supabase-backed)
+      setSubliminals: (subliminals) => set({ subliminals }),
+
+      saveSubliminalToDb: async (title, audioUrl) => {
+        const { creation } = get();
+        const newSubliminal = await saveSubliminalToSupabase({
+          title,
+          intention: creation.intention,
+          affirmations: creation.affirmations,
+          track: creation.selectedTrack || 'ocean-waves',
+          audioUrl,
+        });
+
+        // Clear creation state after successful save
+        set({ creation: { ...initialCreation } });
+
+        return newSubliminal;
+      },
+
+      deleteSubliminalFromDb: async (id) => {
+        await deleteSubliminalFromSupabase(id);
+        // Note: Realtime subscription will update the subliminals array
+      },
+
+      /**
+       * @deprecated Use saveSubliminalToDb instead. This is kept for offline fallback.
+       */
       saveSubliminal: (title, audioUrl) => {
         const { creation, subliminals } = get();
         const newSubliminal: Subliminal = {
@@ -177,17 +252,52 @@ export const useMindiStore = create<MindiStoreState>()(
 
       getSubliminal: (id) => get().subliminals.find((s) => s.id === id),
 
+      // Evolution state actions
+      setEvolutionState: (evolutionState) =>
+        set({
+          xp: evolutionState.xp,
+          glowLevel: evolutionState.glowLevel,
+          totalSessions: evolutionState.totalSessions,
+          totalMinutes: evolutionState.totalMinutes,
+        }),
+
+      setStreakData: (streakData) =>
+        set({
+          currentStreak: streakData.currentStreak,
+          longestStreak: streakData.longestStreak,
+        }),
+
       // Reset onboarding state (for development/testing)
       resetOnboarding: () => set({
         userId: null,
         name: 'Mindi',
         subliminals: [],
         creation: { ...initialCreation },
+        xp: 0,
+        glowLevel: 1,
+        totalSessions: 0,
+        totalMinutes: 0,
+        currentStreak: 0,
+        longestStreak: 0,
       }),
     }),
     {
       name: 'wavium-store',
       storage: createJSONStorage(() => AsyncStorage),
+      // Persist only local state - subliminals come from Supabase
+      partialize: (state) => ({
+        name: state.name,
+        userId: state.userId,
+        currentState: state.currentState,
+        creation: state.creation,
+        // Persist evolution state for offline access
+        xp: state.xp,
+        glowLevel: state.glowLevel,
+        totalSessions: state.totalSessions,
+        totalMinutes: state.totalMinutes,
+        currentStreak: state.currentStreak,
+        longestStreak: state.longestStreak,
+      }),
     }
   )
 );
