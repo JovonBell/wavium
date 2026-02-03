@@ -11,12 +11,12 @@ Requirements for MVP release. Each maps to roadmap phases.
 
 - [x] **SEC-01**: Rotate Groq API key and remove from git history
 - [x] **SEC-02**: Secure all secrets via environment variables with validation
-- [ ] **SEC-03**: User can create account with email and password via Supabase
-- [ ] **SEC-04**: User receives email verification after signup
-- [ ] **SEC-05**: User can reset password via email link
-- [ ] **SEC-06**: User session persists across app restarts
-- [ ] **SEC-07**: All backend routes validate JWT tokens
-- [ ] **SEC-08**: CORS configured for production (specific origins only)
+- [x] **SEC-03**: User can create account with email and password via Supabase
+- [x] **SEC-04**: User receives email verification after signup
+- [x] **SEC-05**: User can reset password via email link
+- [x] **SEC-06**: User session persists across app restarts
+- [x] **SEC-07**: All backend routes validate JWT tokens
+- [x] **SEC-08**: CORS configured for production (specific origins only)
 
 ### Database
 
@@ -127,12 +127,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-02 | Phase 1 | Complete |
 | AUDIO-02 | Phase 1 | Complete |
 | REL-01 | Phase 1 | Complete |
-| SEC-03 | Phase 2 | Pending |
-| SEC-04 | Phase 2 | Pending |
-| SEC-05 | Phase 2 | Pending |
-| SEC-06 | Phase 2 | Pending |
-| SEC-07 | Phase 2 | Pending |
-| SEC-08 | Phase 2 | Pending |
+| SEC-03 | Phase 2 | Complete |
+| SEC-04 | Phase 2 | Complete |
+| SEC-05 | Phase 2 | Complete |
+| SEC-06 | Phase 2 | Complete |
+| SEC-07 | Phase 2 | Complete |
+| SEC-08 | Phase 2 | Complete |
 | DB-01 | Phase 3 | Pending |
 | DB-02 | Phase 3 | Pending |
 | DB-03 | Phase 3 | Pending |
@@ -180,4 +180,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-02*
-*Last updated: 2026-02-02 after roadmap creation*
+*Last updated: 2026-02-03 (Phase 2 requirements complete)*
