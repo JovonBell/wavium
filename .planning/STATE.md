@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 3 of 6 (Database Integration)
-Plan: 3 of 5 complete
+Plan: 4 of 5 complete
 Status: In progress
-Last activity: 2026-02-03 - Completed 03-02-PLAN.md
+Last activity: 2026-02-02 - Completed 03-04-PLAN.md
 
-Progress: [████░░░░░░] 46% (2/6 phases complete, 12/14 plans)
+Progress: [█████░░░░░] 50% (2/6 phases complete, 13/14 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 4.5 min
-- Total execution time: 0.88 hours
+- Total plans completed: 13
+- Average duration: 4.4 min
+- Total execution time: 0.95 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [████░░░░░░] 46% (2/6 phases complete, 12/14 plans
 |-------|-------|-------|----------|
 | 01-security-foundation | 3 | 12 min | 4 min |
 | 02-supabase-authentication | 6 | 33 min | 5.5 min |
-| 03-database-integration | 3 | 10 min | 3.3 min |
+| 03-database-integration | 4 | 15 min | 3.75 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-07 (4 min), 03-01 (3 min), 03-02 (4 min), 03-03 (3 min)
+- Last 5 plans: 03-01 (3 min), 03-02 (4 min), 03-03 (3 min), 03-04 (5 min)
 - Trend: Stable at ~3-5 min per plan
 
 *Updated after each plan completion*
@@ -78,6 +78,10 @@ Recent decisions affecting current work:
 - 03-02: Realtime filter by user_id for efficient per-user subscriptions
 - 03-03: Transform functions for snake_case (DB) to camelCase (app) consistency
 - 03-03: Services call RPC functions defined in 03-02 for atomic operations
+- 03-04: Subliminals NOT persisted locally - Supabase is source of truth
+- 03-04: Evolution and streak data persisted locally for offline access
+- 03-04: useMindiSync runs at app root inside AuthProvider
+- 03-04: Deprecated saveSubliminal kept for offline fallback
 
 ### Pending Todos
 
@@ -102,10 +106,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-03
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-02-02
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None
 
 ---
 *Created: 2026-02-02*
-*Last updated: 2026-02-03*
+*Last updated: 2026-02-02*
