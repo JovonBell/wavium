@@ -11,17 +11,22 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useThemeStore } from '../src/stores/useThemeStore';
 import { useMindiStore } from '../src/stores/useMindiStore';
+import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 
 // Keep splash screen visible while loading
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+/**
+ * Inner navigator that handles session-based routing.
+ * Must be inside AuthProvider to access auth state.
+ */
+function RootNavigator() {
   const [appReady, setAppReady] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const updateTimeOfDay = useThemeStore((state) => state.updateTimeOfDay);
-  const userId = useMindiStore((state) => state.userId);
+  const { session, loading, isPasswordRecovery } = useAuthContext();
 
-  // Wait for Zustand store to hydrate from AsyncStorage
+  // Wait for Zustand store to hydrate from MMKV
   useEffect(() => {
     const checkHydration = () => {
       if (useMindiStore.persist.hasHydrated()) {
@@ -48,9 +53,8 @@ export default function RootLayout() {
         // Initialize theme based on time of day
         updateTimeOfDay();
 
-        // Add any other initialization here
-        // e.g., font loading, auth check, etc.
-        await new Promise(resolve => setTimeout(resolve, 500)); // Minimum splash time
+        // Minimum splash time for smooth experience
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (e) {
         console.warn('Error during app initialization:', e);
       } finally {
@@ -62,46 +66,57 @@ export default function RootLayout() {
     prepare();
   }, []);
 
-  // Route guard: When userId changes, ensure correct navigation
+  // Session-based routing
   useEffect(() => {
-    if (!isHydrated || !appReady) return;
+    if (!isHydrated || !appReady || loading) return;
 
-    if (userId) {
-      // User is logged in, ensure we're in main app
+    if (!session) {
+      // No session - go to auth
+      router.replace('/(auth)');
+    } else if (isPasswordRecovery) {
+      // Password recovery flow - go to update password screen
+      router.replace('/(auth)/update-password');
+    } else {
+      // Authenticated - go to main app
       router.replace('/(main)/home');
     }
-  }, [userId, isHydrated, appReady]);
+  }, [session, loading, isPasswordRecovery, isHydrated, appReady]);
 
-  // Wait for BOTH app ready AND store hydration before rendering
-  if (!appReady || !isHydrated) {
+  // Wait for app ready, store hydration, AND auth loading before rendering
+  if (!appReady || !isHydrated || loading) {
     return null;
   }
 
-  // Determine initial route based on user state (NOW safe to read from hydrated store)
-  const initialRoute = userId ? '(main)' : '(onboarding)';
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade',
+        contentStyle: { backgroundColor: 'transparent' },
+      }}
+    >
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(onboarding)" />
+      <Stack.Screen name="(main)" />
+      <Stack.Screen
+        name="player/[id]"
+        options={{
+          animation: 'fade',
+          presentation: 'fullScreenModal',
+        }}
+      />
+    </Stack>
+  );
+}
 
+export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <Stack
-          initialRouteName={initialRoute}
-          screenOptions={{
-            headerShown: false,
-            animation: 'fade',
-            contentStyle: { backgroundColor: 'transparent' },
-          }}
-        >
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(main)" />
-          <Stack.Screen
-            name="player/[id]"
-            options={{
-              animation: 'fade',
-              presentation: 'fullScreenModal',
-            }}
-          />
-        </Stack>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
