@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 3 of 6 (Database Integration)
-Plan: 2 of 5 complete
+Plan: 3 of 5 complete
 Status: In progress
-Last activity: 2026-02-03 - Completed 03-03-PLAN.md
+Last activity: 2026-02-03 - Completed 03-02-PLAN.md
 
-Progress: [████░░░░░░] 43% (2/6 phases complete, 11/14 plans)
+Progress: [████░░░░░░] 46% (2/6 phases complete, 12/14 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 4.5 min
-- Total execution time: 0.82 hours
+- Total execution time: 0.88 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [████░░░░░░] 43% (2/6 phases complete, 11/14 plans
 |-------|-------|-------|----------|
 | 01-security-foundation | 3 | 12 min | 4 min |
 | 02-supabase-authentication | 6 | 33 min | 5.5 min |
-| 03-database-integration | 2 | 6 min | 3 min |
+| 03-database-integration | 3 | 10 min | 3.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-06 (3 min), 02-07 (4 min), 03-01 (3 min), 03-03 (3 min)
+- Last 5 plans: 02-07 (4 min), 03-01 (3 min), 03-02 (4 min), 03-03 (3 min)
 - Trend: Stable at ~3-5 min per plan
 
 *Updated after each plan completion*
@@ -73,6 +73,9 @@ Recent decisions affecting current work:
 - 03-01: ON DELETE SET NULL for sessions.subliminal_id - preserve history when subliminal deleted
 - 03-01: No DELETE policy on sessions/mindi_state - historical records are permanent
 - 03-01: SECURITY DEFINER trigger creates mindi_state on signup - bypasses RLS
+- 03-02: XP thresholds (50/200/500/1000) for glow levels 2/3/4/5
+- 03-02: Current streak must include today or yesterday to be active
+- 03-02: Realtime filter by user_id for efficient per-user subscriptions
 - 03-03: Transform functions for snake_case (DB) to camelCase (app) consistency
 - 03-03: Services call RPC functions defined in 03-02 for atomic operations
 
@@ -100,7 +103,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-03
-Stopped at: Completed 03-03-PLAN.md
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
 
 ---
