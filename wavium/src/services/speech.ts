@@ -19,6 +19,7 @@ export const VOICE_PRESETS = {
   'rainfall': { rate: 1.2, pitch: 0.9 },        // Soft, rapid murmur
   'deep-focus': { rate: 1.25, pitch: 0.85 },    // Fast, focused whisper
   'cosmic-drift': { rate: 1.1, pitch: 0.8 },    // Dreamy, ethereal whisper
+  'lofi-chill': { rate: 1.1, pitch: 0.9 },      // Warm, relaxed whisper
 };
 
 /**

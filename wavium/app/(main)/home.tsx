@@ -20,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore, Subliminal } from '../../src/stores/useMindiStore';
 import { MindiRenderer, MindiSpeech } from '../../src/components/mindi';
-import { GlassmorphicCard, HapticButton, GlowText } from '../../src/components/ui';
+import { GlassmorphicCard, HapticButton, GlowText, StreakCard } from '../../src/components/ui';
 import { typography } from '../../src/theme/typography';
 import { spacing } from '../../src/theme/spacing';
 import { mindiGreetings } from '../../src/theme/colors';
@@ -28,11 +28,12 @@ import { mindiGreetings } from '../../src/theme/colors';
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { colors, timeOfDay } = useThemeStore();
-  const { name: mindiName, subliminals, setCurrentState, resetOnboarding } = useMindiStore();
+  const { name: mindiName, subliminals, streak, setCurrentState, checkInToday, resetOnboarding } = useMindiStore();
 
   const [showSpeech, setShowSpeech] = useState(false);
   const [speechMessage, setSpeechMessage] = useState('');
   const [resetTapCount, setResetTapCount] = useState(0);
+  const [isNewDay, setIsNewDay] = useState(false);
 
   // Refs for timeout cleanup
   const showSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -79,14 +80,24 @@ export default function HomeScreen() {
   const contentOpacity = useSharedValue(0);
 
   useEffect(() => {
+    // Check in for streak
+    const result = checkInToday();
+    setIsNewDay(result.isNewDay);
+
     // Entrance animations
     headerOpacity.value = withTiming(1, { duration: 600 });
     contentOpacity.value = withDelay(300, withTiming(1, { duration: 600 }));
 
-    // Show Mindi greeting
+    // Show Mindi greeting (or streak message)
     showSpeechTimeoutRef.current = setTimeout(() => {
-      const greetings = mindiGreetings[timeOfDay];
-      setSpeechMessage(greetings[Math.floor(Math.random() * greetings.length)]);
+      if (result.isNewDay && streak.currentStreak > 1) {
+        setSpeechMessage(`${streak.currentStreak + 1} days strong! Keep going!`);
+      } else if (result.streakBroken) {
+        setSpeechMessage("Welcome back! Let's start fresh today.");
+      } else {
+        const greetings = mindiGreetings[timeOfDay];
+        setSpeechMessage(greetings[Math.floor(Math.random() * greetings.length)]);
+      }
       setShowSpeech(true);
       setCurrentState('idle');
     }, 800);
@@ -177,6 +188,16 @@ export default function HomeScreen() {
             <Text style={styles.createButtonText}>Create New Subliminal</Text>
           </View>
         </HapticButton>
+      </Animated.View>
+
+      {/* Streak Card */}
+      <Animated.View style={[styles.streakSection, contentStyle]}>
+        <StreakCard
+          currentStreak={streak.currentStreak}
+          longestStreak={streak.longestStreak}
+          totalSessions={streak.totalSessions}
+          isNewDay={isNewDay}
+        />
       </Animated.View>
 
       {/* My Subliminals Library */}
@@ -270,6 +291,9 @@ const styles = StyleSheet.create({
   },
   createSection: {
     marginVertical: spacing.lg,
+  },
+  streakSection: {
+    marginBottom: spacing.lg,
   },
   createButtonContent: {
     flexDirection: 'row',

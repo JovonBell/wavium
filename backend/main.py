@@ -1,18 +1,17 @@
 """
 WAVIUM Backend API
-FastAPI server for AI affirmation generation and TTS
+FastAPI server for AI affirmation generation and subliminal audio mixing
 """
 
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from services.groq_service import generate_affirmations
-from services.tts_service import generate_audio, get_available_voices
+from services.tts_service import generate_audio, generate_subliminal, get_available_voices
 
 load_dotenv()
 
@@ -25,7 +24,7 @@ app = FastAPI(
 # CORS for React Native
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,6 +34,11 @@ app.add_middleware(
 AUDIO_DIR = os.path.join(os.path.dirname(__file__), "audio_output")
 os.makedirs(AUDIO_DIR, exist_ok=True)
 app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
+
+# Serve ambient background tracks
+AMBIENT_DIR = os.path.join(os.path.dirname(__file__), "ambient")
+os.makedirs(AMBIENT_DIR, exist_ok=True)
+app.mount("/ambient", StaticFiles(directory=AMBIENT_DIR), name="ambient")
 
 
 # Request/Response Models
@@ -57,6 +61,22 @@ class GenerateAudioResponse(BaseModel):
     voice: str
 
 
+class GenerateSubliminalRequest(BaseModel):
+    affirmations: list[str]
+    voice: str = "jenny"
+    track: str = "ocean-waves"
+    voice_volume: float = 0.12
+    bg_volume: float = 0.85
+    duration_secs: int = 300
+
+
+class GenerateSubliminalResponse(BaseModel):
+    audio_url: str
+    voice: str
+    track: str
+    duration_secs: int
+
+
 class VoiceInfo(BaseModel):
     id: str
     name: str
@@ -76,9 +96,7 @@ async def health_check():
 
 @app.post("/api/generate-affirmations", response_model=GenerateAffirmationsResponse)
 async def api_generate_affirmations(request: GenerateAffirmationsRequest):
-    """
-    Generate personalized affirmations based on user's intention
-    """
+    """Generate personalized affirmations based on user's intention"""
     if not request.intention.strip():
         raise HTTPException(status_code=400, detail="Intention cannot be empty")
 
@@ -94,32 +112,64 @@ async def api_generate_affirmations(request: GenerateAffirmationsRequest):
 
 @app.post("/api/generate-audio", response_model=GenerateAudioResponse)
 async def api_generate_audio(request: GenerateAudioRequest):
-    """
-    Generate audio from affirmations using TTS
-    """
+    """Generate basic TTS audio from affirmations"""
     if not request.affirmations:
         raise HTTPException(status_code=400, detail="Affirmations list cannot be empty")
 
     try:
         audio_path = await generate_audio(request.affirmations, request.voice)
-
-        # Return the URL path to the audio file
         filename = os.path.basename(audio_path)
-        audio_url = f"/audio/{filename}"
-
         return GenerateAudioResponse(
-            audio_url=audio_url,
+            audio_url=f"/audio/{filename}",
             voice=request.voice
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate audio: {str(e)}")
 
 
+@app.post("/api/generate-subliminal", response_model=GenerateSubliminalResponse)
+async def api_generate_subliminal(request: GenerateSubliminalRequest):
+    """
+    Generate a complete subliminal audio file.
+    Mixes whispered affirmations at low volume under ambient background audio.
+    """
+    if not request.affirmations:
+        raise HTTPException(status_code=400, detail="Affirmations list cannot be empty")
+
+    try:
+        audio_path = await generate_subliminal(
+            affirmations=request.affirmations,
+            voice=request.voice,
+            track=request.track,
+            voice_volume=request.voice_volume,
+            bg_volume=request.bg_volume,
+            duration_secs=request.duration_secs,
+        )
+        filename = os.path.basename(audio_path)
+        return GenerateSubliminalResponse(
+            audio_url=f"/audio/{filename}",
+            voice=request.voice,
+            track=request.track,
+            duration_secs=request.duration_secs,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate subliminal: {str(e)}")
+
+
+@app.get("/api/ambient-tracks")
+async def api_get_ambient_tracks():
+    """Get URLs for ambient background tracks served from this backend"""
+    tracks = {}
+    for name in ["ocean-waves", "rainfall", "deep-focus", "cosmic-drift", "lofi-chill"]:
+        path = os.path.join(AMBIENT_DIR, f"{name}.mp3")
+        if os.path.exists(path):
+            tracks[name] = f"/ambient/{name}.mp3"
+    return tracks
+
+
 @app.get("/api/voices", response_model=list[VoiceInfo])
 async def api_get_voices():
-    """
-    Get available TTS voices
-    """
+    """Get available TTS voices"""
     voices = await get_available_voices()
     return [VoiceInfo(id=v["id"], name=v["name"], description=v["description"]) for v in voices]
 

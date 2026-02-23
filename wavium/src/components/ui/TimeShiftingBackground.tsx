@@ -3,7 +3,7 @@
  * Background that transitions based on time of day
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, Dimensions } from 'react-native';
 import {
   Canvas,
@@ -45,6 +45,14 @@ const AMBIENT_ORBS: Record<TimeOfDay, { color: string; opacity: number }> = {
   evening: { color: '#f59e0b', opacity: 0.1 },
   night: { color: '#6366f1', opacity: 0.05 },
 };
+
+// Generate stable star positions once
+const STARS = Array.from({ length: 30 }, (_, i) => ({
+  cx: Math.random() * SCREEN_WIDTH,
+  cy: Math.random() * SCREEN_HEIGHT * 0.5,
+  r: Math.random() * 1 + 0.5,
+  opacity: Math.random() * 0.4 + 0.2,
+}));
 
 export default function TimeShiftingBackground({
   children,
@@ -107,13 +115,13 @@ export default function TimeShiftingBackground({
         {/* Subtle stars (night only) */}
         {timeOfDay === 'night' && (
           <>
-            {Array.from({ length: 30 }, (_, i) => (
+            {STARS.map((star, i) => (
               <Circle
                 key={i}
-                cx={Math.random() * SCREEN_WIDTH}
-                cy={Math.random() * SCREEN_HEIGHT * 0.5}
-                r={Math.random() * 1 + 0.5}
-                color={`rgba(255, 255, 255, ${Math.random() * 0.4 + 0.2})`}
+                cx={star.cx}
+                cy={star.cy}
+                r={star.r}
+                color={`rgba(255, 255, 255, ${star.opacity})`}
               />
             ))}
           </>

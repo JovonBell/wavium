@@ -21,32 +21,39 @@ export type SoundTrack =
   | 'ocean-waves'
   | 'rainfall'
   | 'deep-focus'
-  | 'cosmic-drift';
+  | 'cosmic-drift'
+  | 'lofi-chill';
 
 export const SOUND_TRACKS: Record<SoundTrack, { name: string; description: string; frequency: string; voice: string }> = {
   'ocean-waves': {
     name: 'Ocean Waves',
     description: 'Gentle waves with theta frequencies',
     frequency: 'Theta (4-8Hz)',
-    voice: 'jenny', // Warm, female
+    voice: 'jenny',
   },
   'rainfall': {
     name: 'Rainfall',
     description: 'Soft rain with alpha waves',
     frequency: 'Alpha (8-12Hz)',
-    voice: 'aria', // Soft, female
+    voice: 'aria',
   },
   'deep-focus': {
     name: 'Deep Focus',
     description: 'Pure binaural beats',
     frequency: 'Gamma (40Hz)',
-    voice: 'guy', // Calm, male
+    voice: 'guy',
   },
   'cosmic-drift': {
     name: 'Cosmic Drift',
     description: 'Ambient space sounds with delta waves',
     frequency: 'Delta (0.5-4Hz)',
-    voice: 'sonia', // UK, female
+    voice: 'sonia',
+  },
+  'lofi-chill': {
+    name: 'Lofi Chill',
+    description: 'Warm lofi hip-hop vibes',
+    frequency: '85 BPM',
+    voice: 'aria',
   },
 };
 
@@ -59,6 +66,14 @@ export interface Subliminal {
   track: SoundTrack;
   audioUrl: string;
   createdAt: string;
+}
+
+// Streak tracking
+export interface StreakState {
+  currentStreak: number;
+  longestStreak: number;
+  lastActiveDate: string | null; // ISO date string (YYYY-MM-DD)
+  totalSessions: number;
 }
 
 // Current creation in progress
@@ -83,6 +98,9 @@ interface MindiStoreState {
   // Current creation flow
   creation: CreationState;
 
+  // Streak
+  streak: StreakState;
+
   // Actions
   setName: (name: string) => void;
   setUserId: (id: string) => void;
@@ -100,6 +118,9 @@ interface MindiStoreState {
   deleteSubliminal: (id: string) => void;
   getSubliminal: (id: string) => Subliminal | undefined;
 
+  // Streak actions
+  checkInToday: () => { isNewDay: boolean; streakBroken: boolean };
+
   // Reset for development/testing
   resetOnboarding: () => void;
 }
@@ -111,6 +132,23 @@ const initialCreation: CreationState = {
   audioUrl: null,
 };
 
+const initialStreak: StreakState = {
+  currentStreak: 0,
+  longestStreak: 0,
+  lastActiveDate: null,
+  totalSessions: 0,
+};
+
+function getToday(): string {
+  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+function getYesterday(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+}
+
 export const useMindiStore = create<MindiStoreState>()(
   persist(
     (set, get) => ({
@@ -120,6 +158,7 @@ export const useMindiStore = create<MindiStoreState>()(
       currentState: 'idle',
       subliminals: [],
       creation: { ...initialCreation },
+      streak: { ...initialStreak },
 
       // Actions
       setName: (name) => set({ name }),
@@ -177,12 +216,53 @@ export const useMindiStore = create<MindiStoreState>()(
 
       getSubliminal: (id) => get().subliminals.find((s) => s.id === id),
 
+      // Streak: call on app open / session start
+      checkInToday: () => {
+        const { streak } = get();
+        const today = getToday();
+        const yesterday = getYesterday();
+
+        // Already checked in today
+        if (streak.lastActiveDate === today) {
+          return { isNewDay: false, streakBroken: false };
+        }
+
+        let newStreak = streak.currentStreak;
+        let streakBroken = false;
+
+        if (streak.lastActiveDate === yesterday) {
+          // Consecutive day — keep the streak going
+          newStreak = streak.currentStreak + 1;
+        } else if (streak.lastActiveDate === null) {
+          // First ever check-in
+          newStreak = 1;
+        } else {
+          // Missed a day — streak breaks, start fresh
+          newStreak = 1;
+          streakBroken = streak.currentStreak > 1;
+        }
+
+        const newLongest = Math.max(streak.longestStreak, newStreak);
+
+        set({
+          streak: {
+            currentStreak: newStreak,
+            longestStreak: newLongest,
+            lastActiveDate: today,
+            totalSessions: streak.totalSessions + 1,
+          },
+        });
+
+        return { isNewDay: true, streakBroken };
+      },
+
       // Reset onboarding state (for development/testing)
       resetOnboarding: () => set({
         userId: null,
         name: 'Mindi',
         subliminals: [],
         creation: { ...initialCreation },
+        streak: { ...initialStreak },
       }),
     }),
     {

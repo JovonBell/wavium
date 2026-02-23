@@ -105,7 +105,9 @@ class AudioSystem {
   // Unload current audio
   async unload() {
     if (this.sound) {
-      await this.sound.unloadAsync();
+      try {
+        await this.sound.unloadAsync();
+      } catch {}
       this.sound = null;
     }
     this.stopSimulatedLevels();
@@ -126,7 +128,9 @@ class AudioSystem {
 
   async stop() {
     if (!this.sound) return;
-    await this.sound.stopAsync();
+    try {
+      await this.sound.stopAsync();
+    } catch {}
     this.stopSimulatedLevels();
   }
 

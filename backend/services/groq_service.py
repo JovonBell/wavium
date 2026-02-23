@@ -8,7 +8,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None:
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise RuntimeError("GROQ_API_KEY environment variable not set")
+        _client = Groq(api_key=api_key)
+    return _client
 
 SYSTEM_PROMPT = """You are an expert at creating powerful, positive affirmations for subliminal audio. Given a user's intention, generate 10-15 personalized affirmations that:
 
@@ -26,7 +35,7 @@ async def generate_affirmations(intention: str) -> list[str]:
     """
     Generate personalized affirmations based on user's intention
     """
-    chat_completion = client.chat.completions.create(
+    chat_completion = _get_client().chat.completions.create(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": f"Create affirmations for someone who wants to: {intention}"}

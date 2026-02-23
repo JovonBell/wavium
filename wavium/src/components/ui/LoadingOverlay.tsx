@@ -161,7 +161,7 @@ export default function LoadingOverlay({
                 styles.progressFill,
                 {
                   backgroundColor: colors.primary,
-                  width: `${progress}%`,
+                  width: `${Math.min(Math.max(progress, 0), 100)}%`,
                 },
               ]}
             />

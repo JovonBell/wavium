@@ -10,6 +10,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,14 +30,15 @@ import { GlassmorphicCard, HapticButton, GlowText, LoadingOverlay } from '../../
 import { typography } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { audio } from '../../src/systems/AudioSystem';
+import { generateVoiceAudio, getAmbientTrackUrl } from '../../src/services/api';
 
-// Audio URLs for track previews
-// Note: Using reliable CDN URLs - some Pixabay URLs expire
+// Audio URLs for track previews - served from our backend
 const BEAT_AUDIO_URLS: Record<string, string> = {
-  'ocean-waves': 'https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3',
-  'rainfall': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-  'deep-focus': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-  'cosmic-drift': 'https://cdn.pixabay.com/audio/2022/01/18/audio_d0a13f69d2.mp3',
+  'ocean-waves': getAmbientTrackUrl('ocean-waves'),
+  'rainfall': getAmbientTrackUrl('rainfall'),
+  'deep-focus': getAmbientTrackUrl('deep-focus'),
+  'cosmic-drift': getAmbientTrackUrl('cosmic-drift'),
+  'lofi-chill': getAmbientTrackUrl('lofi-chill'),
 };
 
 // Track icons
@@ -45,6 +47,7 @@ const TRACK_ICONS: Record<SoundTrack, string> = {
   'rainfall': 'rainy',
   'deep-focus': 'pulse',
   'cosmic-drift': 'planet',
+  'lofi-chill': 'musical-note',
 };
 
 export default function TracksScreen() {
@@ -70,6 +73,8 @@ export default function TracksScreen() {
     };
   }, []);
 
+  const isLoadingPreview = useRef(false);
+
   const handleSelectTrack = async (trackId: SoundTrack) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTrackId(trackId);
@@ -80,20 +85,30 @@ export default function TracksScreen() {
       clearTimeout(previewTimeoutRef.current);
     }
 
+    // Prevent overlapping load/play operations
+    if (isLoadingPreview.current) return;
+    isLoadingPreview.current = true;
+
     // Play audio preview
     try {
       const previewUrl = BEAT_AUDIO_URLS[trackId];
-      await audio.stop();
-      await audio.load(previewUrl);
+      try { await audio.stop(); } catch {}
+      const loaded = await audio.load(previewUrl);
+      if (!loaded) {
+        isLoadingPreview.current = false;
+        return;
+      }
       await audio.setVolume(0.5);
       await audio.play();
 
       // Stop preview after 5 seconds
       previewTimeoutRef.current = setTimeout(() => {
-        audio.stop();
+        audio.stop().catch(() => {});
       }, 5000);
     } catch (error) {
       console.warn('Could not play track preview:', error);
+    } finally {
+      isLoadingPreview.current = false;
     }
   };
 
@@ -105,33 +120,58 @@ export default function TracksScreen() {
   const handleCreateSubliminal = async () => {
     if (!selectedTrackId) return;
     if (!creation.intention || !creation.affirmations?.length) {
-      // No valid creation data - go back to create flow
       router.replace('/(main)/create');
       return;
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setIsCreating(true);
-    setGenerationProgress(30);
-    setGenerationMessage('Preparing your subliminal...');
+    setGenerationProgress(10);
+    setGenerationMessage('Generating your subliminal audio...');
 
-    // Simulate a brief loading for UX (expo-speech handles TTS in the player)
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setGenerationProgress(70);
-    setGenerationMessage('Almost ready...');
+    // Get the voice for the selected track
+    const trackConfig = SOUND_TRACKS[selectedTrackId];
+    const voice = trackConfig.voice || 'jenny';
 
-    await new Promise(resolve => setTimeout(resolve, 300));
-    setGenerationProgress(100);
-    setGenerationMessage('Ready!');
+    try {
+      setGenerationProgress(30);
+      setGenerationMessage('Creating whispered affirmations...');
 
-    // Save the subliminal (TTS is handled by expo-speech in the player)
-    const title = (creation.intention || 'My Subliminal').slice(0, 50);
-    const newSubliminal = saveSubliminal(title, '');
+      // Generate voice-only TTS audio (player handles background separately)
+      const { audioUrl, error } = await generateVoiceAudio(
+        creation.affirmations,
+        voice,
+      );
 
-    // Navigate to player
-    setTimeout(() => {
-      router.replace(`/player/${newSubliminal.id}`);
-    }, 300);
+      if (error || !audioUrl) {
+        throw new Error(error || 'No audio URL returned');
+      }
+
+      setGenerationProgress(90);
+      setGenerationMessage('Almost ready...');
+
+      // Save with the real audio URL
+      const title = (creation.intention || 'My Subliminal').slice(0, 50);
+      const newSubliminal = saveSubliminal(title, audioUrl);
+
+      setGenerationProgress(100);
+      setGenerationMessage('Ready!');
+
+      setTimeout(() => {
+        router.replace(`/player/${newSubliminal.id}`);
+      }, 300);
+    } catch (error) {
+      setIsCreating(false);
+      setGenerationProgress(0);
+      setGenerationMessage('');
+
+      Alert.alert(
+        'Generation Failed',
+        'Could not generate subliminal audio. Make sure the backend server is running.\n\n' +
+          (error instanceof Error ? error.message : 'Unknown error'),
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const trackIds = Object.keys(SOUND_TRACKS) as SoundTrack[];
