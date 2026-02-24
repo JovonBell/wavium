@@ -1,11 +1,18 @@
 /**
  * WAVIUM - Glassmorphic Card
- * Frosted glass effect cards
+ * Three-layer frosted glass effect cards with ambient glow
+ *
+ * Layer 1: BlurView (or Android pre-31 fallback)
+ * Layer 2: Tint overlay using glassOverlay token
+ * Layer 3: Top-edge highlight using glassBorder token
+ *
+ * Requirements: SURF-01, SURF-02, SURF-04, PERF-03
  */
 
 import React, { ReactNode } from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -29,6 +36,20 @@ const PADDING_MAP = {
   large: spacing.lg,
 };
 
+/**
+ * Android pre-API-31 cannot render BlurView reliably.
+ * Use a semi-transparent fallback instead (SURF-04).
+ */
+const needsBlurFallback =
+  Platform.OS === 'android' &&
+  typeof Platform.Version === 'number' &&
+  Platform.Version < 31;
+
+const isAndroid31Plus =
+  Platform.OS === 'android' &&
+  typeof Platform.Version === 'number' &&
+  Platform.Version >= 31;
+
 export default function GlassmorphicCard({
   children,
   style,
@@ -38,40 +59,88 @@ export default function GlassmorphicCard({
 }: GlassmorphicCardProps) {
   const { colors } = useThemeStore();
 
+  // SURF-02: Ambient glow always applied; borderGlow increases intensity
+  const shadowOpacity = borderGlow ? 0.3 : 0.15;
+
+  const contentStyle: ViewStyle = {
+    padding: PADDING_MAP[padding],
+    borderColor: colors.glassBorder,
+  };
+
+  // Layer 1: Blur background (or fallback)
+  const renderBlurLayer = () => {
+    if (needsBlurFallback) {
+      // SURF-04: Android pre-31 fallback — opaque tinted view
+      return (
+        <View
+          style={[
+            styles.blur,
+            contentStyle,
+            { backgroundColor: colors.glassOverlay, opacity: 0.85 },
+          ]}
+        >
+          {/* Layer 2: Tint overlay */}
+          <View
+            style={[
+              styles.overlay,
+              { backgroundColor: colors.glassOverlay },
+            ]}
+          />
+          {/* Layer 3: Top-edge highlight */}
+          <LinearGradient
+            colors={['transparent', colors.glassBorder, 'transparent']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.topHighlight}
+          />
+          {children}
+        </View>
+      );
+    }
+
+    // BlurView for iOS and Android API 31+
+    return (
+      <BlurView
+        intensity={intensity} // PERF-03: static, never animated
+        tint="dark"
+        style={[styles.blur, contentStyle]}
+        {...(isAndroid31Plus && { experimentalBlurMethod: 'dimezisBlurView' })}
+      >
+        {/* Layer 2: Tint overlay */}
+        <View
+          style={[
+            styles.overlay,
+            { backgroundColor: colors.glassOverlay },
+          ]}
+        />
+        {/* Layer 3: Top-edge highlight */}
+        <LinearGradient
+          colors={['transparent', colors.glassBorder, 'transparent']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.topHighlight}
+        />
+        {children}
+      </BlurView>
+    );
+  };
+
   return (
     <View
       style={[
         styles.container,
-        borderGlow && {
-          shadowColor: colors.primary,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
+        {
+          // SURF-02: Ambient glow shadow always applied
+          shadowColor: colors.primaryGradient[0],
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity,
+          shadowRadius: 16,
           elevation: 8,
         },
         style,
       ]}
     >
-      <BlurView
-        intensity={intensity}
-        tint="dark"
-        style={[
-          styles.blur,
-          {
-            padding: PADDING_MAP[padding],
-            borderColor: borderGlow ? `${colors.primary}40` : `${colors.textMuted}20`,
-          },
-        ]}
-      >
-        {/* Subtle gradient overlay */}
-        <View
-          style={[
-            styles.overlay,
-            { backgroundColor: colors.surfaceGlow },
-          ]}
-        />
-        {children}
-      </BlurView>
+      {renderBlurLayer()}
     </View>
   );
 }
@@ -89,5 +158,12 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.5,
+  },
+  topHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
   },
 });
