@@ -13,7 +13,7 @@ Five sequential phases transform Wavium from a competent dark-mode app into a sa
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Token Foundation** - Establish the design token system and typography that every subsequent phase depends on (completed 2026-02-24)
-- [ ] **Phase 2: Core UI Components** - Refactor shared components (glass cards, buttons, surfaces) to deliver the premium aesthetic
+- [x] **Phase 2: Core UI Components** - Refactor shared components (glass cards, buttons, surfaces) to deliver the premium aesthetic (completed 2026-02-24)
 - [ ] **Phase 3: Mindi Animation System** - Refactor audio reactivity architecture and implement all Mindi animations
 - [ ] **Phase 4: THE VOID Player** - Polish the immersive player experience (affirmation ceremony, progress bar, auto-hide controls)
 - [ ] **Phase 5: Screen Polish** - Apply the completed component system to all screens with entrance animations and micro-interactions
@@ -47,7 +47,12 @@ Plans:
   3. Every touch target responds with a scale-down-and-spring-back micro-interaction when tapped
   4. Cards and chips use the consistent corner radius system (20px cards, 12px chips) with no deviations
   5. On an Android device, glassmorphism cards render without performance drop — blur fallback activates cleanly on pre-API-31 devices
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [x] 02-01-PLAN.md — GlassmorphicCard 3-layer refactor (SURF-01, SURF-02, SURF-04, SURF-05, PERF-03) (Wave 1)
+- [x] 02-02-PLAN.md — HapticButton gradient CTA + micro-interactions (INTR-01, INTR-02, INTR-03, INTR-04) (Wave 1)
+- [x] 02-03-PLAN.md — Corner radius + spacing consistency (SURF-03, INTR-05) (Wave 2)
 
 ### Phase 3: Mindi Animation System
 **Goal**: Mindi is alive — she breathes at idle, glows in sync with audio playback, tracks touch on screen, and arrives with presence on each screen, all without causing React re-renders
@@ -93,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Token Foundation | 3/3 | Complete   | 2026-02-24 |
-| 2. Core UI Components | 2/3 | In progress | - |
+| 2. Core UI Components | 3/3 | Complete | 2026-02-24 |
 | 3. Mindi Animation System | 0/TBD | Not started | - |
 | 4. THE VOID Player | 0/TBD | Not started | - |
 | 5. Screen Polish | 0/TBD | Not started | - |
