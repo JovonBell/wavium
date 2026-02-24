@@ -43,8 +43,8 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 
 ### Mindi Animation
 
-- [ ] **MIND-01**: Mindi idle breathing animation — slow scale pulse (1.0 → 1.02, 4s loop) when not in active playback
-- [ ] **MIND-02**: Mindi glow pulse synced to audio playback via SharedValue (not React state)
+- [x] **MIND-01**: Mindi idle breathing animation — slow scale pulse (1.0 → 1.02, 4s loop) when not in active playback
+- [x] **MIND-02**: Mindi glow pulse synced to audio playback via SharedValue (not React state)
 - [ ] **MIND-03**: Mindi eye movement/tracking that reacts to touch position on screen
 - [ ] **MIND-04**: Mindi entrance animations per screen (translate + scale via Skia `matrix` prop)
 - [ ] **MIND-05**: VoidContainer `audioLevel` refactored from useState to useSharedValue (zero re-renders for audio reactivity)
@@ -70,7 +70,7 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 ### Performance
 
 - [ ] **PERF-01**: All animations maintain 60fps on mid-range Android devices
-- [ ] **PERF-02**: Skia interpolateColors used (not Reanimated interpolateColor) for all Skia color animations
+- [x] **PERF-02**: Skia interpolateColors used (not Reanimated interpolateColor) for all Skia color animations
 - [x] **PERF-03**: No blur intensity animation — container opacity animated instead for blur reveal effects
 
 ## v2 Requirements
@@ -130,13 +130,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTR-04 | Phase 2 | Complete |
 | INTR-05 | Phase 2 | Complete |
 | PERF-03 | Phase 2 | Complete |
-| MIND-01 | Phase 3 | Pending |
-| MIND-02 | Phase 3 | Pending |
+| MIND-01 | Phase 3 | Complete |
+| MIND-02 | Phase 3 | Complete |
 | MIND-03 | Phase 3 | Pending |
 | MIND-04 | Phase 3 | Pending |
 | MIND-05 | Phase 3 | Pending |
 | MIND-06 | Phase 3 | Pending |
-| PERF-02 | Phase 3 | Pending |
+| PERF-02 | Phase 3 | Complete |
 | VOID-01 | Phase 4 | Pending |
 | VOID-02 | Phase 4 | Pending |
 | VOID-03 | Phase 4 | Pending |
