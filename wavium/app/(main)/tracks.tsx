@@ -20,6 +20,7 @@ import Animated, {
   FadeInUp,
   useAnimatedStyle,
   withSpring,
+  withTiming,
   useSharedValue,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +32,15 @@ import { typography } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { audio } from '../../src/systems/AudioSystem';
 import { generateVoiceAudio, getAmbientTrackUrl } from '../../src/services/api';
+
+// Mood color tints per track — subtle background shift on selection (VOID-06)
+const MOOD_COLORS: Record<string, string> = {
+  'ocean-waves': 'rgba(30, 60, 120, 0.15)',    // cool blue tint
+  'rainfall': 'rgba(60, 80, 110, 0.12)',         // grey-blue tint
+  'deep-focus': 'rgba(80, 40, 120, 0.15)',       // purple tint
+  'cosmic-drift': 'rgba(40, 30, 100, 0.18)',     // deep indigo tint
+  'lofi-chill': 'rgba(120, 80, 30, 0.12)',       // warm amber tint
+};
 
 // Audio URLs for track previews - served from our backend
 const BEAT_AUDIO_URLS: Record<string, string> = {
@@ -63,6 +73,14 @@ export default function TracksScreen() {
   const [generationMessage, setGenerationMessage] = useState('');
   const previewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Mood color tint overlay (VOID-06)
+  const [moodTint, setMoodTint] = useState('transparent');
+  const moodOpacity = useSharedValue(0);
+
+  const moodStyle = useAnimatedStyle(() => ({
+    opacity: moodOpacity.value,
+  }));
+
   // Cleanup audio when leaving screen
   useEffect(() => {
     return () => {
@@ -79,6 +97,11 @@ export default function TracksScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTrackId(trackId);
     setSelectedTrack(trackId);
+
+    // Update mood color tint (VOID-06)
+    const mood = MOOD_COLORS[trackId] || 'transparent';
+    setMoodTint(mood);
+    moodOpacity.value = withTiming(1, { duration: 800 });
 
     // Clear any existing preview timeout
     if (previewTimeoutRef.current) {
@@ -178,6 +201,14 @@ export default function TracksScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Mood color tint overlay (VOID-06) */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          moodStyle,
+          { backgroundColor: moodTint, pointerEvents: 'none' },
+        ]}
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
