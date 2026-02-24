@@ -14,7 +14,9 @@ import {
   vec,
 } from '@shopify/react-native-skia';
 import Animated, {
+  SharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withTiming,
   withSequence,
@@ -27,12 +29,16 @@ interface MindiEyesProps {
   size: number;
   bodyRadius: number;
   state: MindiState;
+  touchX?: SharedValue<number>;
+  touchY?: SharedValue<number>;
 }
 
 export default function MindiEyes({
   size,
   bodyRadius,
   state,
+  touchX,
+  touchY,
 }: MindiEyesProps) {
   const blinkProgress = useSharedValue(0);
   const eyeOpenness = useSharedValue(1);
@@ -59,6 +65,33 @@ export default function MindiEyes({
       pupilRadius: baseEyeWidth * 0.35 * expressiveness,
     };
   }, [bodyRadius, center]);
+
+  // Touch-based pupil offset
+  const touchPupilOffsetX = useDerivedValue(() => {
+    if (!touchX) return 0;
+    const dx = (touchX.value - center) * 0.015;
+    const maxOffset = eyeProps.pupilRadius * 0.5;
+    return Math.max(-maxOffset, Math.min(maxOffset, dx));
+  });
+
+  const touchPupilOffsetY = useDerivedValue(() => {
+    if (!touchY) return 0;
+    const dy = (touchY.value - center) * 0.015;
+    const maxOffset = eyeProps.pupilRadius * 0.4;
+    return Math.max(-maxOffset, Math.min(maxOffset, dy));
+  });
+
+  // Derived pupil positions (touch offset + state-driven offset)
+  const leftPupilCx = useDerivedValue(() => eyeProps.leftX + touchPupilOffsetX.value + pupilX.value);
+  const leftPupilCy = useDerivedValue(() => eyeProps.y + touchPupilOffsetY.value + pupilY.value);
+  const rightPupilCx = useDerivedValue(() => eyeProps.rightX + touchPupilOffsetX.value + pupilX.value);
+  const rightPupilCy = useDerivedValue(() => eyeProps.y + touchPupilOffsetY.value + pupilY.value);
+
+  // Derived highlight positions (track with pupils)
+  const leftHighlightCx = useDerivedValue(() => eyeProps.leftX - eyeProps.pupilRadius * 0.3 + touchPupilOffsetX.value + pupilX.value);
+  const leftHighlightCy = useDerivedValue(() => eyeProps.y - eyeProps.pupilRadius * 0.3 + touchPupilOffsetY.value + pupilY.value);
+  const rightHighlightCx = useDerivedValue(() => eyeProps.rightX - eyeProps.pupilRadius * 0.3 + touchPupilOffsetX.value + pupilX.value);
+  const rightHighlightCy = useDerivedValue(() => eyeProps.y - eyeProps.pupilRadius * 0.3 + touchPupilOffsetY.value + pupilY.value);
 
   // Random blinking
   useEffect(() => {
@@ -155,14 +188,14 @@ export default function MindiEyes({
                 />
               </Oval>
               <Circle
-                cx={eyeProps.leftX}
-                cy={eyeProps.y}
+                cx={leftPupilCx}
+                cy={leftPupilCy}
                 r={eyeProps.pupilRadius}
                 color={pupilColor}
               />
               <Circle
-                cx={eyeProps.leftX - eyeProps.pupilRadius * 0.3}
-                cy={eyeProps.y - eyeProps.pupilRadius * 0.3}
+                cx={leftHighlightCx}
+                cy={leftHighlightCy}
                 r={eyeProps.pupilRadius * 0.3}
                 color={highlightColor}
                 opacity={0.8}
@@ -184,14 +217,14 @@ export default function MindiEyes({
                 />
               </Oval>
               <Circle
-                cx={eyeProps.rightX}
-                cy={eyeProps.y}
+                cx={rightPupilCx}
+                cy={rightPupilCy}
                 r={eyeProps.pupilRadius}
                 color={pupilColor}
               />
               <Circle
-                cx={eyeProps.rightX - eyeProps.pupilRadius * 0.3}
-                cy={eyeProps.y - eyeProps.pupilRadius * 0.3}
+                cx={rightHighlightCx}
+                cy={rightHighlightCy}
                 r={eyeProps.pupilRadius * 0.3}
                 color={highlightColor}
                 opacity={0.8}
