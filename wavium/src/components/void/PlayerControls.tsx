@@ -13,6 +13,7 @@ import Animated, {
   FadeOut,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -129,18 +130,28 @@ export default function PlayerControls({
 
       {/* Bottom controls */}
       <View style={styles.bottomBar}>
-        {/* Progress bar */}
+        {/* Progress bar — minimal 2px gold gradient (VOID-04) */}
         <View style={styles.progressContainer}>
           <View style={[styles.progressTrack, { backgroundColor: `${colors.textMuted}40` }]}>
-            <Animated.View
+            <View
               style={[
                 styles.progressFill,
                 {
-                  backgroundColor: colors.primary,
                   width: `${progress * 100}%`,
+                  shadowColor: colors.primaryGradient[1],
+                  shadowRadius: 4,
+                  shadowOpacity: 0.6,
+                  shadowOffset: { width: 0, height: 0 },
                 },
               ]}
-            />
+            >
+              <LinearGradient
+                colors={colors.primaryGradient as unknown as [string, string, ...string[]]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </View>
           </View>
           <View style={styles.timeContainer}>
             <Text style={[styles.timeText, { color: colors.textSecondary }]}>
@@ -343,13 +354,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   progressTrack: {
-    height: 4,
-    borderRadius: 2,
+    height: 2,
+    borderRadius: 1,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 1,
+    overflow: 'hidden',
   },
   timeContainer: {
     flexDirection: 'row',
