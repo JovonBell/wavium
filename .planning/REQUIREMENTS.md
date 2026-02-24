@@ -52,12 +52,12 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 
 ### THE VOID Player
 
-- [ ] **VOID-01**: Auto-hide player controls after 3-4 seconds idle, tap anywhere to reveal
-- [ ] **VOID-02**: Affirmation ceremony — one-by-one reveal with staggered fade/translate animation (not numbered list)
-- [ ] **VOID-03**: Current affirmation highlighted during playback (glow pulse, others dimmed to 40%)
-- [ ] **VOID-04**: Minimal progress bar — 2px height, gradient gold fill, subtle glow, no percentage text
-- [ ] **VOID-05**: ProgressRing replaced with Skia arc path (GPU-rendered, SharedValue-driven)
-- [ ] **VOID-06**: Sound picker mood preview — screen background shifts color temperature per selected sound
+- [x] **VOID-01**: Auto-hide player controls after 3-4 seconds idle, tap anywhere to reveal
+- [x] **VOID-02**: Affirmation ceremony — one-by-one reveal with staggered fade/translate animation (not numbered list)
+- [x] **VOID-03**: Current affirmation highlighted during playback (glow pulse, others dimmed to 40%)
+- [x] **VOID-04**: Minimal progress bar — 2px height, gradient gold fill, subtle glow, no percentage text
+- [x] **VOID-05**: ProgressRing replaced with Skia arc path (GPU-rendered, SharedValue-driven)
+- [x] **VOID-06**: Sound picker mood preview — screen background shifts color temperature per selected sound
 
 ### Screen Polish
 
@@ -137,12 +137,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIND-05 | Phase 3 | Complete |
 | MIND-06 | Phase 3 | Complete |
 | PERF-02 | Phase 3 | Complete |
-| VOID-01 | Phase 4 | Pending |
-| VOID-02 | Phase 4 | Pending |
-| VOID-03 | Phase 4 | Pending |
-| VOID-04 | Phase 4 | Pending |
-| VOID-05 | Phase 4 | Pending |
-| VOID-06 | Phase 4 | Pending |
+| VOID-01 | Phase 4 | Complete |
+| VOID-02 | Phase 4 | Complete |
+| VOID-03 | Phase 4 | Complete |
+| VOID-04 | Phase 4 | Complete |
+| VOID-05 | Phase 4 | Complete |
+| VOID-06 | Phase 4 | Complete |
 | SCRN-01 | Phase 5 | Pending |
 | SCRN-02 | Phase 5 | Pending |
 | SCRN-03 | Phase 5 | Pending |
