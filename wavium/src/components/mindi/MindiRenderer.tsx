@@ -3,8 +3,8 @@
  * Beautiful, simple Skia-based AI companion
  */
 
-import React, { useEffect, useMemo } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { View, StyleSheet, Dimensions, GestureResponderEvent } from 'react-native';
 import {
   Canvas,
   Circle,
@@ -35,12 +35,14 @@ interface MindiRendererProps {
   size?: number;
   showParticles?: boolean;
   audioLevel?: SharedValue<number>;
+  entrance?: 'fadeScale' | 'none';
 }
 
 export default function MindiRenderer({
   size = 200,
   showParticles = true,
   audioLevel,
+  entrance = 'fadeScale',
 }: MindiRendererProps) {
   const { currentState } = useMindiStore();
   const { colors } = useThemeStore();
@@ -52,12 +54,40 @@ export default function MindiRenderer({
   const glowIntensity = useSharedValue(1);
   const headTilt = useSharedValue(0);
 
+  // Touch tracking
+  const touchX = useSharedValue(0);
+  const touchY = useSharedValue(0);
+
+  // Entrance animation values
+  const entranceOpacity = useSharedValue(entrance === 'fadeScale' ? 0 : 1);
+  const entranceTranslateY = useSharedValue(entrance === 'fadeScale' ? 30 : 0);
+  const entranceScale = useSharedValue(entrance === 'fadeScale' ? 0.5 : 1);
+
   // Beautiful default colors
   const mindiColors = useMemo(() => ({
     primary: colors.mindiBase,
     secondary: colors.mindiGlow,
     accent: colors.mindiHighlight,
   }), [colors]);
+
+  // Touch move handler for eye tracking
+  const handleTouchMove = useCallback((event: GestureResponderEvent) => {
+    touchX.value = event.nativeEvent.locationX;
+    touchY.value = event.nativeEvent.locationY;
+  }, []);
+
+  // Entrance animation on mount
+  useEffect(() => {
+    if (entrance === 'fadeScale') {
+      entranceOpacity.value = withTiming(1, { duration: 600 });
+      entranceTranslateY.value = withSpring(0, springs.gentle);
+      entranceScale.value = withSpring(1, springs.bouncy);
+    } else {
+      entranceOpacity.value = 1;
+      entranceTranslateY.value = 0;
+      entranceScale.value = 1;
+    }
+  }, []);
 
   // Idle floating animation
   useEffect(() => {
@@ -164,6 +194,15 @@ export default function MindiRenderer({
     ],
   }));
 
+  // Entrance animation style (wraps entire Mindi)
+  const entranceStyle = useAnimatedStyle(() => ({
+    opacity: entranceOpacity.value,
+    transform: [
+      { translateY: entranceTranslateY.value },
+      { scale: entranceScale.value },
+    ],
+  }));
+
   // Body proportions - always beautiful, no evolution
   const bodyProps = useMemo(() => {
     const baseRadius = size * 0.35;
@@ -178,71 +217,79 @@ export default function MindiRenderer({
   const center = size / 2;
 
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
-      {/* Particle layer (behind Mindi) */}
-      {showParticles && (
-        <MindiParticles
-          size={size}
-          intensity={bodyProps.particleIntensity}
-          colors={mindiColors}
-          absorbing={currentState === 'generating' || currentState === 'peaceful'}
-        />
-      )}
-
-      {/* Glow layer */}
-      <MindiGlow
-        size={size}
-        intensity={0.7}
-        layers={bodyProps.glowLayers}
-        color={mindiColors.secondary}
-        audioLevel={audioLevel}
-      />
-
-      {/* Main Mindi body */}
-      <Animated.View style={[styles.mindiBody, animatedStyle]}>
-        <Canvas style={{ width: size, height: size }}>
-          <Group>
-            {/* Main body gradient */}
-            <Circle cx={center} cy={center} r={bodyProps.bodyRadius}>
-              <RadialGradient
-                c={vec(center, center - bodyProps.bodyRadius * 0.3)}
-                r={bodyProps.bodyRadius * 1.5}
-                colors={[
-                  mindiColors.accent,
-                  mindiColors.primary,
-                  mindiColors.secondary,
-                ]}
-              />
-              <BlurMask blur={2} style="solid" />
-            </Circle>
-
-            {/* Inner glow */}
-            <Circle
-              cx={center}
-              cy={center - bodyProps.bodyRadius * 0.2}
-              r={bodyProps.bodyRadius * 0.5}
-            >
-              <RadialGradient
-                c={vec(center, center - bodyProps.bodyRadius * 0.3)}
-                r={bodyProps.bodyRadius * 0.6}
-                colors={[
-                  'rgba(255, 255, 255, 0.6)',
-                  'rgba(255, 255, 255, 0.2)',
-                  'rgba(255, 255, 255, 0)',
-                ]}
-              />
-            </Circle>
-          </Group>
-        </Canvas>
-
-        {/* Eyes layer */}
-        {bodyProps.hasFeatures && (
-          <MindiEyes
+    <View
+      style={[styles.container, { width: size, height: size }]}
+      onStartShouldSetResponder={() => true}
+      onResponderMove={handleTouchMove}
+    >
+      <Animated.View style={[StyleSheet.absoluteFill, entranceStyle]}>
+        {/* Particle layer (behind Mindi) */}
+        {showParticles && (
+          <MindiParticles
             size={size}
-            bodyRadius={bodyProps.bodyRadius}
-            state={currentState}
+            intensity={bodyProps.particleIntensity}
+            colors={mindiColors}
+            absorbing={currentState === 'generating' || currentState === 'peaceful'}
           />
         )}
+
+        {/* Glow layer */}
+        <MindiGlow
+          size={size}
+          intensity={0.7}
+          layers={bodyProps.glowLayers}
+          color={mindiColors.secondary}
+          audioLevel={audioLevel}
+        />
+
+        {/* Main Mindi body */}
+        <Animated.View style={[styles.mindiBody, animatedStyle]}>
+          <Canvas style={{ width: size, height: size }}>
+            <Group>
+              {/* Main body gradient */}
+              <Circle cx={center} cy={center} r={bodyProps.bodyRadius}>
+                <RadialGradient
+                  c={vec(center, center - bodyProps.bodyRadius * 0.3)}
+                  r={bodyProps.bodyRadius * 1.5}
+                  colors={[
+                    mindiColors.accent,
+                    mindiColors.primary,
+                    mindiColors.secondary,
+                  ]}
+                />
+                <BlurMask blur={2} style="solid" />
+              </Circle>
+
+              {/* Inner glow */}
+              <Circle
+                cx={center}
+                cy={center - bodyProps.bodyRadius * 0.2}
+                r={bodyProps.bodyRadius * 0.5}
+              >
+                <RadialGradient
+                  c={vec(center, center - bodyProps.bodyRadius * 0.3)}
+                  r={bodyProps.bodyRadius * 0.6}
+                  colors={[
+                    'rgba(255, 255, 255, 0.6)',
+                    'rgba(255, 255, 255, 0.2)',
+                    'rgba(255, 255, 255, 0)',
+                  ]}
+                />
+              </Circle>
+            </Group>
+          </Canvas>
+
+          {/* Eyes layer */}
+          {bodyProps.hasFeatures && (
+            <MindiEyes
+              size={size}
+              bodyRadius={bodyProps.bodyRadius}
+              state={currentState}
+              touchX={touchX}
+              touchY={touchY}
+            />
+          )}
+        </Animated.View>
       </Animated.View>
     </View>
   );
