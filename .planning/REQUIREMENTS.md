@@ -61,15 +61,15 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 
 ### Screen Polish
 
-- [ ] **SCRN-01**: Entrance animations on all major screens (staggered Reanimated entering, 200-400ms per element group)
-- [ ] **SCRN-02**: Home screen spacing and typography hierarchy applied with new components
-- [ ] **SCRN-03**: Tab bar refactored to floating glass pill style
-- [ ] **SCRN-04**: StatusBar hidden during player experience, visible during navigation screens
-- [ ] **SCRN-05**: Loading states use aesthetic placeholders (pulsing glow, shimmer) — no default ActivityIndicator
+- [x] **SCRN-01**: Entrance animations on all major screens (staggered Reanimated entering, 200-400ms per element group)
+- [x] **SCRN-02**: Home screen spacing and typography hierarchy applied with new components
+- [x] **SCRN-03**: Tab bar refactored to floating glass pill style
+- [x] **SCRN-04**: StatusBar hidden during player experience, visible during navigation screens
+- [x] **SCRN-05**: Loading states use aesthetic placeholders (pulsing glow, shimmer) — no default ActivityIndicator
 
 ### Performance
 
-- [ ] **PERF-01**: All animations maintain 60fps on mid-range Android devices
+- [x] **PERF-01**: All animations maintain 60fps on mid-range Android devices
 - [x] **PERF-02**: Skia interpolateColors used (not Reanimated interpolateColor) for all Skia color animations
 - [x] **PERF-03**: No blur intensity animation — container opacity animated instead for blur reveal effects
 
@@ -143,12 +143,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VOID-04 | Phase 4 | Complete |
 | VOID-05 | Phase 4 | Complete |
 | VOID-06 | Phase 4 | Complete |
-| SCRN-01 | Phase 5 | Pending |
-| SCRN-02 | Phase 5 | Pending |
-| SCRN-03 | Phase 5 | Pending |
-| SCRN-04 | Phase 5 | Pending |
-| SCRN-05 | Phase 5 | Pending |
-| PERF-01 | Phase 5 | Pending |
+| SCRN-01 | Phase 5 | Complete |
+| SCRN-02 | Phase 5 | Complete |
+| SCRN-03 | Phase 5 | Complete |
+| SCRN-04 | Phase 5 | Complete |
+| SCRN-05 | Phase 5 | Complete |
+| PERF-01 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 42 total

@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Core UI Components** - Refactor shared components (glass cards, buttons, surfaces) to deliver the premium aesthetic (completed 2026-02-24)
 - [x] **Phase 3: Mindi Animation System** - Refactor audio reactivity architecture and implement all Mindi animations (completed 2026-02-24)
 - [x] **Phase 4: THE VOID Player** - Polish the immersive player experience (affirmation ceremony, progress bar, auto-hide controls) (completed 2026-02-24)
-- [ ] **Phase 5: Screen Polish** - Apply the completed component system to all screens with entrance animations and micro-interactions
+- [x] **Phase 5: Screen Polish** - Apply the completed component system to all screens with entrance animations and micro-interactions (completed 2026-02-24)
 
 ## Phase Details
 
@@ -88,7 +88,11 @@ Plans:
   3. The StatusBar is hidden during THE VOID player experience and visible during navigation screens
   4. Loading states show pulsing glow or shimmer placeholders — no default ActivityIndicator spinner appears anywhere
   5. All animations maintain 60fps on a mid-range Android device — no visible jank or frame drops during any transition or idle animation
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [x] 05-01-PLAN.md — Entrance animations + home typography (SCRN-01, SCRN-02) (Wave 1)
+- [x] 05-02-PLAN.md — Glass tab bar + StatusBar + loading polish (SCRN-03, SCRN-04, SCRN-05, PERF-01) (Wave 1)
 
 ## Progress
 
@@ -101,4 +105,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Core UI Components | 3/3 | Complete | 2026-02-24 |
 | 3. Mindi Animation System | 3/3 | Complete   | 2026-02-24 |
 | 4. THE VOID Player | 3/3 | Complete | 2026-02-24 |
-| 5. Screen Polish | 0/TBD | Not started | - |
+| 5. Screen Polish | 2/2 | Complete | 2026-02-24 |
