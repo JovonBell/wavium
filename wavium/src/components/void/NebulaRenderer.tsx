@@ -63,7 +63,8 @@ export default function NebulaRenderer({
   gyroX,
   gyroY,
 }: NebulaRendererProps) {
-  const { colors, timeOfDay } = useThemeStore();
+  const { colors } = useThemeStore();
+  const [nebulaP, nebulaS, nebulaT] = colors.primaryGradient;
 
   // Animation values
   const morphProgress = useSharedValue(0);
@@ -85,37 +86,6 @@ export default function NebulaRenderer({
     );
   }, []);
 
-  // Nebula colors based on time of day
-  const nebulaColors = useMemo(() => {
-    switch (timeOfDay) {
-      case 'morning':
-        return {
-          primary: '#ff9f43',
-          secondary: '#ff6b6b',
-          tertiary: '#ffeaa7',
-        };
-      case 'afternoon':
-        return {
-          primary: '#a78bfa',
-          secondary: '#60a5fa',
-          tertiary: '#f0abfc',
-        };
-      case 'evening':
-        return {
-          primary: '#f59e0b',
-          secondary: '#ef4444',
-          tertiary: '#fcd34d',
-        };
-      case 'night':
-      default:
-        return {
-          primary: '#8b5cf6',
-          secondary: '#6366f1',
-          tertiary: '#ec4899',
-        };
-    }
-  }, [timeOfDay]);
-
   // Nebula cloud positions with parallax
   const clouds = useMemo(() => [
     {
@@ -123,7 +93,7 @@ export default function NebulaRenderer({
       baseX: SCREEN_WIDTH * 0.3,
       baseY: SCREEN_HEIGHT * 0.25,
       radius: 200,
-      color: nebulaColors.primary,
+      color: nebulaP,
       opacity: 0.15,
       blur: 80,
       parallaxFactor: 0.15,
@@ -133,7 +103,7 @@ export default function NebulaRenderer({
       baseX: SCREEN_WIDTH * 0.7,
       baseY: SCREEN_HEIGHT * 0.35,
       radius: 180,
-      color: nebulaColors.secondary,
+      color: nebulaS,
       opacity: 0.12,
       blur: 70,
       parallaxFactor: 0.2,
@@ -143,7 +113,7 @@ export default function NebulaRenderer({
       baseX: SCREEN_WIDTH * 0.5,
       baseY: SCREEN_HEIGHT * 0.6,
       radius: 220,
-      color: nebulaColors.tertiary,
+      color: nebulaT,
       opacity: 0.1,
       blur: 90,
       parallaxFactor: 0.1,
@@ -153,7 +123,7 @@ export default function NebulaRenderer({
       baseX: SCREEN_WIDTH * 0.2,
       baseY: SCREEN_HEIGHT * 0.75,
       radius: 160,
-      color: nebulaColors.primary,
+      color: nebulaP,
       opacity: 0.08,
       blur: 60,
       parallaxFactor: 0.25,
@@ -163,12 +133,12 @@ export default function NebulaRenderer({
       baseX: SCREEN_WIDTH * 0.8,
       baseY: SCREEN_HEIGHT * 0.8,
       radius: 140,
-      color: nebulaColors.secondary,
+      color: nebulaS,
       opacity: 0.1,
       blur: 50,
       parallaxFactor: 0.18,
     },
-  ], [nebulaColors]);
+  ], [nebulaP, nebulaS, nebulaT]);
 
   // Calculate cloud positions with gyro offset
   const getCloudPosition = (cloud: typeof clouds[0]) => {
