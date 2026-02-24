@@ -1,467 +1,227 @@
 # Project Research Summary
 
-**Project:** Wavium - Subliminal Audio App MVP Completion
-**Domain:** Mobile wellness app (subliminal audio + AI companion)
-**Researched:** February 2, 2026
+**Project:** Wavium — Premium UI/UX Aesthetic Overhaul
+**Domain:** React Native Expo premium visual design (mindfulness/subliminal audio app)
+**Researched:** 2026-02-24
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Wavium is completing an MVP that integrates Supabase authentication/database, Rive character animations (Mindi mascot), and persistent state management into an existing React Native Expo + FastAPI stack. Research shows this requires a 4-layer integration: (1) JWT-based authentication between frontend and backend, (2) optimistic offline-first sync between Zustand and Supabase, (3) emotion-driven Rive state machine, and (4) LRU-cached offline audio storage.
+Wavium is a functionally complete React Native Expo 54 app undergoing a premium aesthetic overhaul — not a greenfield build. The existing codebase already has the right native libraries installed (Skia 2.2.12, Reanimated 4.1.1, expo-blur, expo-linear-gradient, expo-haptics), which means the overhaul is almost entirely a UI layer concern: design tokens, typography, component refinement, and animation architecture. The only new installs required are three Google Fonts packages for the display typography system (Cinzel, Cormorant Garamond, Raleway). The strategic posture is "refactor and extend, not replace" — most existing components have the right structure but wrong execution.
 
-The recommended approach is **authentication-first, then database, then audio, then animations** to establish security boundaries before building dependent features. The stack decision of Supabase + PyJWT for backend auth, Rive Nitro runtime for animations, and Zustand + MMKV for local state is solid and actively maintained in 2026. The core risk is edge-tts reliability (Microsoft can change rate limits without notice), which requires aggressive caching and a documented migration path to self-hosted TTS like Kokoro.
+The recommended approach is a five-phase sequential build with hard dependencies flowing downward. The design token system and font loading must be established first because every other component depends on them. Surface-level UI components (GlassmorphicCard, HapticButton, GlowText) come second and unlock screen-level work. The Mindi animation system and THE VOID player polish come third and fourth respectively — both require the token foundation and a specific architectural refactor (changing `audioLevel` from React state to a Reanimated `useSharedValue`) before any audio-reactive visual work can proceed correctly. Screen-level aesthetic application comes last, picking up the polished components automatically.
 
-Critical pitfalls include exposed API keys in git history (rotate immediately), hardcoded `/tmp` paths breaking Windows development, Supabase's 2026 API key format breaking Edge Functions, and Rive's runtime transition requiring the new Nitro version. The architecture requires careful attention to JWT verification via JWKS, WebSocket authentication, offline-first sync patterns, and animation state binding through a centralized controller hook.
+The primary risks are performance-related and platform-specific. Android blur (expo-blur) is the single most dangerous area: it requires explicit `experimentalBlurMethod` prop setting, strict limits on concurrent BlurView count (max 2-3 per screen), and a graceful fallback strategy for pre-Android-12 devices. A second critical risk is the `audioLevel` React state pattern currently in VoidContainer — it triggers 10+ React re-renders per second during playback and will cause jank as soon as more visual reactions are layered on. This must be refactored to a SharedValue before any audio-sync animation work begins. A third systemic risk is missing cleanup for Reanimated `withRepeat` animations, which causes memory leaks and ghost animations across screen navigations.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-Wavium's stack extension adds three critical components: Supabase (auth + database), Rive (character animations), and persistent state management (Zustand + MMKV). All libraries are actively maintained in 2026 with strong React Native and FastAPI support.
+The installed dependency set is essentially perfect for this overhaul — no new heavy native libraries are needed. Skia handles all GPU-rendered effects (gradients, glow halos, particle systems, nebula), Reanimated 4 handles all animation drivers on the UI thread, expo-blur handles glassmorphism on native views (which Skia cannot do), and expo-linear-gradient handles static gradient fills. The only missing piece is typography: three Google Fonts packages unlock the premium typeface hierarchy that competitors like Calm, Headspace, and Endel use to signal brand investment.
 
 **Core technologies:**
-- **Supabase-js v2.93.3 + supabase-py v2.27.2**: Unified auth/database/realtime, strong mobile SDK, free tier sufficient for MVP
-- **PyJWT v2.9.0**: JWT verification for FastAPI (python-jose is abandoned), validates Supabase tokens via JWKS endpoint
-- **Rive Nitro runtime (@rive-app/react-native v6.13.0+)**: State machine-based animations, single .riv file for all Mindi states, better than Lottie for interactive characters
-- **Zustand + MMKV**: Fast local state (30x faster than AsyncStorage), synchronous hydration, already in project dependencies
-- **Keep edge-tts v6.1.9**: Working TTS for MVP, defer Kokoro TTS migration until post-MVP when self-hosting infrastructure exists
+- `@shopify/react-native-skia` (2.2.12, installed): GPU-rendered canvas effects — Mindi character, nebula, glow halos, animated gradients. Accepts Reanimated shared values as direct props with no bridge overhead. Use `interpolateColors` from Skia (not Reanimated) for color animation.
+- `react-native-reanimated` (4.1.1, installed): All animation drivers — breathing buttons, entrance animations, auto-hide controls, affirmation reveals. Runs on UI thread via worklets at up to 120fps. The engine for every animation in this overhaul.
+- `expo-blur` (15.0.8, installed): Glassmorphism on cards and overlays. Solid on iOS; requires `experimentalBlurMethod="dimezisBlurView"` on Android and a fallback for pre-API-31 devices.
+- `expo-linear-gradient` (15.0.8, installed): Static gradient fills — backgrounds, gold CTA buttons, inner card highlights. Never animate its `colors` prop (Android bug); use Skia for animated gradients.
+- `@expo-google-fonts/cinzel` (new): Display font — screen titles, "THE VOID" hero text. Roman inscription gravitas, ceremonial feel.
+- `@expo-google-fonts/cormorant-garamond` (new): Editorial serif — affirmation text, subtitles. Literary, luxury, reads as "written" not "displayed."
+- `@expo-google-fonts/raleway` (new): Geometric sans-serif — body text, UI labels, navigation. Pairs naturally with display fonts and remains readable at 12px.
 
-**Critical version requirements:**
-- Expo SDK 53+ requires `expo-custom-agp` 8.9.2 and `compileSdkVersion` 36 for Rive compatibility
-- Rive requires development build (incompatible with Expo Go) - one-time `expo prebuild --clean` setup
-- PyJWT (NOT python-jose) is the 2026 FastAPI standard for JWT validation
+**Critical version note:** Use `expo-font` config plugin (not `useFonts()` runtime hook) — fonts embed at build time, zero async loading race, no font flash on cold start.
 
 ### Expected Features
 
-Research identified clear table stakes vs differentiators for subliminal audio apps. Transparency (showing affirmations before/during playback) is critical for user trust and differentiates from sketchy competitors.
+Research across Calm, Headspace, Endel, and Portal identifies clear tiers of what premium immersive apps provide.
 
-**Must have (table stakes):**
-- Custom affirmation creation with AI generation (already built, needs auth)
-- Background audio mixing (FFmpeg backend working, needs audio file selection)
-- Audio playback with standard controls (play/pause/seek)
-- Library view with past subliminals (needs Supabase database)
-- Transparency: always show affirmations before generation (trust foundation)
-- Offline audio download with caching (meditation use case requires offline)
-- Daily reminder notifications (consistency drives effectiveness)
-- Progress/streak tracking (universal in wellness apps)
-- User accounts with cloud sync (Headspace/Calm standard)
-- Voice selection options (male/female/tone variety)
+**Must have (table stakes) — absence reads as amateur:**
+- Custom display font applied globally — system fonts immediately signal no design investment
+- Near-black tinted background (#0A0A12 range with purple tint) — pure black makes color elements look pasted-on
+- Off-white graduated text hierarchy — pure white (#FFF) body text reads as "development mode"
+- Consistent typographic scale — four sizes, two weights, deliberate line-height
+- Gold gradient palette replacing flat orange — gradient CTAs signal craftsmanship
+- Real glassmorphism on cards — backdrop blur + rgba tint + semi-transparent border
+- Glow shadows (not drop shadows) — dark UI illuminates from within, not from above
+- 60fps animation everywhere — jank is the single fastest way to destroy premium perception
+- Consistent corner radius system — pick two values (20px cards, 12px chips) and never deviate
+- Haptic feedback on all primary actions — already available via expo-haptics, must be applied consistently
+- Auto-hide player controls with tap-to-reveal — the "empty screen" state must look intentional
 
 **Should have (competitive differentiators):**
-- AI companion character (Mindi) with emotional connection (unique to Wavium)
-- Character evolution based on session count (Tamagotchi effect for retention)
-- Immersive "Void" listening experience (differentiated from standard media player)
-- AI-generated personalized affirmations (competitors use pre-made libraries)
-- Particle effects during affirmation absorption (visual feedback reinforcement)
-- Emotional state reflection in Mindi's mood (mirrors user practice quality)
-- Intention-based organization (tag by goal: confidence, sleep, focus)
+- Audio-synced Mindi glow pulse — the sensation the app is alive and responsive to sound
+- One-by-one affirmation ceremony reveal — reading becomes meditative, not list-scanning
+- Entrance animations per screen — staggered build communicates intentionality
+- Mindi idle breathing animation — ambient life between interactions creates emotional attachment
+- Sound picker mood preview — background hue shifts per sound selection
+- Minimal gradient progress bar — thin glowing line, no percentage text
+- Micro-interactions on all touch targets — scale 0.96 on press, spring release
 
-**Defer (v2+):**
-- Mindi evolution system complexity (need baseline engagement data first)
-- Advanced particle effects (polish, not core function)
-- Session insights/journaling (valuable after consistent practice established)
-- Multiple voice/background options (start with 1 good option to avoid decision fatigue)
-- Advanced progress visualization (basic streak counter sufficient for MVP)
-
-**Anti-features (explicitly avoid):**
-- Hidden subliminal messages without disclosure (damages trust)
-- Future-tense affirmations ("I will be" instead of "I am" - psychologically ineffective)
-- Generic pre-made library (misses personalization value prop)
-- Social features/leaderboards (meditation is private, comparison harmful)
-- Character death on neglect (creates guilt, opposite of wellness)
+**Defer to v2+:**
+- Audio-reactive particle density — performance risk on Android mid-range devices
+- Grain texture overlay — requires careful testing across device densities (can read as rendering bug)
+- Shared element transitions — Reanimated 4 SharedTransition still experimental
 
 ### Architecture Approach
 
-The integration architecture maintains clear boundaries between authentication, database sync, animations, and audio layers. Each layer has a single responsibility and communicates through well-defined interfaces.
+The architecture is a layered system with strict one-way data flow: raw design tokens in `theme/` flow into the Zustand ThemeStore, which exposes the resolved `colors` object to all components via hook. Audio state lives in VoidContainer as a Reanimated `useSharedValue` (after the critical refactor from `useState`), flowing down to Skia components as direct props — no bridge, no re-renders. Mindi sub-components are GPU-isolated: single merged Skia canvas (not three separate canvases), accepting only SharedValue props for animation reactivity.
 
 **Major components:**
-
-1. **Authentication Layer** (Supabase Auth + FastAPI JWT middleware)
-   - Frontend uses Supabase Auth to obtain JWT
-   - Backend verifies JWT via JWKS endpoint (no shared secrets)
-   - WebSocket connections authenticated via query param token
-   - Service role client in backend bypasses RLS for admin operations
-
-2. **Database Sync Layer** (Zustand + Supabase)
-   - Optimistic UI updates: Zustand mutates immediately, syncs to Supabase in background
-   - Offline queue: failed mutations stored in AsyncStorage, retried on reconnect
-   - Conflict resolution: last-write-wins for MVP (use updated_at timestamps)
-   - Sync triggers: on app focus, after mutations, periodic background sync
-
-3. **Character Animation Layer** (Rive state machine)
-   - State machine inputs: listening (bool), emotion (enum), glow_level (number), trigger_generate (trigger)
-   - Animation controller hook maps Zustand state changes to Rive inputs
-   - Emotion mapping: idle → listening → generating → peaceful → happy → excited
-   - Debounced state changes prevent animation flickering
-
-4. **Offline Audio Layer** (expo-file-system + expo-av)
-   - Download-first strategy: download after generation, cache in documentDirectory
-   - LRU eviction when cache exceeds 500MB
-   - Metadata tracked in AsyncStorage for fast lookups
-   - Fallback to streaming on cache miss or download failure
+1. **Theme System** (`src/theme/`) — pure constants: color scales per TimeOfDay, typography scale, spacing, animation configs. Must be extended with `primaryGradient`, `glassOverlay`, `glassBorder` token groups before any component work.
+2. **GlassmorphicCard** — three-layer stack: expo-blur (native glass), rgba tint (color-aware surface), LinearGradient top highlight (edge light). Requires `overflow: 'hidden'` wrapper for borderRadius on Android.
+3. **MindiRenderer + MindiGlow** — merged into single Skia canvas. Accepts `audioLevel` as `SharedValue<number>`. Uses `useDerivedValue` to combine idle breath phase + audio boost into final glow radius and scale. Never re-renders.
+4. **VoidContainer** — owns audio playback state. `isPlaying` stays React state (triggers legitimate UI changes). `audioLevel` becomes `useSharedValue` (drives Skia reactivity without re-renders). Passes SharedValue down to Mindi, Nebula, and Affirmation components.
+5. **AffirmationSpirals** — refactored from "all affirmations floating simultaneously" to sequential one-by-one ceremony reveal driven by `currentIndex` React state (correct use of React state — triggers text change, not per-frame animation).
 
 ### Critical Pitfalls
 
-Research identified 16 pitfalls across critical/moderate/minor severity. Top 5 that will block MVP if not addressed:
+1. **Android blur performance** — expo-blur on Android below API 31 emulates blur at 3-5x the GPU cost of iOS. Mitigation: max 2-3 concurrent BlurViews per screen, `experimentalBlurMethod="dimezisBlurView"`, semi-transparent rgba fallback for pre-API-31. Test on physical mid-range Android before any glassmorphism is "done."
 
-1. **Exposed Groq API key in git history (Critical #5)**
-   - Issue: Key committed in early commit, removing file doesn't erase history
-   - Prevention: Rotate key immediately, scrub git history with BFG Repo-Cleaner, add pre-commit hooks
-   - Detection: Search git history for "GROQ_API_KEY" or "sk-" prefixes
+2. **`audioLevel` as React state in THE VOID** — the current codebase updates `audioLevel` via `setInterval` + `setState` at ~10Hz, causing React reconciliation of the entire VoidContainer tree 10 times per second. This must be refactored to `useSharedValue` before audio-reactive animations are added — otherwise every new visual reaction compounds the problem.
 
-2. **edge-tts rate limiting and silent failures (Critical #2)**
-   - Issue: Microsoft rate limits free Edge TTS API aggressively, 10-minute audio limit per request
-   - Prevention: Aggressive caching, rate limit 1 gen/user/minute, chunk long requests, retry with backoff
-   - Detection: 403 errors after multiple generations, empty/truncated audio files
-   - Mitigation: Plan migration to Kokoro TTS when self-hosting infrastructure ready
+3. **Reanimated `withRepeat` without `cancelAnimation` cleanup** — infinite animation loops continue running after component unmount, causing rising CPU/memory across navigation. Fix: create a `useLoop` hook that encapsulates the pattern with cleanup. Establish this in Phase 3 and use it consistently throughout.
 
-3. **Hardcoded `/tmp` paths failing on Windows (Critical #4)**
-   - Issue: Backend uses `/tmp/wavium` which doesn't exist on Windows (C:\Users\...\AppData\Local\Temp)
-   - Prevention: Use `tempfile.gettempdir()` for platform-agnostic paths
-   - Detection: FileNotFoundError on Windows, audio generation returns 500 errors
-   - Impact: Blocks Windows development contributions
+4. **`interpolateColor` from Reanimated passed to Skia props** — Reanimated and Skia use different internal color storage formats. Result: wrong colors or black renders. Fix: always use `interpolateColors` from `@shopify/react-native-skia` for any color animation that feeds a Skia component prop.
 
-4. **Supabase 2026 API key migration breaking Edge Functions (Critical #1)**
-   - Issue: New `sb_publishable_xxx` format causes 401 "JWT is invalid" in Edge Functions
-   - Prevention: Test Edge Function auth immediately after Supabase setup, monitor GitHub discussions
-   - Detection: Auth works for database but fails for Edge Functions
-   - Impact: Consider database-only features until resolved
+5. **expo-font flash of invisible text** — if `SplashScreen.preventAutoHideAsync()` isn't called at module level and font loading isn't guarded, cold-start produces a system-font flash. Fix: use the `expo-font` config plugin (not `useFonts()` runtime hook) so fonts are bundled pre-JS-start and the flash is architecturally impossible.
 
-5. **Rive React Native runtime transition (Moderate #7)**
-   - Issue: Old runtime broken with RN 0.80+, new Nitro runtime in preview
-   - Prevention: Use Nitro runtime from day one, budget 2x estimated time, start with simple animations
-   - Detection: Build failures with Kotlin version conflicts, animations freeze on initial render
-   - Impact: Mindi integration takes 1 week minimum (debugging unknowns)
-
-**Additional moderate pitfalls:**
-- FFmpegKit retirement (keep mixing server-side, avoid mobile FFmpeg)
-- WebSocket timeout mismatches in production (align Gunicorn/Nginx/app to 120s)
-- Supabase email verification blocking sign-ups (disable for MVP or implement deep linking)
-- Cross-platform audio file storage paths (use Expo FileSystem API exclusively)
-- Supabase real-time subscription memory leaks (skip real-time for MVP, no collaboration needed)
-
-**MVP anti-patterns:**
-- Scope creep adding "nice to have" features (ruthlessly enforce PROJECT.md scope)
-- Over-engineering for future scale (solve problems you have today, not tomorrow)
-- Perfectionism blocking launch (ship at 80% done, embrace ugly MVP)
+---
 
 ## Implications for Roadmap
 
-Based on research, recommended 5-phase structure prioritizing authentication foundation before dependent features.
+Based on the dependency graph that emerges from combined research, a five-phase sequential structure is the correct approach. There is very little that can be parallelized safely because each phase is a prerequisite for the next.
 
-### Phase 1: Security & Foundation (Week 1)
-**Rationale:** Address critical security issues and platform compatibility blockers before building new features. These are one-time fixes that unblock everything else.
+### Phase 1: Token Foundation and Typography
 
-**Delivers:**
-- Rotated Groq API key with scrubbed git history
-- Platform-agnostic temp directory paths (tempfile.gettempdir())
-- Python `__init__.py` files in services/ directory
-- Backend works on Windows, Mac, Linux
+**Rationale:** Every component in every subsequent phase pulls color values, gradient stops, and font family references from the theme system. Building components before tokens exist means hardcoded values spread across the codebase, defeating the goal of a coherent system. Font loading must be resolved before any screen is built — the font flash pitfall is architectural, not cosmetic.
 
-**Addresses:**
-- Critical Pitfall #5: Exposed API key
-- Critical Pitfall #4: Hardcoded /tmp paths
-- Minor Pitfall #13: Missing __init__.py files
+**Delivers:** Extended `ThemeColors` interface with `primaryGradient`, `glassOverlay`, `glassBorder` tokens across all 4 time-of-day themes; `goldScale` color constants; `typography.ts` updated with `fontFamilies.display`, `displayHero`, `displayLarge` text styles; expo-font config plugin registration for Cinzel, Cormorant Garamond, Raleway; verified cold-start font behavior.
 
-**Avoids:** Development blocked on Windows, API key abuse, mysterious import errors
+**Addresses:** Custom display font, typographic scale, near-black tinted background, off-white text hierarchy (all table-stakes features).
 
-**Research flag:** Standard practice, skip phase research
+**Avoids:** Font flash on startup (Pitfall 4), hardcoded color hex strings in Skia components (Architecture Anti-Pattern 2).
 
 ---
 
-### Phase 2: Backend Hardening (Week 2)
-**Rationale:** Stabilize audio generation pipeline before integrating authentication. TTS reliability is core to the product; must work before adding auth complexity.
+### Phase 2: Core UI Component Refinement
 
-**Delivers:**
-- edge-tts rate limiting (1 generation per user per minute)
-- Affirmation caching by intention hash (avoid duplicate Groq calls)
-- Retry logic with exponential backoff for 403/429 errors
-- Chunking for long affirmation lists (stay under 10-minute limit)
-- Groq API response caching for common intentions
-- Monitoring/logging for edge-tts failures
+**Rationale:** GlassmorphicCard, HapticButton, GlowText, and TimeShiftingBackground are used across all screens. Getting them right before any screen-level work means screens automatically inherit the correct aesthetic. This is the highest-ROI phase for visual impact per line of code changed.
 
-**Addresses:**
-- Critical Pitfall #2: edge-tts rate limiting
-- Minor Pitfall #12: Groq rate limits during testing
+**Delivers:** Refactored GlassmorphicCard with three-layer depth (BlurView + tint + top-edge highlight gradient); gold gradient CTA treatment on HapticButton (LinearGradient border + gradient fill); GlowText display font variant; TimeShiftingBackground using `primaryGradient` token instead of hardcoded hex; Android blur fallback strategy confirmed; BlurView count audited and capped.
 
-**Uses:**
-- Existing edge-tts v6.1.9
-- Existing Groq integration
-- Python caching (functools.lru_cache or Redis for production)
+**Uses:** expo-blur (three-layer glass pattern), expo-linear-gradient (gradient borders, card highlights), Reanimated (breathing glow on primary CTAs), ThemeStore (all color tokens from Phase 1).
 
-**Avoids:** Audio generation failures in production, API rate limit blocks
+**Implements:** GlassmorphicCard, HapticButton, GlowText, TimeShiftingBackground refactors from ARCHITECTURE.md.
 
-**Research flag:** Standard caching patterns, skip phase research
+**Avoids:** Android blur performance collapse (Pitfall 1), stacked layer GPU overdraw (Pitfall 3), animating blur intensity directly (Pitfall 2).
 
 ---
 
-### Phase 3: Supabase Authentication & Database (Week 3)
-**Rationale:** Authentication is the foundation for all user-scoped features. Must complete before database persistence, offline audio (needs user_id), or session tracking.
+### Phase 3: Mindi Animation System
 
-**Delivers:**
-- Supabase project setup (database schema, RLS policies)
-- Frontend Supabase Auth integration (sign-up, login, session management)
-- Backend JWT verification middleware (PyJWT + JWKS)
-- Protected FastAPI routes with user context injection
-- Database tables: users, subliminals, sessions, mindi_state
-- Email verification disabled (reduce MVP friction)
+**Rationale:** This phase requires Phase 1 tokens and a functional Skia baseline. The critical audioLevel refactor (useState → useSharedValue) must happen as a unit with all downstream Skia component prop type updates — doing it piecemeal creates broken intermediate states where some components receive SharedValue and others receive stale React state. Establish the `useLoop` hook here and enforce it throughout.
 
-**Addresses:**
-- Table stakes: User accounts with sync
-- Architecture: Authentication Layer
-- Moderate Pitfall #9: Email verification blocking sign-ups
-- Critical Pitfall #1: Test 2026 API key compatibility
+**Delivers:** VoidContainer `audioLevel` refactored to `useSharedValue`; MindiGlow + MindiRenderer + MindiEyes merged into single Skia canvas; idle breathing animation (autonomous slow scale loop); audio-reactive glow (breath phase + audioBoost combined via `useDerivedValue`); Mindi eye tracking driven by touch position SharedValue; Mindi entrance animations using Skia `matrix` prop (not `transform`); `useLoop` hook established for all `withRepeat` patterns.
 
-**Uses:**
-- @supabase/supabase-js v2.93.3
-- supabase-py v2.27.2
-- PyJWT v2.9.0
-- expo-sqlite (Supabase dependency)
+**Uses:** Skia `useDerivedValue`, `interpolateColors` (not Reanimated's), `matrix` prop for transforms, `useSharedValue` for audio reactivity.
 
-**Implements:**
-- JWT verification via JWKS pattern (ARCHITECTURE.md Pattern 1)
-- Service role client for backend operations
-
-**Avoids:** Direct database access from frontend (security risk), python-jose (abandoned)
-
-**Research flag:** NEEDS PHASE RESEARCH for Supabase RLS policies, migration setup, WebSocket auth specifics
+**Avoids:** audioLevel as React state (Architecture Anti-Pattern 1), Reanimated/Skia color incompatibility (Pitfall 8), Skia `transform` vs `matrix` issue (Pitfall 9), animation memory leaks (Pitfall 5), JS thread blocking from high-frequency state (Pitfall 6).
 
 ---
 
-### Phase 4: Offline-First Audio & Database Sync (Week 4)
-**Rationale:** Depends on Phase 3 authentication (needs user_id for cache metadata). Offline audio is table stakes for meditation use case. Sync enables cloud backup.
+### Phase 4: THE VOID Player Polish
 
-**Delivers:**
-- Audio download manager with expo-file-system
-- LRU cache manager (500MB limit, last-played eviction)
-- Download progress tracking UI
-- Offline playback with fallback to streaming
-- Zustand + Supabase sync service (optimistic updates)
-- Offline mutation queue with retry logic
-- Network status detection and sync triggers
-- Library view with cloud-synced subliminals
+**Rationale:** Depends on Phase 2 components and Phase 3's audioLevel SharedValue architecture. AffirmationSpirals ceremony reveal uses the correct `currentIndex` React state pattern (legitimate re-render trigger) — but the animation is Reanimated-driven and needs the `useLoop` hook established in Phase 3. ProgressRing replacement is a self-contained Skia refactor that cannot land until the Skia canvas strategy from Phase 3 is established.
 
-**Addresses:**
-- Table stakes: Audio download/offline, Library view, Cloud sync
-- Architecture: Database Sync Layer, Offline Audio Layer
-- Moderate Pitfall #10: Cross-platform file paths
-- Anti-pattern: Storing JWT in Zustand (use Supabase session management)
+**Delivers:** ProgressRing replaced with Skia arc path (GPU-thread, SharedValue-driven); AffirmationSpirals ceremony reveal (one-at-a-time staggered fade/translate, current affirmation highlighted, others dimmed to 40%); PlayerControls minimal progress bar (2px, gradient gold fill, glow effect); auto-hide controls timing tuned (3+ second timeout, verified on physical device); sound picker mood preview (background hue shift per selected track).
 
-**Uses:**
-- expo-file-system (documentDirectory for permanent storage)
-- Zustand persist with AsyncStorage
-- Supabase real-time (optional, skip for MVP)
+**Addresses:** Auto-hide player controls, affirmation ceremony reveal, minimal progress bar, sound picker mood preview (all P1/P2 features from FEATURES.md).
 
-**Implements:**
-- Optimistic Zustand + Supabase sync (ARCHITECTURE.md Pattern 3)
-- Offline audio cache (ARCHITECTURE.md Pattern 5)
-
-**Avoids:**
-- cacheDirectory (OS can delete)
-- Polling for sync (use app focus events)
-- Supabase real-time subscriptions (memory leaks, not needed for single-user)
-
-**Research flag:** Standard patterns documented in ARCHITECTURE.md, skip phase research
+**Avoids:** Visible scrollbars in player, notification-style affirmation cards, cluttered navigation chrome during void experience (all anti-features from FEATURES.md).
 
 ---
 
-### Phase 5: Mindi Character Animations (Week 5)
-**Rationale:** Can be developed in parallel with Phase 4 (no auth dependency), but benefits from completed Zustand stores for state binding. Budget extra time for Rive unknowns.
+### Phase 5: Screen-Level Aesthetic Application
 
-**Delivers:**
-- Rive Nitro runtime integration (@rive-app/react-native v6.13.0+)
-- Development build setup (expo-dev-client, expo prebuild)
-- Expo SDK 53 Android configuration (compileSdkVersion 36, AGP 8.9.2)
-- Mindi .riv file with state machine (idle, listening, peaceful, happy states minimum)
-- Animation controller hook (useMindiAnimations)
-- Event mapping: Zustand state → Rive inputs
-- Particle effect trigger on generation complete (optional, nice-to-have)
+**Rationale:** With all components refined and all animation systems correct, applying the aesthetic to individual screens (Home, Tracks, Create) is mostly additive work — swapping in the new component variants and applying the entrance animation pattern. This phase cannot come earlier because components must be final before screens adopt them.
 
-**Addresses:**
-- Differentiator: AI companion character with emotional states
-- Architecture: Character Animation Layer
-- Moderate Pitfall #7: Rive runtime transition
+**Delivers:** Home screen spacing/typography hierarchy applied; Tracks screen with GlassmorphicCard treatment; Tab bar refactored to floating glass pill style; all screens with staggered entrance animations (Reanimated `entering` prop, 200-400ms stagger); micro-interactions on all touch targets (scale 0.96 on press, spring release, haptic); StatusBar hidden during player, visible during nav screens.
 
-**Uses:**
-- @rive-app/react-native (Nitro runtime, NOT old runtime)
-- expo-dev-client, expo-build-properties, expo-custom-agp
-
-**Implements:**
-- Rive state machine integration (ARCHITECTURE.md Pattern 4)
-- Centralized animation control (avoid scattered triggers)
-
-**Avoids:**
-- Old Rive runtime (broken with RN 0.80+)
-- Expo Go (incompatible with Rive, requires dev build)
-- Direct Rive input manipulation from components (use controller hook)
-
-**Research flag:** NEEDS PHASE RESEARCH for Rive state machine design, animation file creation, Expo build configuration specifics
-
----
-
-### Phase 6: Integration & MVP Launch (Week 6)
-**Rationale:** Phases 1-5 complete, now connect generation pipeline to auth/database/animations and ship.
-
-**Delivers:**
-- WebSocket authentication for generation progress (or polling alternative)
-- Generation events trigger Mindi animation state changes
-- Session recording on audio playback completion
-- Streak tracking and glow level updates
-- Daily reminder notifications
-- End-to-end testing on physical Android device
-- Production deployment with aligned timeouts (Gunicorn/Nginx 120s)
-
-**Addresses:**
-- Table stakes: Streak tracking, Daily reminders, Playback controls
-- Moderate Pitfall #8: WebSocket timeout mismatches
-- Anti-pattern #14: Scope creep
-- Anti-pattern #16: Perfectionism blocking launch
-
-**Implements:**
-- WebSocket auth pattern (ARCHITECTURE.md Pattern 2) OR polling (simpler for MVP)
-- Session tracking integration
-- Notification scheduling
-
-**Avoids:**
-- Adding "nice to have" features (social, journaling, voice options)
-- Polishing animations endlessly (ship with 4 basic Mindi states)
-- Waiting for 100% bug-free (ship with known minor bugs documented)
-
-**Research flag:** Standard integration, skip phase research
+**Addresses:** Entrance animations per-screen, micro-interactions on touch targets, floating glass tab bar, StatusBar immersive mode (all P2 features from FEATURES.md).
 
 ---
 
 ### Phase Ordering Rationale
 
-**Why authentication before database:** JWT verification middleware must be in place before creating user-scoped database endpoints. Can't filter subliminals by user_id without verified user context.
-
-**Why backend hardening before auth:** TTS reliability is independent of auth and must work for the app to be useful. Validate core audio pipeline before adding auth complexity. Faster to debug without JWT verification in the mix.
-
-**Why audio/sync together:** Both depend on authentication (user_id for cache metadata and database queries). Audio download and library sync are closely coupled features (downloaded audio should appear in cloud-synced library).
-
-**Why animations can parallelize:** Rive integration has no auth dependency. Can develop Mindi states while Phase 4 progresses, then integrate in Phase 6. But budget 1 week minimum for Rive debugging (Pitfall #7).
-
-**Why integration is final phase:** Can't test WebSocket auth until Phase 3 completes. Can't trigger Mindi state changes until Phase 5 delivers animation controller. Session recording requires Phase 4 database sync.
-
-**Dependency chain:**
-```
-Phase 1 (foundation) → Phase 2 (backend) → Phase 3 (auth)
-                                              ↓
-                                    Phase 4 (audio/sync) ← Phase 5 (animations, parallel)
-                                              ↓
-                                    Phase 6 (integration)
-```
+- **Token-first is mandatory**: architecture analysis confirms that NebulaRenderer, TimeShiftingBackground, and GlassmorphicCard all have hardcoded color values that need to flow from tokens. Building any component before tokens exist creates work that must be immediately re-done.
+- **Core components before screens**: the component layer is shared infrastructure; screen work built on unfinished components will require rework when components are finalized.
+- **Mindi as a unit**: the audioLevel refactor touches VoidContainer, MindiGlow, MindiRenderer, NebulaRenderer, and AffirmationSpirals simultaneously. Splitting this across phases would create a period where the component tree has mixed state/SharedValue props and undefined behavior.
+- **VOID polish after Mindi**: AffirmationSpirals and ProgressRing can only be correctly implemented once the Skia canvas strategy and SharedValue patterns from Phase 3 are established.
+- **Screens last**: purely additive, no architectural risk, correct behavior guaranteed when components are solid.
 
 ### Research Flags
 
-**Phases needing `/gsd:research-phase` during planning:**
+Phases likely needing deeper research or careful spiking during planning:
 
-- **Phase 3 (Supabase Auth):** Complex integration with multiple moving parts
-  - Reason: Supabase RLS policy design needs research (which tables, what permissions)
-  - Reason: Migration strategy for existing data (if any) needs planning
-  - Reason: WebSocket auth with JWT in query params has edge cases (token refresh mid-connection)
-  - Reason: 2026 API key compatibility issues need GitHub monitoring
+- **Phase 3 (Mindi Animation System):** The Skia canvas merge (3 canvases → 1) and the `matrix` prop animation pattern for entrance animations are technically nuanced. A small proof-of-concept spike before full implementation is recommended to validate the merged-canvas approach doesn't introduce z-ordering issues.
+- **Phase 4 (VOID Polish — ProgressRing):** Replacing the CSS border ring with a Skia arc path requires understanding Skia's `Path` and arc APIs. Research the correct Skia arc-to-path construction for a circular progress indicator before committing to implementation in planning.
 
-- **Phase 5 (Rive Animations):** New runtime in preview, sparse production examples
-  - Reason: Rive .riv file creation workflow (who designs? tooling? export process?)
-  - Reason: State machine design patterns for emotion-driven character
-  - Reason: Expo SDK 53 build configuration changes (AGP version, compileSdk)
-  - Reason: Nitro runtime API differences from old runtime (migration guide needed)
+Phases with standard, well-documented patterns (skip research-phase):
 
-**Phases with standard patterns (skip research):**
+- **Phase 1 (Token Foundation):** TypeScript interface extension + expo-font config plugin. Both are thoroughly documented with working examples in STACK.md and ARCHITECTURE.md.
+- **Phase 2 (Core UI Components):** Three-layer glassmorphism and LinearGradient border patterns are well-established with complete code examples in research. No novel integration needed.
+- **Phase 5 (Screen Aesthetic):** Purely compositional — applying known patterns from Phases 1-4 to individual screens. No new technical territory.
 
-- **Phase 1 (Security):** Straightforward fixes, well-documented approaches
-- **Phase 2 (Backend):** Standard caching and rate limiting patterns
-- **Phase 4 (Audio/Sync):** Patterns fully documented in ARCHITECTURE.md
-- **Phase 6 (Integration):** Combines existing patterns from earlier phases
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All libraries verified with official 2026 releases, strong community support, active maintenance |
-| Features | MEDIUM | WebSearch-based research with competitor analysis cross-reference, but no user interviews to validate priorities |
-| Architecture | HIGH | Multiple production examples for each pattern, official Supabase/Rive docs, established React Native practices |
-| Pitfalls | HIGH | Sourced from official GitHub issues (Supabase 2026 keys), library retirement notices (FFmpegKit), and current codebase analysis |
+| Stack | HIGH | All core libraries verified against installed package.json and official documentation. Version compatibility confirmed. The only judgment calls (Cinzel vs. Playfair Display) are design decisions, not technical risks. |
+| Features | MEDIUM-HIGH | Table stakes and anti-features derived from competitor analysis (Calm, Headspace, Endel, Portal) with curated UI references. Differentiator priority ordering is opinionated but well-reasoned. Subjective value judgments carry medium confidence. |
+| Architecture | HIGH | Primary patterns verified against official Skia, Reanimated, and Expo SDK 54 docs. Codebase analyzed directly. The `audioLevel` SharedValue refactor is the most consequential recommendation and is grounded in official Reanimated architecture guidance. |
+| Pitfalls | HIGH | Most critical pitfalls traced to official GitHub issues, Expo docs, and Shopify Skia docs. Android blur behavior verified against SDK 54 release notes and Expo discussions. The Skia/Reanimated color incompatibility is explicitly documented in official Skia docs. |
 
 **Overall confidence:** HIGH
 
-Research is well-grounded in official documentation, recent 2026 sources, and cross-referenced across multiple articles. Stack recommendations align with modern best practices. Architecture patterns are production-proven. Pitfalls are concrete and actionable.
-
 ### Gaps to Address
 
-**During Phase 3 planning:**
-- Exact Supabase RLS policy definitions for subliminals, sessions, mindi_state tables
-- Migration strategy if existing local data needs cloud migration
-- WebSocket token refresh handling (what happens if JWT expires during long generation?)
-- Monitoring approach for Supabase 2026 API key Edge Function compatibility
+- **Android blur quality on physical mid-range device:** Research establishes the risk clearly (3-5x GPU cost, dimezis fallback behavior) but cannot determine exact intensity values and BlurView counts that maintain 60fps on the specific target Android devices without real hardware testing. Establish this empirical baseline in Phase 2 before committing to final blur intensity values.
+- **Merged Skia canvas z-ordering:** The recommendation to merge MindiGlow + MindiRenderer + MindiEyes into a single canvas is architecturally correct but the specific Skia `Group` layering to achieve the visual result needs validation. Spike before committing.
+- **Mindi audio sync drift over time:** Research flags that Mindi glow pulse sync may drift from audio after 60+ seconds due to animation/audio timer divergence. The SharedValue architecture should prevent this, but requires explicit testing. Add to the "looks done but isn't" checklist for Phase 3.
 
-**During Phase 5 planning:**
-- Mindi .riv file creation workflow (design asset pipeline)
-- State machine input/output mapping (how many states, what triggers, transition rules)
-- Expo build configuration for Rive on SDK 53 (validate exact plugin versions)
-- Fallback strategy if Rive Nitro runtime proves unstable (PNG sequence? Lottie?)
-
-**During Phase 6 planning:**
-- WebSocket vs polling decision for generation progress (tradeoff: real-time UX vs deployment complexity)
-- Session recording logic (when to increment streak? require minimum listen duration?)
-- Notification permissions flow (iOS requires prompt, Android more permissive)
-
-**Post-MVP migration flags:**
-- edge-tts → Kokoro TTS when rate limits cause user complaints or Microsoft blocks service
-- Consider Auth0 or custom auth at 10K+ users (more analytics/control)
-- Add conflict detection for sync (last-write-wins breaks down at scale)
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-**Official Documentation:**
-- [Supabase Expo React Native Quickstart](https://supabase.com/docs/guides/getting-started/quickstarts/expo-react-native) - Auth integration, session management
-- [Rive Expo Integration Guide](https://rive.app/docs/runtimes/react-native/adding-rive-to-expo) - Build configuration, state machine setup
-- [Zustand Persist Middleware](https://zustand.docs.pmnd.rs/integrations/persisting-store-data) - AsyncStorage integration patterns
-- [FastAPI Security](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/) - JWT verification patterns
-- [Expo FileSystem Documentation](https://docs.expo.dev/versions/latest/sdk/filesystem/) - Audio caching, file management
-
-**GitHub Repositories:**
-- [supabase-js v2.93.3 Release](https://github.com/supabase/supabase-js) - Latest features, migration notes
-- [supabase-py v2.27.2](https://github.com/supabase/supabase-py) - Python SDK capabilities
-- [rive-react-native](https://github.com/rive-app/rive-react-native) - Runtime status, known issues
-- [Rive Nitro runtime](https://github.com/rive-app/rive-nitro-react-native) - New architecture preview
-
-**Critical Issues:**
-- [Supabase 2026 API key breaking Edge Functions](https://github.com/orgs/supabase/discussions/41834) - Production blocker
-- [FFmpegKit shutdown notice](https://www.itpathsolutions.com/ffmpegkit-shutdown-what-to-do-next) - Retirement timeline
-- [FastAPI PyJWT discussion](https://github.com/fastapi/fastapi/discussions/11345) - python-jose deprecation
+- `wavium/package.json` — exact installed versions, verified 2026-02-24
+- [Expo BlurView SDK 54 docs](https://docs.expo.dev/versions/latest/sdk/blur-view/) — experimentalBlurMethod, borderRadius workaround, intensity animation warning
+- [Expo Fonts docs](https://docs.expo.dev/develop/user-interface/fonts/) — config plugin approach, OTF preference, font loading patterns
+- [React Native Skia animations docs](https://shopify.github.io/react-native-skia/docs/animations/animations/) — SharedValue as direct props, interpolateColors, BackdropBlur scope
+- [React Native Skia backdrop filters docs](https://shopify.github.io/react-native-skia/docs/backdrops-filters/) — BackdropBlur canvas-only scope confirmed
+- [Reanimated useSharedValue docs](https://docs.swmansion.com/react-native-reanimated/docs/core/useSharedValue/) — UI thread worklet behavior
+- [Reanimated 4 Migration Guide](https://docs.swmansion.com/react-native-reanimated/docs/guides/migration-from-3.x/) — SDK 54 compatibility confirmed
+- [Expo SDK 54 changelog](https://expo.dev/changelog/sdk-54) — Reanimated 4.x ships with SDK 54; New Architecture required
+- [expo/expo #29408](https://github.com/expo/expo/issues/29408) — animated gradient colors Android bug confirmed
+- [expo/expo #23239, #37905, #21289](https://github.com/expo/expo/) — Android BlurView performance issues and API 31 RenderNode path
+- [software-mansion/react-native-reanimated #5800, #3304](https://github.com/software-mansion/react-native-reanimated/) — SharedValue memory leaks with array types
+- [Shopify/react-native-skia discussion #1825](https://github.com/Shopify/react-native-skia/discussions/1825) — transform vs matrix with Reanimated 3
 
 ### Secondary (MEDIUM confidence)
+- [Raw Studio — Aesthetics of Calm UX](https://raw.studio/blog/the-aesthetics-of-calm-ux-how-blur-and-muted-themes-are-redefining-digital-design/) — glassmorphism design patterns
+- [uisources.com — Calm app](https://uisources.com/app/calm), [Endel app](https://uisources.com/app/endel) — curated UI screenshots for competitor analysis
+- [60fps.design — Headspace animations](https://60fps.design/apps/headspace) — animation pattern reference
+- [Callstack — 60fps animations in React Native](https://www.callstack.com/blog/60fps-animations-in-react-native) — performance patterns
+- [expo/google-fonts GALLERY.md](https://github.com/expo/google-fonts/blob/main/GALLERY.md) — Cinzel, Cormorant Garamond, Raleway availability confirmed
+- [Cinzel + Cormorant Garamond pairing](https://daveyandkrista.com/font-pairings-cormorant-garamond-raleway/) — typography pairing rationale
 
-**Community Guides:**
-- [Integrating FastAPI with Supabase Auth](https://dev.to/j0/integrating-fastapi-with-supabase-auth-780) - JWT middleware patterns
-- [Zustand MMKV Storage Guide](https://dev.to/mehdifaraji/zustand-mmkv-storage-blazing-fast-persistence-for-zustand-in-react-native-3ef1) - Performance benchmarks
-- [Avoid Common Supabase Gotchas in React Native](https://www.prosperasoft.com/blog/database/supabase/supabase-react-native-gotchas/) - Email verification, memory leaks
-- [Deploying WebSocket Applications with FastAPI](https://hexshift.medium.com/deploying-websocket-applications-built-with-fastapi-using-uvicorn-gunicorn-and-nginx-04249b1cb87d) - Production timeout configuration
-
-**Feature Research:**
-- [Best Affirmations Apps 2025](https://blog.theiam.app/blogs/the-best-affirmations-apps) - Table stakes analysis
-- [Finch App Wiki](https://finch.fandom.com/wiki/Finch_App) - Virtual pet engagement patterns
-- [Tamagotchi Effect](https://en.wikipedia.org/wiki/Tamagotchi_effect) - Character attachment psychology
-
-**Pitfall Research:**
-- [edge-tts common errors](https://pyvideotrans.com/edgetts-error/) - Rate limiting, audio limits
-- [Rive React Native maintenance status](https://github.com/rive-app/rive-react-native/issues/369) - Runtime transition context
-- [MVP development mistakes](https://www.tresastronautas.com/en/blog/common-mistakes-in-mvp-development-essential-tips-for-success) - Anti-pattern validation
-
-### Tertiary (LOW confidence, needs validation)
-
-**Emerging Technologies:**
-- [Kokoro TTS](https://www.bentoml.com/blog/exploring-the-world-of-open-source-text-to-speech-models) - Post-MVP alternative, limited production examples
-- [Kokoro FastAPI wrapper](https://github.com/remsky/Kokoro-FastAPI) - Integration path, new project (needs vetting)
+### Tertiary (LOW confidence)
+- Design trend analysis sources (atvoid.com, wearetenet.com) — general 2025-2026 UI trends used to validate feature direction; not relied upon for technical decisions
 
 ---
 
-*Research completed: February 2, 2026*
-
-*Ready for roadmap: Yes*
-
-*Next steps: Orchestrator should proceed to requirements definition with Phase 1-6 structure as starting point.*
+*Research completed: 2026-02-24*
+*Ready for roadmap: yes*
