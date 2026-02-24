@@ -1,10 +1,12 @@
 /**
- * WAVIUM - Affirmation Spirals
- * Text particles that spiral toward Mindi and get absorbed
+ * WAVIUM - Affirmation Ceremony + Highlighting
+ * Vertical list of affirmations with staggered reveal and current-item glow.
+ * VOID-02: one-by-one reveal with staggered fade/translate animation
+ * VOID-03: current affirmation highlighted with glow pulse, others dimmed
  */
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Text, Dimensions } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -12,25 +14,16 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
+  withRepeat,
   Easing,
-  runOnJS,
   interpolate,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { useThemeStore } from '../../stores/useThemeStore';
-import { particles as particleConfig } from '../../theme/animations';
-import { typography } from '../../theme/typography';
+import { springs, timing } from '../../theme/animations';
+import { textStyles, fontFamilies } from '../../theme/typography';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CENTER_X = SCREEN_WIDTH / 2;
-const CENTER_Y = SCREEN_HEIGHT / 2;
-
-interface AffirmationParticle {
-  id: number;
-  text: string;
-  startX: number;
-  startY: number;
-  startAngle: number;
-}
+// ─── Types ───────────────────────────────────────────────────────────
 
 interface AffirmationSpiralsProps {
   affirmations: string[];
@@ -39,87 +32,122 @@ interface AffirmationSpiralsProps {
   currentIndex?: number; // Current affirmation being spoken by TTS
 }
 
-// Single affirmation particle that spirals inward
-const SpiralText = ({
-  particle,
-  onComplete,
-  audioLevel,
-}: {
-  particle: AffirmationParticle;
-  onComplete: (id: number) => void;
-  audioLevel?: SharedValue<number>;
-}) => {
-  const { colors } = useThemeStore();
+interface AffirmationItemProps {
+  text: string;
+  index: number;
+  isCurrent: boolean;
+  isRevealed: boolean;
+  glowColor: string;
+  textColor: string;
+}
 
-  const progress = useSharedValue(0);
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.5);
+// ─── Constants ───────────────────────────────────────────────────────
 
+const STAGGER_DELAY = 250; // ms between each item reveal
+const REVEAL_FADE_DURATION = 500;
+const TRANSLATE_Y_START = 20;
+const DIM_OPACITY = 0.4;
+const FULL_OPACITY = 1.0;
+const HIGHLIGHT_TRANSITION_MS = 300;
+const GLOW_PULSE_MIN = 10;
+const GLOW_PULSE_MAX = 25;
+const GLOW_PULSE_DURATION = timing.glowPulse; // 2000ms
+
+// ─── AffirmationItem ─────────────────────────────────────────────────
+
+const AffirmationItem = React.memo(function AffirmationItem({
+  text,
+  index,
+  isCurrent,
+  isRevealed,
+  glowColor,
+  textColor,
+}: AffirmationItemProps) {
+  // Reveal animation values
+  const revealOpacity = useSharedValue(0);
+  const revealTranslateY = useSharedValue(TRANSLATE_Y_START);
+
+  // Highlight animation values
+  const highlightOpacity = useSharedValue(DIM_OPACITY);
+  const glowRadius = useSharedValue(GLOW_PULSE_MIN);
+
+  // Staggered reveal on mount
   useEffect(() => {
-    // Fade in
-    opacity.value = withTiming(0.8, { duration: 500 });
-    scale.value = withSpring(1, { damping: 15, stiffness: 100 });
+    if (isRevealed) {
+      revealOpacity.value = withDelay(
+        index * STAGGER_DELAY,
+        withTiming(1, { duration: REVEAL_FADE_DURATION })
+      );
+      revealTranslateY.value = withDelay(
+        index * STAGGER_DELAY,
+        withSpring(0, springs.gentle)
+      );
+    }
+  }, [isRevealed]);
 
-    // Spiral toward center
-    progress.value = withTiming(1, {
-      duration: particleConfig.textDriftDuration,
-      easing: Easing.inOut(Easing.cubic),
-    }, (finished) => {
-      if (finished) {
-        // Fade out as it reaches Mindi
-        opacity.value = withTiming(0, { duration: 300 });
-        scale.value = withTiming(0.3, { duration: 300 }, () => {
-          runOnJS(onComplete)(particle.id);
-        });
-      }
-    });
+  // Highlight/dim transition when currentIndex changes
+  useEffect(() => {
+    if (!isRevealed) return;
+
+    if (isCurrent) {
+      highlightOpacity.value = withTiming(FULL_OPACITY, {
+        duration: HIGHLIGHT_TRANSITION_MS,
+      });
+      // Pulsing glow on current item
+      glowRadius.value = withRepeat(
+        withTiming(GLOW_PULSE_MAX, {
+          duration: GLOW_PULSE_DURATION,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        -1,
+        true
+      );
+    } else {
+      highlightOpacity.value = withTiming(DIM_OPACITY, {
+        duration: HIGHLIGHT_TRANSITION_MS,
+      });
+      cancelAnimation(glowRadius);
+      glowRadius.value = withTiming(GLOW_PULSE_MIN, { duration: 200 });
+    }
+  }, [isCurrent, isRevealed]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      cancelAnimation(revealOpacity);
+      cancelAnimation(revealTranslateY);
+      cancelAnimation(highlightOpacity);
+      cancelAnimation(glowRadius);
+    };
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => {
-    // Spiral path calculation
-    const startRadius = 250;
-    const endRadius = 30;
-    const rotations = 1.5; // Number of full rotations while spiraling
-
-    const currentRadius = interpolate(
-      progress.value,
-      [0, 1],
-      [startRadius, endRadius]
-    );
-
-    const currentAngle = particle.startAngle + (progress.value * rotations * Math.PI * 2);
-
-    const x = CENTER_X + Math.cos(currentAngle) * currentRadius;
-    const y = CENTER_Y + Math.sin(currentAngle) * currentRadius;
-
-    // Audio reactive glow
-    const glowIntensity = 1 + (audioLevel?.value ?? 0) * 0.3;
+    const combinedOpacity = revealOpacity.value * highlightOpacity.value;
 
     return {
-      transform: [
-        { translateX: x - SCREEN_WIDTH / 2 },
-        { translateY: y - SCREEN_HEIGHT / 2 },
-        { scale: scale.value * glowIntensity },
-        { rotate: `${currentAngle * 0.2}rad` },
-      ],
-      opacity: opacity.value,
+      opacity: combinedOpacity,
+      transform: [{ translateY: revealTranslateY.value }],
+      textShadowRadius: glowRadius.value,
     };
   });
 
   return (
-    <Animated.View style={[styles.textContainer, animatedStyle]}>
-      <Text
-        style={[
-          styles.affirmationText,
-          { color: colors.textPrimary },
-        ]}
-        numberOfLines={2}
-      >
-        {particle.text}
-      </Text>
-    </Animated.View>
+    <Animated.Text
+      style={[
+        styles.affirmationText,
+        {
+          color: textColor,
+          textShadowColor: glowColor,
+        },
+        animatedStyle,
+      ]}
+    >
+      {text}
+    </Animated.Text>
   );
-};
+});
+
+// ─── AffirmationSpirals (main) ───────────────────────────────────────
 
 export default function AffirmationSpirals({
   affirmations,
@@ -127,89 +155,60 @@ export default function AffirmationSpirals({
   audioLevel,
   currentIndex = 0,
 }: AffirmationSpiralsProps) {
-  const [activeParticles, setActiveParticles] = useState<AffirmationParticle[]>([]);
-  const particleIdRef = useRef(0);
-  const lastSpawnedIndexRef = useRef(-1);
+  const { colors } = useThemeStore();
 
-  // Spawn particle when TTS changes to a new affirmation (synced with speech)
-  useEffect(() => {
-    if (!isPlaying || affirmations.length === 0) return;
+  const glowColor = colors.primaryGradient[0];
+  const textColor = colors.textPrimary;
 
-    // Only spawn if this is a new affirmation index
-    if (currentIndex !== lastSpawnedIndexRef.current) {
-      lastSpawnedIndexRef.current = currentIndex;
+  // Memoize item data to avoid re-renders
+  const items = useMemo(
+    () => affirmations.map((text, i) => ({ text, key: `aff-${i}` })),
+    [affirmations]
+  );
 
-      // Get the current affirmation being spoken
-      const text = affirmations[currentIndex % affirmations.length];
-
-      // Random start position on the edge
-      const angle = Math.random() * Math.PI * 2;
-
-      const particle: AffirmationParticle = {
-        id: particleIdRef.current++,
-        text,
-        startX: CENTER_X + Math.cos(angle) * 250,
-        startY: CENTER_Y + Math.sin(angle) * 250,
-        startAngle: angle,
-      };
-
-      setActiveParticles(prev => {
-        // Limit max particles on screen
-        if (prev.length >= particleConfig.textMaxOnScreen) {
-          return [...prev.slice(1), particle];
-        }
-        return [...prev, particle];
-      });
-    }
-  }, [isPlaying, affirmations, currentIndex]);
-
-  // Reset when stopped
-  useEffect(() => {
-    if (!isPlaying) {
-      lastSpawnedIndexRef.current = -1;
-    }
-  }, [isPlaying]);
-
-  // Handle particle completion (absorbed by Mindi)
-  const handleParticleComplete = useCallback((id: number) => {
-    setActiveParticles(prev => prev.filter(p => p.id !== id));
-  }, []);
-
-  if (!isPlaying) return null;
+  if (!isPlaying || affirmations.length === 0) return null;
 
   return (
-    <View style={styles.container} pointerEvents="none">
-      {activeParticles.map(particle => (
-        <SpiralText
-          key={particle.id}
-          particle={particle}
-          onComplete={handleParticleComplete}
-          audioLevel={audioLevel}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+      pointerEvents="none"
+    >
+      {items.map((item, index) => (
+        <AffirmationItem
+          key={item.key}
+          text={item.text}
+          index={index}
+          isCurrent={index === currentIndex}
+          isRevealed={isPlaying}
+          glowColor={glowColor}
+          textColor={textColor}
         />
       ))}
-    </View>
+    </ScrollView>
   );
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
+  },
+  contentContainer: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  textContainer: {
-    position: 'absolute',
-    maxWidth: 200,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 32,
+    paddingVertical: 80,
   },
   affirmationText: {
-    ...typography.bodySmall,
+    ...textStyles.affirmation,
+    fontFamily: fontFamilies.editorialRegular,
     textAlign: 'center',
-    textShadowColor: 'rgba(255, 255, 255, 0.3)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
+    marginVertical: 12,
   },
 });
