@@ -17,6 +17,6 @@ export {
   type ThemeColors,
 } from './colors';
 
-export { textStyles, fontSizes, fontWeights } from './typography';
+export { textStyles, fontSizes, fontWeights, fontFamilies } from './typography';
 export { spacing, borderRadius, componentSizes } from './spacing';
 export { springs, timing, easings, mindiCycles, particles, hapticPatterns } from './animations';

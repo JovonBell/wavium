@@ -29,9 +29,23 @@ export const lineHeights = {
   relaxed: 1.75,
 };
 
+export const fontFamilies = {
+  // Display — Roman inscription gravity (TYPO-01)
+  displayRegular: 'Cinzel_400Regular',
+  displayBold: 'Cinzel_700Bold',
+
+  // Editorial serif — luxury affirmations (TYPO-02)
+  editorialRegular: 'CormorantGaramond_400Regular',
+  editorialItalic: 'CormorantGaramond_400Regular_Italic',
+
+  // Geometric sans — body and UI (TYPO-03)
+  bodyRegular: 'Raleway_400Regular',
+  bodyMedium: 'Raleway_500Medium',
+} as const;
+
 // Pre-defined text styles
 export const textStyles: Record<string, TextStyle> = {
-  // Headings
+  // Headings (legacy — system font, kept for backward compatibility)
   h1: {
     fontSize: fontSizes['3xl'],
     fontWeight: fontWeights.bold,
@@ -48,17 +62,7 @@ export const textStyles: Record<string, TextStyle> = {
     lineHeight: fontSizes.lg * lineHeights.tight,
   },
 
-  // Body
-  body: {
-    fontSize: fontSizes.base,
-    fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.base * lineHeights.normal,
-  },
-  bodySmall: {
-    fontSize: fontSizes.sm,
-    fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.sm * lineHeights.normal,
-  },
+  // Body (legacy — system font, kept for backward compatibility)
   bodyLarge: {
     fontSize: fontSizes.lg,
     fontWeight: fontWeights.regular,
@@ -77,12 +81,7 @@ export const textStyles: Record<string, TextStyle> = {
     lineHeight: fontSizes.lg * lineHeights.relaxed,
   },
 
-  // UI elements
-  button: {
-    fontSize: fontSizes.base,
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.base * lineHeights.tight,
-  },
+  // UI elements (legacy — kept for backward compatibility)
   buttonSmall: {
     fontSize: fontSizes.sm,
     fontWeight: fontWeights.semibold,
@@ -93,24 +92,63 @@ export const textStyles: Record<string, TextStyle> = {
     fontWeight: fontWeights.regular,
     lineHeight: fontSizes.xs * lineHeights.normal,
   },
-  label: {
-    fontSize: fontSizes.sm,
-    fontWeight: fontWeights.medium,
-    lineHeight: fontSizes.sm * lineHeights.tight,
-  },
 
-  // Special
+  // Special (legacy — kept for backward compatibility)
   stat: {
     fontSize: fontSizes['4xl'],
     fontWeight: fontWeights.bold,
     lineHeight: fontSizes['4xl'] * lineHeights.tight,
   },
+
+  // Display variants — Cinzel (TYPO-01, TYPO-04)
+  displayHero: {
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 32,
+    letterSpacing: 4,
+    lineHeight: 38,
+  } as TextStyle,
+  displayHeading: {
+    fontFamily: fontFamilies.displayRegular,
+    fontSize: 22,
+    letterSpacing: 2,
+    lineHeight: 28,
+  } as TextStyle,
+
+  // Affirmation variants — Cormorant Garamond (TYPO-02, TYPO-04)
   affirmation: {
-    fontSize: fontSizes.lg,
-    fontWeight: fontWeights.medium,
-    lineHeight: fontSizes.lg * lineHeights.relaxed,
-    fontStyle: 'italic',
-  },
+    fontFamily: fontFamilies.editorialRegular,
+    fontSize: 24,
+    lineHeight: 36,
+  } as TextStyle,
+  affirmationItalic: {
+    fontFamily: fontFamilies.editorialItalic,
+    fontSize: 22,
+    lineHeight: 34,
+  } as TextStyle,
+
+  // Body variants — Raleway (TYPO-03, TYPO-04)
+  body: {
+    fontFamily: fontFamilies.bodyRegular,
+    fontSize: 15,
+    lineHeight: 22,
+  } as TextStyle,
+  bodySmall: {
+    fontFamily: fontFamilies.bodyRegular,
+    fontSize: 14,
+    lineHeight: 21,
+  } as TextStyle,
+  label: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    lineHeight: 16,
+  } as TextStyle,
+  button: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 15,
+    letterSpacing: 0.5,
+    lineHeight: 20,
+  } as TextStyle,
 };
 
 // Alias for compatibility
