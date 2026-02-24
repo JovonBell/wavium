@@ -14,12 +14,14 @@ import {
   BlurMask,
 } from '@shopify/react-native-skia';
 import Animated, {
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
   withSequence,
   withSpring,
+  cancelAnimation,
   Easing as REasing,
 } from 'react-native-reanimated';
 import { useMindiStore, MindiState } from '../../stores/useMindiStore';
@@ -32,13 +34,13 @@ import MindiEyes from './MindiEyes';
 interface MindiRendererProps {
   size?: number;
   showParticles?: boolean;
-  audioLevel?: number;
+  audioLevel?: SharedValue<number>;
 }
 
 export default function MindiRenderer({
   size = 200,
   showParticles = true,
-  audioLevel = 0,
+  audioLevel,
 }: MindiRendererProps) {
   const { currentState } = useMindiStore();
   const { colors } = useThemeStore();
@@ -46,6 +48,7 @@ export default function MindiRenderer({
   // Animation values
   const floatY = useSharedValue(0);
   const scale = useSharedValue(1);
+  const breathScale = useSharedValue(1);
   const glowIntensity = useSharedValue(1);
   const headTilt = useSharedValue(0);
 
@@ -91,13 +94,17 @@ export default function MindiRenderer({
     );
   }, [currentState]);
 
-  // State-specific animations
+  // State-specific animations (with idle breathing)
   useEffect(() => {
     switch (currentState) {
       case 'listening':
+        cancelAnimation(breathScale);
+        breathScale.value = 1;
         headTilt.value = withSpring(mindiCycles.listenTiltAngle, springs.gentle);
         break;
       case 'happy':
+        cancelAnimation(breathScale);
+        breathScale.value = 1;
         scale.value = withSequence(
           withSpring(mindiCycles.happyBounceScale, springs.bouncy),
           withSpring(1, springs.gentle)
@@ -105,6 +112,8 @@ export default function MindiRenderer({
         headTilt.value = withSpring(0, springs.gentle);
         break;
       case 'excited':
+        cancelAnimation(breathScale);
+        breathScale.value = 1;
         scale.value = withRepeat(
           withSequence(
             withTiming(1.1, { duration: 150 }),
@@ -115,6 +124,8 @@ export default function MindiRenderer({
         );
         break;
       case 'generating':
+        cancelAnimation(breathScale);
+        breathScale.value = 1;
         // Pulsing while generating
         scale.value = withRepeat(
           withSequence(
@@ -126,16 +137,29 @@ export default function MindiRenderer({
         );
         break;
       default:
+        // Idle breathing: slow 1.0 -> 1.02 pulse over ~4s (2s up, 2s down)
         headTilt.value = withSpring(0, springs.gentle);
         scale.value = withSpring(1, springs.gentle);
+        breathScale.value = withRepeat(
+          withTiming(1.02, {
+            duration: 2000,
+            easing: REasing.inOut(REasing.sin),
+          }),
+          -1,
+          true
+        );
     }
+
+    return () => {
+      cancelAnimation(breathScale);
+    };
   }, [currentState]);
 
   // Animated container style
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: floatY.value },
-      { scale: scale.value * (1 + audioLevel * 0.05) },
+      { scale: scale.value * breathScale.value * (1 + (audioLevel?.value ?? 0) * 0.05) },
       { rotate: `${headTilt.value}deg` },
     ],
   }));
