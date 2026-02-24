@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   blur: {
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.card,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',

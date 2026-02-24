@@ -303,6 +303,7 @@ export default function HapticButton({
           backgroundColor: variantStyles.bg,
           borderColor: variantStyles.border || 'transparent',
           borderWidth: variantStyles.border ? 1 : 0,
+          borderRadius: borderRadius.md, // Ghost/danger keep rounded-rect, not pill
           paddingVertical: sizeStyles.padding,
           paddingHorizontal: sizeStyles.padding * 1.5,
           opacity: disabled ? 0.5 : 1,
@@ -322,7 +323,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.button,
     minHeight: 44,
   },
   fullWidth: {
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: borderRadius.md - 1,
+    borderRadius: borderRadius.button - 1,
     minHeight: 42, // 44 - 2px border
   },
 });

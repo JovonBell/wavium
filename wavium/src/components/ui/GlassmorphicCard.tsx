@@ -147,11 +147,11 @@ export default function GlassmorphicCard({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.card,
     overflow: 'hidden',
   },
   blur: {
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.card,
     borderWidth: 1,
     overflow: 'hidden',
   },

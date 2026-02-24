@@ -163,7 +163,7 @@ export default function StreakCard({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.card,
     padding: spacing.md,
   },
   topRow: {
