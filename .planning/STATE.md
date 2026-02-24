@@ -35,6 +35,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-token-foundation P01 | 5 | 2 tasks | 1 files |
+| Phase 01-token-foundation P02 | 92s | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -47,6 +48,8 @@ Recent decisions affecting current work:
 - [Roadmap]: PERF-02 (Skia interpolateColors) assigned to Phase 3 — critical constraint for Mindi color animation
 - [Roadmap]: PERF-03 (no blur intensity animation) assigned to Phase 2 — governs glassmorphism implementation pattern
 - [Phase 01-token-foundation]: goldScale placed before ThemeColors interface as shared constant
+- [Phase 01-token-foundation]: expo-font config plugin for build-time font embedding — no useFonts() runtime call needed
+- [Phase 01-token-foundation]: Six named fontFamily variants only, no fontWeight on new textStyles entries — prevents Android Roboto fallback
 
 ### Pending Todos
 

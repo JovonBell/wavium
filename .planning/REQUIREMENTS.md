@@ -9,12 +9,12 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 
 ### Typography
 
-- [ ] **TYPO-01**: App uses Cinzel display font for screen titles and hero text (THE VOID, section headers)
-- [ ] **TYPO-02**: App uses Cormorant Garamond for affirmation text and editorial content (20px+)
-- [ ] **TYPO-03**: App uses Raleway for body text, UI labels, and navigation elements
-- [ ] **TYPO-04**: Typographic scale systemized with 4 sizes: display (~32px), heading (~22px), body (~15px), label (~12px)
-- [ ] **TYPO-05**: Off-white text hierarchy applied globally — body rgba(255,255,255,0.82), captions 0.55, hero #FFFFFF
-- [ ] **TYPO-06**: Font loading uses expo-font config plugin (build-time embedding, zero font flash on cold start)
+- [x] **TYPO-01**: App uses Cinzel display font for screen titles and hero text (THE VOID, section headers)
+- [x] **TYPO-02**: App uses Cormorant Garamond for affirmation text and editorial content (20px+)
+- [x] **TYPO-03**: App uses Raleway for body text, UI labels, and navigation elements
+- [x] **TYPO-04**: Typographic scale systemized with 4 sizes: display (~32px), heading (~22px), body (~15px), label (~12px)
+- [x] **TYPO-05**: Off-white text hierarchy applied globally — body rgba(255,255,255,0.82), captions 0.55, hero #FFFFFF
+- [x] **TYPO-06**: Font loading uses expo-font config plugin (build-time embedding, zero font flash on cold start)
 
 ### Color System
 
@@ -107,12 +107,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TYPO-01 | Phase 1 | Pending |
-| TYPO-02 | Phase 1 | Pending |
-| TYPO-03 | Phase 1 | Pending |
-| TYPO-04 | Phase 1 | Pending |
-| TYPO-05 | Phase 1 | Pending |
-| TYPO-06 | Phase 1 | Pending |
+| TYPO-01 | Phase 1 | Complete |
+| TYPO-02 | Phase 1 | Complete |
+| TYPO-03 | Phase 1 | Complete |
+| TYPO-04 | Phase 1 | Complete |
+| TYPO-05 | Phase 1 | Complete |
+| TYPO-06 | Phase 1 | Complete |
 | COLR-01 | Phase 1 | Complete |
 | COLR-02 | Phase 1 | Complete |
 | COLR-03 | Phase 1 | Complete |
