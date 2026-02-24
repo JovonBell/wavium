@@ -37,12 +37,8 @@
 - Auto-advance enabled in config.json
 - YOLO mode — auto-approve everything
 
-## Resume Command
+## Resume Instructions
 
-```
-/gsd:plan-phase 2 --auto
-```
+**DO NOT wait for user input.** The user has explicitly said "do the whole project without my interjection" and "I trust you." On context resume, immediately pick up at Phase 2 and continue through all remaining phases. No `/gsd:resume-work` needed — just read this file, create the phase directory, and start the research → plan → check → execute → verify → advance pipeline for Phase 2, then 3, 4, 5.
 
-Or use `/gsd:resume-work` to auto-detect next action.
-
-The full pipeline for remaining phases: research → plan → check → execute → verify → advance (repeat for phases 2-5).
+**User feedback:** "please i dont wanna have to do the /gsd:resume-work you should be able to do that on your own" — respect this by auto-continuing without prompts.
