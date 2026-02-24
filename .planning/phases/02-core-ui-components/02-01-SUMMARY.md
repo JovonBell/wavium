@@ -66,7 +66,7 @@ Each task was committed atomically:
 
 1. **Task 1: Add Android blur fallback and top-edge highlight** - `ceb015c` (feat)
 
-**Plan metadata:** [pending] (docs: complete plan)
+**Plan metadata:** `27f77b3` (docs: complete plan)
 
 ## Files Created/Modified
 - `wavium/src/components/ui/GlassmorphicCard.tsx` - Three-layer glassmorphic card with blur fallback and ambient glow

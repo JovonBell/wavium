@@ -35,10 +35,10 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 
 ### Buttons & Interactions
 
-- [ ] **INTR-01**: Primary CTA buttons use gold gradient fill with breathing glow animation
-- [ ] **INTR-02**: CTA buttons have gradient borders that pulse subtly
-- [ ] **INTR-03**: All touch targets meet 44px minimum and have scale 0.96 press + spring release micro-interaction
-- [ ] **INTR-04**: Haptic feedback applied consistently on all primary actions (already available via expo-haptics)
+- [x] **INTR-01**: Primary CTA buttons use gold gradient fill with breathing glow animation
+- [x] **INTR-02**: CTA buttons have gradient borders that pulse subtly
+- [x] **INTR-03**: All touch targets meet 44px minimum and have scale 0.96 press + spring release micro-interaction
+- [x] **INTR-04**: Haptic feedback applied consistently on all primary actions (already available via expo-haptics)
 - [ ] **INTR-05**: Consistent spacing system with 4px grid base (8, 12, 16, 24, 32, 48px rhythm) applied app-wide
 
 ### Mindi Animation
@@ -124,10 +124,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SURF-03 | Phase 2 | Pending |
 | SURF-04 | Phase 2 | Complete |
 | SURF-05 | Phase 2 | Complete |
-| INTR-01 | Phase 2 | Pending |
-| INTR-02 | Phase 2 | Pending |
-| INTR-03 | Phase 2 | Pending |
-| INTR-04 | Phase 2 | Pending |
+| INTR-01 | Phase 2 | Complete |
+| INTR-02 | Phase 2 | Complete |
+| INTR-03 | Phase 2 | Complete |
+| INTR-04 | Phase 2 | Complete |
 | INTR-05 | Phase 2 | Pending |
 | PERF-03 | Phase 2 | Complete |
 | MIND-01 | Phase 3 | Pending |
