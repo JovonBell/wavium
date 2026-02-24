@@ -14,8 +14,10 @@ import {
   Group,
 } from '@shopify/react-native-skia';
 import Animated, {
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
+  useDerivedValue,
   withRepeat,
   withTiming,
   Easing,
@@ -28,15 +30,49 @@ interface MindiGlowProps {
   intensity: number; // 0-1
   layers: number; // 1-5
   color: string;
-  audioLevel?: number;
+  audioLevel?: SharedValue<number>;
 }
+
+// Sub-component for each glow circle so useDerivedValue can be called per-layer
+const GlowCircle = ({
+  cx,
+  cy,
+  radius,
+  baseOpacity,
+  color,
+  blur,
+  audioLevel,
+}: {
+  cx: number;
+  cy: number;
+  radius: number;
+  baseOpacity: number;
+  color: string;
+  blur: number;
+  audioLevel?: SharedValue<number>;
+}) => {
+  const derivedOpacity = useDerivedValue(() => {
+    return baseOpacity + (audioLevel?.value ?? 0) * 0.1;
+  });
+
+  return (
+    <Circle cx={cx} cy={cy} r={radius} opacity={derivedOpacity}>
+      <RadialGradient
+        c={vec(cx, cy)}
+        r={radius}
+        colors={[color, `${color}80`, `${color}40`, 'transparent']}
+      />
+      <BlurMask blur={blur} style="normal" />
+    </Circle>
+  );
+};
 
 export default function MindiGlow({
   size,
   intensity,
   layers,
   color,
-  audioLevel = 0,
+  audioLevel,
 }: MindiGlowProps) {
   const pulseAnim = useSharedValue(0);
 
@@ -69,15 +105,16 @@ export default function MindiGlow({
   });
 
   const animatedStyle = useAnimatedStyle(() => {
+    const audioVal = audioLevel?.value ?? 0;
     const scale = interpolate(
       pulseAnim.value,
       [0, 1],
-      [1, 1 + (intensity * 0.1) + (audioLevel * 0.15)]
+      [1, 1 + (intensity * 0.1) + (audioVal * 0.2)]
     );
     const opacityMod = interpolate(
       pulseAnim.value,
       [0, 1],
-      [0.8, 1]
+      [0.7 + audioVal * 0.15, 1]
     );
 
     return {
@@ -97,25 +134,16 @@ export default function MindiGlow({
       <Canvas style={{ width: size, height: size }}>
         <Group>
           {glowLayers.map((layer, index) => (
-            <Circle
+            <GlowCircle
               key={index}
               cx={center}
               cy={center}
-              r={layer.radius}
-              opacity={layer.opacity + (audioLevel * 0.1)}
-            >
-              <RadialGradient
-                c={vec(center, center)}
-                r={layer.radius}
-                colors={[
-                  color,
-                  `${color}80`,
-                  `${color}40`,
-                  'transparent',
-                ]}
-              />
-              <BlurMask blur={layer.blur} style="normal" />
-            </Circle>
+              radius={layer.radius}
+              baseOpacity={layer.opacity}
+              color={color}
+              blur={layer.blur}
+              audioLevel={audioLevel}
+            />
           ))}
         </Group>
       </Canvas>
