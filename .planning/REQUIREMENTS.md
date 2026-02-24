@@ -107,13 +107,54 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| *(populated by roadmapper)* | | |
+| TYPO-01 | Phase 1 | Pending |
+| TYPO-02 | Phase 1 | Pending |
+| TYPO-03 | Phase 1 | Pending |
+| TYPO-04 | Phase 1 | Pending |
+| TYPO-05 | Phase 1 | Pending |
+| TYPO-06 | Phase 1 | Pending |
+| COLR-01 | Phase 1 | Pending |
+| COLR-02 | Phase 1 | Pending |
+| COLR-03 | Phase 1 | Pending |
+| COLR-04 | Phase 1 | Pending |
+| COLR-05 | Phase 1 | Pending |
+| COLR-06 | Phase 1 | Pending |
+| SURF-01 | Phase 2 | Pending |
+| SURF-02 | Phase 2 | Pending |
+| SURF-03 | Phase 2 | Pending |
+| SURF-04 | Phase 2 | Pending |
+| SURF-05 | Phase 2 | Pending |
+| INTR-01 | Phase 2 | Pending |
+| INTR-02 | Phase 2 | Pending |
+| INTR-03 | Phase 2 | Pending |
+| INTR-04 | Phase 2 | Pending |
+| INTR-05 | Phase 2 | Pending |
+| PERF-03 | Phase 2 | Pending |
+| MIND-01 | Phase 3 | Pending |
+| MIND-02 | Phase 3 | Pending |
+| MIND-03 | Phase 3 | Pending |
+| MIND-04 | Phase 3 | Pending |
+| MIND-05 | Phase 3 | Pending |
+| MIND-06 | Phase 3 | Pending |
+| PERF-02 | Phase 3 | Pending |
+| VOID-01 | Phase 4 | Pending |
+| VOID-02 | Phase 4 | Pending |
+| VOID-03 | Phase 4 | Pending |
+| VOID-04 | Phase 4 | Pending |
+| VOID-05 | Phase 4 | Pending |
+| VOID-06 | Phase 4 | Pending |
+| SCRN-01 | Phase 5 | Pending |
+| SCRN-02 | Phase 5 | Pending |
+| SCRN-03 | Phase 5 | Pending |
+| SCRN-04 | Phase 5 | Pending |
+| SCRN-05 | Phase 5 | Pending |
+| PERF-01 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 33 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 33
+- v1 requirements: 42 total
+- Mapped to phases: 42
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-24 after auto-mode definition*
+*Last updated: 2026-02-24 after roadmap creation — traceability complete*

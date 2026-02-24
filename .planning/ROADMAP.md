@@ -1,8 +1,8 @@
-# Roadmap: Wavium MVP Completion
+# Roadmap: Wavium Aesthetic Overhaul
 
 ## Overview
 
-Wavium completes its MVP by establishing a secure, persistent foundation (authentication, database, reliability fixes), integrating the core audio generation flow with user accounts, and bringing Mindi to life through Rive animations. The roadmap prioritizes security and stability before features, ensuring the audio pipeline works reliably before adding complexity.
+Five sequential phases transform Wavium from a competent dark-mode app into a sacred, immersive portal. The sequence is strictly dependency-ordered: design tokens and typography must exist before any component can consume them; core UI components must be final before screens adopt them; the Mindi animation architecture must be refactored before audio-reactive visuals can be safely added; THE VOID player polish depends on the Skia patterns established in the Mindi phase; screen-level application comes last and is purely additive.
 
 ## Phases
 
@@ -12,128 +12,83 @@ Wavium completes its MVP by establishing a secure, persistent foundation (authen
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 1: Security & Foundation** - Fix critical security holes and platform compatibility blockers
-- [ ] **Phase 2: Supabase Authentication** - Establish user accounts and JWT-based auth
-- [ ] **Phase 3: Database Integration** - Connect frontend to Supabase with offline-first sync
-- [ ] **Phase 4: Core Flow & Audio** - Complete generation workflow with proper asset handling
-- [ ] **Phase 5: Mindi Character Animations** - Integrate Rive runtime with emotional states
-- [ ] **Phase 6: Reliability & Polish** - Harden pipeline and prepare for MVP launch
+- [ ] **Phase 1: Token Foundation** - Establish the design token system and typography that every subsequent phase depends on
+- [ ] **Phase 2: Core UI Components** - Refactor shared components (glass cards, buttons, surfaces) to deliver the premium aesthetic
+- [ ] **Phase 3: Mindi Animation System** - Refactor audio reactivity architecture and implement all Mindi animations
+- [ ] **Phase 4: THE VOID Player** - Polish the immersive player experience (affirmation ceremony, progress bar, auto-hide controls)
+- [ ] **Phase 5: Screen Polish** - Apply the completed component system to all screens with entrance animations and micro-interactions
 
 ## Phase Details
 
-### Phase 1: Security & Foundation
-**Goal**: Address critical security vulnerabilities and platform compatibility issues that block development
+### Phase 1: Token Foundation
+**Goal**: The design token system and typography are established so every component in every subsequent phase draws from a single source of truth
 **Depends on**: Nothing (first phase)
-**Requirements**: SEC-01, SEC-02, AUDIO-02, REL-01
+**Requirements**: TYPO-01, TYPO-02, TYPO-03, TYPO-04, TYPO-05, TYPO-06, COLR-01, COLR-02, COLR-03, COLR-04, COLR-05, COLR-06
 **Success Criteria** (what must be TRUE):
-  1. Groq API key is rotated and removed from git history
-  2. All secrets loaded from environment variables with validation on startup
-  3. Backend generates audio successfully on Windows, Mac, and Linux
-  4. Python modules import correctly without module resolution errors
-**Plans**: 3 plans
+  1. App opens with Cinzel, Cormorant Garamond, and Raleway fonts rendered — no system-font flash on cold start
+  2. All four time-of-day themes (morning, afternoon, evening, night) render gold gradients instead of flat orange on primary elements
+  3. The near-black purple-tinted background (#0A0A12 range) is visible on all screens — no pure black or grey backgrounds remain
+  4. Text hierarchy is visible — hero text, body, and captions are clearly differentiated by font, size, and opacity
+  5. ThemeColors interface includes primaryGradient, glassOverlay, and glassBorder tokens accessible to all components
+**Plans**: TBD
 
-Plans:
-- [x] 01-01-PLAN.md - Add Python __init__.py files for proper module imports
-- [x] 01-02-PLAN.md - Add environment validation and cross-platform temp paths
-- [x] 01-03-PLAN.md - Rotate Groq API key and clean git history
-
-### Phase 2: Supabase Authentication
-**Goal**: Users can create accounts, log in, and maintain sessions across app restarts
+### Phase 2: Core UI Components
+**Goal**: Shared UI components deliver real glassmorphism, gold gradient interactions, and a consistent spatial system so all screens automatically inherit the premium aesthetic
 **Depends on**: Phase 1
-**Requirements**: SEC-03, SEC-04, SEC-05, SEC-06, SEC-07, SEC-08
+**Requirements**: SURF-01, SURF-02, SURF-03, SURF-04, SURF-05, INTR-01, INTR-02, INTR-03, INTR-04, INTR-05, PERF-03
 **Success Criteria** (what must be TRUE):
-  1. User can create account with email and password
-  2. User can log in and session persists across app restarts
-  3. User can reset password via email link
-  4. Backend validates JWT tokens on all protected routes
-  5. CORS configured for production (specific origins only, not wildcard)
-**Plans**: 5 plans
+  1. Cards show three-layer glass depth (blur layer + tint + top-edge highlight) — visible as distinct depth from the background
+  2. Primary CTA buttons animate with a breathing gold glow — the pulse is visible at rest without any interaction
+  3. Every touch target responds with a scale-down-and-spring-back micro-interaction when tapped
+  4. Cards and chips use the consistent corner radius system (20px cards, 12px chips) with no deviations
+  5. On an Android device, glassmorphism cards render without performance drop — blur fallback activates cleanly on pre-API-31 devices
+**Plans**: TBD
 
-Plans:
-- [ ] 02-01-PLAN.md - Frontend Supabase infrastructure (client, encrypted storage, deep links)
-- [ ] 02-02-PLAN.md - Backend JWT validation infrastructure (PyJWT, JWKS, CORS)
-- [ ] 02-03-PLAN.md - Frontend auth implementation (auth methods, useAuth hook, AuthContext)
-- [ ] 02-04-PLAN.md - Backend route protection (add JWT validation to endpoints)
-- [ ] 02-05-PLAN.md - Integration verification (env templates, end-to-end testing)
-
-### Phase 3: Database Integration
-**Goal**: User data persists to Supabase and syncs across devices
+### Phase 3: Mindi Animation System
+**Goal**: Mindi is alive — she breathes at idle, glows in sync with audio playback, tracks touch on screen, and arrives with presence on each screen, all without causing React re-renders
 **Depends on**: Phase 2
-**Requirements**: DB-01, DB-02, DB-03, DB-04, DB-05, DB-06, DB-07, DB-08, DB-09
+**Requirements**: MIND-01, MIND-02, MIND-03, MIND-04, MIND-05, MIND-06, PERF-02
 **Success Criteria** (what must be TRUE):
-  1. User can save generated subliminals to library
-  2. User can view their saved subliminals from any device
-  3. User can delete subliminals from library
-  4. User's listening sessions are recorded automatically
-  5. User's streak count updates after completing sessions
-  6. Mindi's glow level and XP persist across app restarts
+  1. Mindi visibly breathes (slow scale pulse) when audio is not playing
+  2. Mindi's glow intensifies and pulses in sync with audio during playback — the connection between sound and visual is perceptible
+  3. Mindi's eyes track touch position as the user moves a finger across the screen
+  4. Mindi animates into view distinctly on each screen transition (translate + scale entrance)
+  5. VoidContainer does not trigger React re-renders during audio playback — audioLevel is a SharedValue, not React state
 **Plans**: TBD
 
-Plans:
-- [ ] 03-01: TBD
-
-### Phase 4: Core Flow & Audio
-**Goal**: Users can complete the full workflow from intention to playback with proper audio assets
+### Phase 4: THE VOID Player
+**Goal**: The player experience is fully immersive — controls disappear by default, affirmations reveal as a ceremony, and every visual element is GPU-rendered and SharedValue-driven
 **Depends on**: Phase 3
-**Requirements**: FLOW-01, FLOW-02, FLOW-03, FLOW-04, FLOW-05, FLOW-06, FLOW-07, FLOW-08, AUDIO-01, AUDIO-03, AUDIO-04, AUDIO-05
+**Requirements**: VOID-01, VOID-02, VOID-03, VOID-04, VOID-05, VOID-06
 **Success Criteria** (what must be TRUE):
-  1. User completes onboarding (names Mindi, sets first intention)
-  2. User can describe intention and AI generates affirmations
-  3. User can review and edit affirmations before generation
-  4. User can select voice and background ambient sound
-  5. User sees real-time generation progress with WebSocket updates
-  6. Generated audio plays in immersive player with proper controls
-  7. User can download audio for offline playback
-  8. User sees clear error messages when generation fails and can retry
+  1. Player controls fade out automatically after 3-4 seconds of idle; a single tap anywhere reveals them
+  2. Affirmations appear one-by-one with staggered animation — the current affirmation glows while others dim to near-invisible
+  3. The progress bar is minimal (approximately 2px tall) with a gold gradient fill and subtle glow — no percentage label
+  4. Selecting a different sound causes the background color temperature to visibly shift to match that sound's mood
+  5. The circular progress indicator is rendered as a Skia arc path with smooth GPU-driven animation (no CSS border trick)
 **Plans**: TBD
 
-Plans:
-- [ ] 04-01: TBD
-
-### Phase 5: Mindi Character Animations
-**Goal**: Mindi displays emotional states and reacts to app events through Rive animations
+### Phase 5: Screen Polish
+**Goal**: Every screen feels like a portal — entrance animations, consistent spacing, the glass tab bar, and immersive StatusBar behavior are applied across the full app
 **Depends on**: Phase 4
-**Requirements**: MINDI-01, MINDI-02, MINDI-03, MINDI-04, MINDI-05
+**Requirements**: SCRN-01, SCRN-02, SCRN-03, SCRN-04, SCRN-05, PERF-01
 **Success Criteria** (what must be TRUE):
-  1. Mindi renders with Rive animation (not static PNG)
-  2. Mindi has distinct emotional states (idle, listening, peaceful, happy, excited, generating)
-  3. Mindi transitions smoothly between states based on user actions
-  4. Particle effects appear when user completes listening sessions
-  5. Mindi's glow intensity increases visibly as user accumulates sessions
+  1. Navigating to any major screen triggers a staggered entrance — elements build in sequentially, not all at once
+  2. The tab bar appears as a floating glass pill — clearly lifted off the screen with blur and rounded ends
+  3. The StatusBar is hidden during THE VOID player experience and visible during navigation screens
+  4. Loading states show pulsing glow or shimmer placeholders — no default ActivityIndicator spinner appears anywhere
+  5. All animations maintain 60fps on a mid-range Android device — no visible jank or frame drops during any transition or idle animation
 **Plans**: TBD
-
-Plans:
-- [ ] 05-01: TBD
-
-### Phase 6: Reliability & Polish
-**Goal**: Audio pipeline is hardened against failures and ready for production load
-**Depends on**: Phase 5
-**Requirements**: REL-02, REL-03, REL-04, REL-05, REL-06
-**Success Criteria** (what must be TRUE):
-  1. FFmpeg operations run without blocking the event loop
-  2. Generation endpoint rejects excessive requests with rate limiting
-  3. Malformed requests return clear validation errors
-  4. Generation requests timeout gracefully after 2 minutes
-  5. Audio pipeline has test coverage for critical paths
-**Plans**: TBD
-
-Plans:
-- [ ] 06-01: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security & Foundation | 3/3 | Complete | 2026-02-02 |
-| 2. Supabase Authentication | 0/5 | Ready | - |
-| 3. Database Integration | 0/TBD | Not started | - |
-| 4. Core Flow & Audio | 0/TBD | Not started | - |
-| 5. Mindi Character Animations | 0/TBD | Not started | - |
-| 6. Reliability & Polish | 0/TBD | Not started | - |
-
----
-*Created: 2026-02-02*
-*Last updated: 2026-02-02 (Phase 1 complete)*
+| 1. Token Foundation | 0/TBD | Not started | - |
+| 2. Core UI Components | 0/TBD | Not started | - |
+| 3. Mindi Animation System | 0/TBD | Not started | - |
+| 4. THE VOID Player | 0/TBD | Not started | - |
+| 5. Screen Polish | 0/TBD | Not started | - |
