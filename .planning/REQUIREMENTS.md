@@ -29,7 +29,7 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 
 - [x] **SURF-01**: GlassmorphicCard refactored with three-layer depth (BlurView + rgba tint + top-edge highlight gradient)
 - [x] **SURF-02**: Cards use glow shadows (ambient purple/gold glow) instead of drop shadows
-- [ ] **SURF-03**: Consistent corner radius system applied — 20px cards, 12px chips, pill-shaped CTAs
+- [x] **SURF-03**: Consistent corner radius system applied — 20px cards, 12px chips, pill-shaped CTAs
 - [x] **SURF-04**: Android blur fallback strategy implemented (semi-transparent overlay for pre-API-31 devices)
 - [x] **SURF-05**: Maximum 2-3 concurrent BlurViews per screen enforced for Android performance
 
@@ -39,7 +39,7 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 - [x] **INTR-02**: CTA buttons have gradient borders that pulse subtly
 - [x] **INTR-03**: All touch targets meet 44px minimum and have scale 0.96 press + spring release micro-interaction
 - [x] **INTR-04**: Haptic feedback applied consistently on all primary actions (already available via expo-haptics)
-- [ ] **INTR-05**: Consistent spacing system with 4px grid base (8, 12, 16, 24, 32, 48px rhythm) applied app-wide
+- [x] **INTR-05**: Consistent spacing system with 4px grid base (8, 12, 16, 24, 32, 48px rhythm) applied app-wide
 
 ### Mindi Animation
 
@@ -121,14 +121,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COLR-06 | Phase 1 | Complete |
 | SURF-01 | Phase 2 | Complete |
 | SURF-02 | Phase 2 | Complete |
-| SURF-03 | Phase 2 | Pending |
+| SURF-03 | Phase 2 | Complete |
 | SURF-04 | Phase 2 | Complete |
 | SURF-05 | Phase 2 | Complete |
 | INTR-01 | Phase 2 | Complete |
 | INTR-02 | Phase 2 | Complete |
 | INTR-03 | Phase 2 | Complete |
 | INTR-04 | Phase 2 | Complete |
-| INTR-05 | Phase 2 | Pending |
+| INTR-05 | Phase 2 | Complete |
 | PERF-03 | Phase 2 | Complete |
 | MIND-01 | Phase 3 | Pending |
 | MIND-02 | Phase 3 | Pending |
