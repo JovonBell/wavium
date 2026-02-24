@@ -4,13 +4,14 @@
  * Two-stream audio: background ambient + voice (subliminal) playing independently
  */
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { View, StyleSheet, Dimensions, StatusBar } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { Canvas, Path, Skia } from '@shopify/react-native-skia';
 import { Audio } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -389,7 +390,7 @@ export default function VoidContainer({
         <View style={styles.mindiContainer}>
           <MindiRenderer size={180} showParticles={true} audioLevel={audioLevel} />
           <View style={styles.progressRing}>
-            <ProgressRing progress={progress} size={220} strokeWidth={3} color={colors.primary} />
+            <SkiaProgressRing progress={progress} size={220} strokeWidth={3} color={colors.primaryGradient[1]} />
           </View>
         </View>
 
@@ -432,8 +433,8 @@ export default function VoidContainer({
   );
 }
 
-// Simple progress ring component
-function ProgressRing({
+// GPU-rendered Skia progress ring (VOID-05)
+function SkiaProgressRing({
   progress,
   size,
   strokeWidth,
@@ -444,32 +445,47 @@ function ProgressRing({
   strokeWidth: number;
   color: string;
 }) {
+  const r = (size - strokeWidth) / 2;
+  const cx = size / 2;
+  const cy = size / 2;
+
+  // Background ring (track)
+  const trackPath = useMemo(() => {
+    const p = Skia.Path.Make();
+    p.addCircle(cx, cy, r);
+    return p;
+  }, [cx, cy, r]);
+
+  // Progress arc — swept from top (-90deg)
+  const progressPath = useMemo(() => {
+    const sweep = Math.min(progress, 1) * 360;
+    const p = Skia.Path.Make();
+    if (sweep > 0) {
+      p.addArc(
+        { x: cx - r, y: cy - r, width: r * 2, height: r * 2 },
+        -90,
+        sweep
+      );
+    }
+    return p;
+  }, [progress, cx, cy, r]);
+
   return (
-    <View style={{ width: size, height: size }}>
-      <Animated.View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: `${color}30`,
-          position: 'absolute',
-        }}
+    <Canvas style={{ width: size, height: size }}>
+      <Path
+        path={trackPath}
+        style="stroke"
+        strokeWidth={strokeWidth}
+        color={`${color}30`}
       />
-      <Animated.View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: color,
-          borderTopColor: 'transparent',
-          borderRightColor: 'transparent',
-          position: 'absolute',
-          transform: [{ rotate: `${Math.min(progress, 1) * 360}deg` }],
-        }}
+      <Path
+        path={progressPath}
+        style="stroke"
+        strokeWidth={strokeWidth}
+        color={color}
+        strokeCap="round"
       />
-    </View>
+    </Canvas>
   );
 }
 
