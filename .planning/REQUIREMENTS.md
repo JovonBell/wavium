@@ -1,104 +1,92 @@
-# Requirements: Wavium
+# Requirements: Wavium Aesthetic Overhaul
 
-**Defined:** 2026-02-02
-**Core Value:** Users can create and listen to personalized subliminal audio that actually works, every single time.
+**Defined:** 2026-02-24
+**Core Value:** Every screen should feel like entering a portal where reality dissolves — the aesthetic IS the product for a mindfulness/subliminal app.
 
 ## v1 Requirements
 
-Requirements for MVP release. Each maps to roadmap phases.
+Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 
-### Security
+### Typography
 
-- [x] **SEC-01**: Rotate Groq API key and remove from git history
-- [x] **SEC-02**: Secure all secrets via environment variables with validation
-- [ ] **SEC-03**: User can create account with email and password via Supabase
-- [ ] **SEC-04**: User receives email verification after signup
-- [ ] **SEC-05**: User can reset password via email link
-- [ ] **SEC-06**: User session persists across app restarts
-- [ ] **SEC-07**: All backend routes validate JWT tokens
-- [ ] **SEC-08**: CORS configured for production (specific origins only)
+- [ ] **TYPO-01**: App uses Cinzel display font for screen titles and hero text (THE VOID, section headers)
+- [ ] **TYPO-02**: App uses Cormorant Garamond for affirmation text and editorial content (20px+)
+- [ ] **TYPO-03**: App uses Raleway for body text, UI labels, and navigation elements
+- [ ] **TYPO-04**: Typographic scale systemized with 4 sizes: display (~32px), heading (~22px), body (~15px), label (~12px)
+- [ ] **TYPO-05**: Off-white text hierarchy applied globally — body rgba(255,255,255,0.82), captions 0.55, hero #FFFFFF
+- [ ] **TYPO-06**: Font loading uses expo-font config plugin (build-time embedding, zero font flash on cold start)
 
-### Database
+### Color System
 
-- [ ] **DB-01**: Supabase schema created (users, subliminals, sessions, mindi_state)
-- [ ] **DB-02**: User can save subliminals to library
-- [ ] **DB-03**: User can view their saved subliminals
-- [ ] **DB-04**: User can delete subliminals from library
-- [ ] **DB-05**: User's listening sessions are recorded
-- [ ] **DB-06**: User can view session history
-- [ ] **DB-07**: User's streak is tracked and displayed
-- [ ] **DB-08**: Mindi evolution state persists (glow level, XP)
-- [ ] **DB-09**: User data syncs across devices with same account
+- [ ] **COLR-01**: Gold gradient palette (#F7C873 → #D4A017 → #A0720C) replaces flat orange on all primary accents
+- [ ] **COLR-02**: Near-black background with purple tint (#0A0A12 range) replaces current background
+- [ ] **COLR-03**: Purple depth spectrum refined with richer gradient stops across all 4 time-of-day themes
+- [ ] **COLR-04**: ThemeColors interface extended with `primaryGradient`, `glassOverlay`, `glassBorder` tokens
+- [ ] **COLR-05**: All 4 time-of-day themes (morning/afternoon/evening/night) updated with gradient token values
+- [ ] **COLR-06**: Hardcoded hex colors in Skia components (NebulaRenderer, TimeShiftingBackground) replaced with theme tokens
 
-### Core Flow
+### Surface & Depth
 
-- [ ] **FLOW-01**: User completes onboarding (name Mindi, set intention)
-- [ ] **FLOW-02**: User can describe intention on create screen
-- [ ] **FLOW-03**: User can review AI-generated affirmations
-- [ ] **FLOW-04**: User can edit affirmations before generation
-- [ ] **FLOW-05**: User can select voice for audio
-- [ ] **FLOW-06**: User can select background ambient sound
-- [ ] **FLOW-07**: User sees real-time progress during generation
-- [ ] **FLOW-08**: User can play generated audio in immersive player
+- [ ] **SURF-01**: GlassmorphicCard refactored with three-layer depth (BlurView + rgba tint + top-edge highlight gradient)
+- [ ] **SURF-02**: Cards use glow shadows (ambient purple/gold glow) instead of drop shadows
+- [ ] **SURF-03**: Consistent corner radius system applied — 20px cards, 12px chips, pill-shaped CTAs
+- [ ] **SURF-04**: Android blur fallback strategy implemented (semi-transparent overlay for pre-API-31 devices)
+- [ ] **SURF-05**: Maximum 2-3 concurrent BlurViews per screen enforced for Android performance
 
-### Audio
+### Buttons & Interactions
 
-- [ ] **AUDIO-01**: Background audio assets exist (ocean, rain, forest, campfire, space, silence)
-- [x] **AUDIO-02**: Audio generation works on all platforms (cross-platform paths)
-- [ ] **AUDIO-03**: User can download audio for offline playback
-- [ ] **AUDIO-04**: User sees clear error message when generation fails
-- [ ] **AUDIO-05**: Failed generation can be retried
+- [ ] **INTR-01**: Primary CTA buttons use gold gradient fill with breathing glow animation
+- [ ] **INTR-02**: CTA buttons have gradient borders that pulse subtly
+- [ ] **INTR-03**: All touch targets meet 44px minimum and have scale 0.96 press + spring release micro-interaction
+- [ ] **INTR-04**: Haptic feedback applied consistently on all primary actions (already available via expo-haptics)
+- [ ] **INTR-05**: Consistent spacing system with 4px grid base (8, 12, 16, 24, 32, 48px rhythm) applied app-wide
 
-### Mindi Character
+### Mindi Animation
 
-- [ ] **MINDI-01**: Mindi renders with Rive animation
-- [ ] **MINDI-02**: Mindi has emotional states (idle, listening, peaceful, happy, excited, generating)
-- [ ] **MINDI-03**: Mindi transitions smoothly between states based on app events
-- [ ] **MINDI-04**: Particle effects appear when Mindi absorbs affirmations
-- [ ] **MINDI-05**: Mindi's glow increases with listening sessions
+- [ ] **MIND-01**: Mindi idle breathing animation — slow scale pulse (1.0 → 1.02, 4s loop) when not in active playback
+- [ ] **MIND-02**: Mindi glow pulse synced to audio playback via SharedValue (not React state)
+- [ ] **MIND-03**: Mindi eye movement/tracking that reacts to touch position on screen
+- [ ] **MIND-04**: Mindi entrance animations per screen (translate + scale via Skia `matrix` prop)
+- [ ] **MIND-05**: VoidContainer `audioLevel` refactored from useState to useSharedValue (zero re-renders for audio reactivity)
+- [ ] **MIND-06**: `useLoop` hook created for all withRepeat animations with proper cancelAnimation cleanup
 
-### Reliability
+### THE VOID Player
 
-- [x] **REL-01**: Python __init__.py files added for proper imports
-- [ ] **REL-02**: FFmpeg calls wrapped with asyncio (non-blocking)
-- [ ] **REL-03**: Rate limiting enforced on generation endpoints
-- [ ] **REL-04**: Request validation rejects malformed input
-- [ ] **REL-05**: Requests timeout gracefully (not hang forever)
-- [ ] **REL-06**: Basic test coverage for audio pipeline
+- [ ] **VOID-01**: Auto-hide player controls after 3-4 seconds idle, tap anywhere to reveal
+- [ ] **VOID-02**: Affirmation ceremony — one-by-one reveal with staggered fade/translate animation (not numbered list)
+- [ ] **VOID-03**: Current affirmation highlighted during playback (glow pulse, others dimmed to 40%)
+- [ ] **VOID-04**: Minimal progress bar — 2px height, gradient gold fill, subtle glow, no percentage text
+- [ ] **VOID-05**: ProgressRing replaced with Skia arc path (GPU-rendered, SharedValue-driven)
+- [ ] **VOID-06**: Sound picker mood preview — screen background shifts color temperature per selected sound
+
+### Screen Polish
+
+- [ ] **SCRN-01**: Entrance animations on all major screens (staggered Reanimated entering, 200-400ms per element group)
+- [ ] **SCRN-02**: Home screen spacing and typography hierarchy applied with new components
+- [ ] **SCRN-03**: Tab bar refactored to floating glass pill style
+- [ ] **SCRN-04**: StatusBar hidden during player experience, visible during navigation screens
+- [ ] **SCRN-05**: Loading states use aesthetic placeholders (pulsing glow, shimmer) — no default ActivityIndicator
+
+### Performance
+
+- [ ] **PERF-01**: All animations maintain 60fps on mid-range Android devices
+- [ ] **PERF-02**: Skia interpolateColors used (not Reanimated interpolateColor) for all Skia color animations
+- [ ] **PERF-03**: No blur intensity animation — container opacity animated instead for blur reveal effects
 
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
-### Platform Expansion
+### Visual Effects
 
-- **PLAT-01**: iOS support
-- **PLAT-02**: Web support (Expo Web)
+- **VFX-01**: Audio-reactive particle density — particle count reacts to audio intensity
+- **VFX-02**: Grain/noise texture overlay at 3-6% opacity over backgrounds
+- **VFX-03**: Shared element transitions between screens (Reanimated 4 SharedTransition — experimental)
 
-### Authentication Expansion
+### Mindi Evolution
 
-- **AUTH-01**: Sign in with Google
-- **AUTH-02**: Sign in with Apple
-- **AUTH-03**: Magic link login (passwordless)
-
-### Social Features
-
-- **SOC-01**: Share subliminal with friends
-- **SOC-02**: Public subliminal library
-- **SOC-03**: User profiles
-
-### Advanced Audio
-
-- **ADV-01**: Custom voice upload
-- **ADV-02**: Custom background upload
-- **ADV-03**: Sleep timer
-- **ADV-04**: Playlist/queue functionality
-
-### Monetization
-
-- **MON-01**: Subscription tiers
-- **MON-02**: Premium voices
-- **MON-03**: Usage limits for free tier
+- **MIND-07**: Mindi full evolution system (10 paths, 5 stages)
+- **MIND-08**: Mindi constellation star map library
 
 ## Out of Scope
 
@@ -106,16 +94,12 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| iOS support | Android-only for MVP, reduces testing surface |
-| Web support | Mobile-first, web later |
-| OAuth (Google/Apple) | Email/password sufficient for MVP |
-| Real-time chat/social | Solo experience, not social network |
-| Custom voice upload | Use preset voices only for MVP |
-| Subscription/payments | Free during validation phase |
-| Analytics/telemetry | Add after core is stable |
-| Push notifications | Add after user accounts work |
-| Multi-language | English only for MVP |
-| Admin dashboard | Manage via Supabase console |
+| Backend changes | Frontend-only overhaul — audio pipeline and API are working |
+| New screens or features | Only improving existing screens' aesthetics |
+| Onboarding ceremony redesign | Keep current flow, just polish visuals |
+| Audio pipeline changes | Already works well, no aesthetic component |
+| Mindi evolution system | Too large, separate effort/milestone |
+| Constellation library | Not built yet, separate effort |
 
 ## Traceability
 
@@ -123,61 +107,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 1 | Complete |
-| SEC-02 | Phase 1 | Complete |
-| AUDIO-02 | Phase 1 | Complete |
-| REL-01 | Phase 1 | Complete |
-| SEC-03 | Phase 2 | Pending |
-| SEC-04 | Phase 2 | Pending |
-| SEC-05 | Phase 2 | Pending |
-| SEC-06 | Phase 2 | Pending |
-| SEC-07 | Phase 2 | Pending |
-| SEC-08 | Phase 2 | Pending |
-| DB-01 | Phase 3 | Pending |
-| DB-02 | Phase 3 | Pending |
-| DB-03 | Phase 3 | Pending |
-| DB-04 | Phase 3 | Pending |
-| DB-05 | Phase 3 | Pending |
-| DB-06 | Phase 3 | Pending |
-| DB-07 | Phase 3 | Pending |
-| DB-08 | Phase 3 | Pending |
-| DB-09 | Phase 3 | Pending |
-| FLOW-01 | Phase 4 | Pending |
-| FLOW-02 | Phase 4 | Pending |
-| FLOW-03 | Phase 4 | Pending |
-| FLOW-04 | Phase 4 | Pending |
-| FLOW-05 | Phase 4 | Pending |
-| FLOW-06 | Phase 4 | Pending |
-| FLOW-07 | Phase 4 | Pending |
-| FLOW-08 | Phase 4 | Pending |
-| AUDIO-01 | Phase 4 | Pending |
-| AUDIO-03 | Phase 4 | Pending |
-| AUDIO-04 | Phase 4 | Pending |
-| AUDIO-05 | Phase 4 | Pending |
-| MINDI-01 | Phase 5 | Pending |
-| MINDI-02 | Phase 5 | Pending |
-| MINDI-03 | Phase 5 | Pending |
-| MINDI-04 | Phase 5 | Pending |
-| MINDI-05 | Phase 5 | Pending |
-| REL-02 | Phase 6 | Pending |
-| REL-03 | Phase 6 | Pending |
-| REL-04 | Phase 6 | Pending |
-| REL-05 | Phase 6 | Pending |
-| REL-06 | Phase 6 | Pending |
+| *(populated by roadmapper)* | | |
 
 **Coverage:**
-- v1 requirements: 39 total
-- Mapped to phases: 39
-- Unmapped: 0 ✓
-
-**Phase Distribution:**
-- Phase 1 (Security & Foundation): 4 requirements
-- Phase 2 (Supabase Authentication): 6 requirements
-- Phase 3 (Database Integration): 9 requirements
-- Phase 4 (Core Flow & Audio): 12 requirements
-- Phase 5 (Mindi Character Animations): 5 requirements
-- Phase 6 (Reliability & Polish): 5 requirements
+- v1 requirements: 33 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 33
 
 ---
-*Requirements defined: 2026-02-02*
-*Last updated: 2026-02-02 after roadmap creation*
+*Requirements defined: 2026-02-24*
+*Last updated: 2026-02-24 after auto-mode definition*
