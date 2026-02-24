@@ -1,712 +1,369 @@
-# Domain Pitfalls: MVP Completion with Supabase, Rive, and Audio Processing
+# Pitfalls Research
 
-**Domain:** Subliminal audio app MVP completion
-**Researched:** 2026-02-02
-**Confidence:** HIGH (Supabase, edge-tts, FastAPI), MEDIUM (Rive animations)
+**Domain:** React Native / Expo premium visual effects (glassmorphism, blur, custom fonts, Skia animations)
+**Researched:** 2026-02-24
+**Confidence:** HIGH (most pitfalls verified via official docs, GitHub issues, and multiple corroborating sources)
+
+---
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites, data loss, or major production issues.
+### Pitfall 1: Android Blur Is Not Native — It Emulates, and Emulation Is Expensive
 
-### Pitfall 1: Supabase 2026 API Key Migration Breaking Edge Functions
-**What goes wrong:** After migrating to the new 2026 API key format (`sb_publishable_xxx`), Edge Function calls return 401 Unauthorized errors with "JWT is invalid". The Supabase Gateway expects a legacy JWT format for authentication and fails to validate the new API key format.
+**What goes wrong:**
+Developers apply `expo-blur` `BlurView` components expecting the same performance on Android as iOS. On iOS, blur uses UIVisualEffectView — a first-class native compositing operation. On Android below API 31 (Android 12), expo-blur uses RenderScript or the dimezisBlurView library to emulate the effect. The result: 3–5x higher GPU load per BlurView on older Android devices, visible frame drops, and in some cases the blur not rendering at all or rendering with wrong colors after navigation transitions.
 
-**Why it happens:** Supabase introduced new API key formats in 2026, but the gateway validation hasn't been fully updated. The client SDK passes the new format, but Edge Functions reject it.
+**Why it happens:**
+Android has no native "blur the content behind this view" API before API 31. Until Expo SDK 55, expo-blur's Android implementation was always the expensive emulated path. Starting SDK 55, Expo uses the RenderNode API for Android 12+ — but devices running Android 11 or below still fall back to the slow path. The project targets both platforms and mid-range devices, so this split matters.
 
-**Consequences:**
-- All authenticated API calls fail with cryptic 401 errors
-- Hours of debugging JWT validation logic that's actually correct
-- Edge Functions work in development but fail in production
+**How to avoid:**
+- Test blur-heavy screens on a real mid-range Android device (not an emulator) as the primary performance benchmark, not iOS Simulator.
+- Limit concurrent BlurView instances to 2–3 maximum on any single screen. The Expo docs explicitly warn: "Do not render more than a few BlurView components at once."
+- For Android fallback on pre-API-31 devices, use a semi-transparent overlay with a matching background color instead of a blur (design degrades gracefully, not catastrophically).
+- When `experimentalBlurMethod="blur"` is set for Android, test that it actually renders — this prop is still experimental as of SDK 54.
+- Never animate the `intensity` prop of BlurView on Android. This triggers continuous re-blur on each frame — instant frame drops. Animate opacity of the BlurView container instead.
 
-**Prevention:**
-- Test Edge Function authentication immediately after Supabase setup
-- Monitor Supabase GitHub discussions for updates on the 2026 API key issue
-- Consider using database-only features until Edge Functions are stable with new keys
-- Keep fallback to legacy auth format documented if needed
+**Warning signs:**
+- Android device drops below 30fps on screens with glassmorphic cards
+- BlurView renders as a solid tinted rectangle (not blurred) on certain Android versions
+- After navigating away and back, blur colors appear wrong or washed out (documented regression with react-native-screens transitions)
 
-**Detection:**
-- Edge Function calls return "JWT is invalid" despite valid session
-- Auth works for database queries but fails for Edge Functions
-- Discrepancy between local development and production behavior
-
-**Phase mapping:** Database Integration phase (must validate before production)
-
-**Source:** [Supabase GitHub Discussion #41834](https://github.com/orgs/supabase/discussions/41834)
+**Phase to address:** Phase covering glassmorphism implementation (GlassmorphicCard refinement). Establish the Android blur strategy before building any component that relies on it.
 
 ---
 
-### Pitfall 2: edge-tts Rate Limiting and Silent Failures
-**What goes wrong:** Microsoft recently implemented aggressive rate limiting on the free Edge TTS API that edge-tts uses. Too many requests from the same IP trigger 403 blocks without warning. Additionally, there's a 10-minute audio limit per request that isn't documented clearly.
+### Pitfall 2: Animating the Blur Radius Directly Destroys Performance
 
-**Why it happens:** edge-tts is an unofficial wrapper around Microsoft Edge's browser TTS service. Microsoft can change rate limits, API requirements, or block access entirely without notice. It's free because it's meant for browser use, not production apps.
+**What goes wrong:**
+Teams build "breathing" blur effects — blur intensity pulsing in and out — by animating the `intensity` or `blurRadius` prop directly. This causes the blur kernel to be recalculated on every frame. On iOS this hits ~40fps for a single BlurView. On Android it causes near-immediate frame collapse. Similarly, `Animated.Image`'s `blurRadius` prop does not animate correctly — it stays stuck at the initial value.
 
-**Consequences:**
-- Audio generation suddenly fails after working fine in development
-- Users get cryptic errors during audio generation (the core feature)
-- No way to detect rate limits before hitting them
-- Silent failures on long affirmation lists that exceed 10-minute limit
-- **App becomes unusable if Microsoft blocks the service**
+**Why it happens:**
+Blur is not a cheap transform. Unlike opacity or translate (which the GPU handles in compositing without re-drawing), blur requires the GPU to sample surrounding pixels — the cost scales with blur radius and the area being blurred. Animating blur radius is equivalent to re-blurring on every frame.
 
-**Prevention:**
-1. **Implement aggressive caching:** Never regenerate audio that already exists
-2. **Rate limit on your side first:** Max 1 generation per user per minute
-3. **Chunk long requests:** Split affirmation lists to stay under 10-minute audio limit
-4. **Add retry logic with exponential backoff:** Handle 403/429 gracefully
-5. **Monitor for blocks:** Log all edge-tts failures with timestamps and IPs
-6. **Plan migration path:** Document alternative TTS providers (ElevenLabs, Google TTS, AWS Polly)
-7. **Pre-generate sample audio:** Ship app with example subliminals so users can test before generating
+**How to avoid:**
+- Never animate `intensity` or `blurRadius` directly. Animate **opacity** of the BlurView container instead. A BlurView at full intensity cross-fading in via opacity is indistinguishable from an animated blur to users and is 10x cheaper.
+- For the Mindi glow pulse synced to audio: animate `opacity` and `scale` of the glow layer, not blur radius.
+- For breathing CTA buttons: animate `opacity` of a gradient border overlay, not a BlurView.
+- If you need a "reveal" effect (controls appearing in THE VOID player), fade in the entire pre-blurred card rather than growing the blur.
 
-**Detection:**
-- 403 errors from edge-tts after multiple successful generations
-- Audio generation works for first few requests, then fails
-- Timeouts on requests with 15+ affirmations
-- Empty/truncated audio files without error messages
+**Warning signs:**
+- Animation frame rate charts show steady 60fps until a blur component appears, then drops to 30–40fps
+- Perf monitor on Android shows GPU thread consistently over budget on blur screens
 
-**Phase mapping:**
-- MVP Completion: Add rate limiting and caching NOW
-- Post-MVP: Migrate to paid TTS if edge-tts becomes unreliable
-
-**Sources:**
-- [edge-tts Common Errors](https://pyvideotrans.com/edgetts-error/)
-- [edge-tts GitHub Issues](https://github.com/rany2/edge-tts/issues)
-- [Long text producing incomplete audio](https://github.com/rany2/edge-tts/issues/190)
+**Phase to address:** Phase covering THE VOID player controls (auto-hide reveal animation) and Mindi glow pulse.
 
 ---
 
-### Pitfall 3: FFmpegKit Retirement Breaking Audio Processing
-**What goes wrong:** FFmpegKit was officially retired on January 6, 2025, with all native binaries for Android/iOS being removed by April 1, 2025. Apps using FFmpegKit for audio mixing will break without notice.
+### Pitfall 3: Stacked Transparent Layers Cause GPU Overdraw
 
-**Why it happens:** The current codebase references audio mixing (affirmations + background soundscape), which likely requires FFmpeg. The most popular React Native FFmpeg library is now deprecated.
+**What goes wrong:**
+Glassmorphism aesthetics require: a nebula background, a star field, parallax layers, a gradient overlay, and then cards with their own blur + inner glow + shadow. Each layer that is transparent or semi-transparent forces the GPU to composite everything beneath it again. With 5–7 stacked semi-transparent layers, you can easily hit 3–5x overdraw — meaning the GPU renders each pixel 3–5 times per frame. This is invisible in Expo Go on a modern iPhone but collapses on mid-range Android.
 
-**Consequences:**
-- Audio mixing pipeline breaks completely
-- No official migration path documented
-- Alternative libraries have different APIs (rewrite needed)
-- Build failures on new Android/iOS versions
+**Why it happens:**
+React Native's compositing model is flat — it doesn't cull overdraw automatically. Every `backgroundColor: 'transparent'` or partial opacity triggers full compositing of layers beneath. The star field + parallax + gradient + blur cards is a recipe for exactly this problem if not architected deliberately.
 
-**Prevention:**
-1. **Audit current FFmpeg usage:** Check if backend uses FFmpeg for mixing (not visible in current TTS-only code)
-2. **Use VideoKit-FFmpeg-Android:** Actively maintained FFmpeg wrapper with Gradle integration
-3. **Or use native audio libraries:** React Native has expo-av and react-native-audio for simple mixing
-4. **Backend-side mixing:** Keep FFmpeg in Python backend (more stable than mobile FFmpeg)
-5. **Pre-mixed audio option:** Ship background tracks pre-mixed with silence for layering
+**How to avoid:**
+- Audit the z-axis stack for every major screen. Count layers. More than 4 semi-transparent layers on a single screen is a red flag.
+- Replace `backgroundColor: 'transparent'` + shadow with a single pre-composited gradient image where possible.
+- Use `shouldRasterizeIOS: true` on stable intermediate layers that don't change frame-to-frame. This caches the composited result.
+- Use `renderToHardwareTextureAndroid: true` for stable animated views — promotes the view to its own GPU layer, eliminating re-compositing cost.
+- Move particle effects and star fields into Skia Canvases — Skia batches all drawing ops into a single GPU call, dramatically reducing overdraw.
 
-**Detection:**
-- Build failures on Android with FFmpeg dependencies
-- Audio mixing functions return undefined or throw "module not found"
-- App crashes when attempting to mix affirmations with background audio
+**Warning signs:**
+- Android GPU profiler shows "overdraw" heat map with red areas over card regions
+- Frame time consistently 20–25ms (below 60fps) on screens with multiple overlapping effects
+- Profiling shows "Compositing" taking more time than "Draw"
 
-**Phase mapping:**
-- Pre-MVP: Confirm FFmpeg isn't in React Native dependencies
-- MVP: Keep mixing on backend (Python + FFmpeg is stable)
-- Post-MVP: If mobile mixing needed, use VideoKit-FFmpeg-Android
-
-**Sources:**
-- [FFmpegKit Shutdown Notice](https://www.itpathsolutions.com/ffmpegkit-shutdown-what-to-do-next)
-- [FFmpeg in Android with Example](https://www.geeksforgeeks.org/android/how-to-use-ffmpeg-in-android-with-example/)
+**Phase to address:** Phase establishing the base theme system and background layers. Design the layer budget before building individual components.
 
 ---
 
-### Pitfall 4: Hardcoded `/tmp` Paths Failing on Windows
-**What goes wrong:** The current codebase (PROJECT.md confirms this) hardcodes `/tmp/wavium` for temporary audio files. This fails on Windows (where temp is `C:\Users\{user}\AppData\Local\Temp`) and causes silent failures or crashes.
+### Pitfall 4: expo-font Flash of Invisible Text on Startup
 
-**Why it happens:** Developer wrote code on Mac/Linux without testing cross-platform paths. Python's `os.path.join()` helps but doesn't solve the root directory issue.
+**What goes wrong:**
+A custom display font is added for dramatic heading typography. On first launch (cold start), `useFonts` loads asynchronously. If the splash screen is hidden before fonts are loaded, React Native renders text with the system fallback font for ~100–300ms, then snaps to the display font. On first launch this looks like a glitch. More critically: if `SplashScreen.preventAutoHideAsync()` is not called at the very top of the root layout, the splash screen can auto-hide before fonts are ready, causing a blank white screen flash.
 
-**Consequences:**
-- Backend fails to start on Windows development machines
-- Audio files can't be written, generation silently fails
-- File not found errors when serving generated audio
-- Blocks Windows developers from contributing
+**Why it happens:**
+`useFonts` returns `[false, null]` on the first render. If the app renders at this point without guarding, text is drawn with the fallback font. The `useFonts` hook has also been documented to randomly fail on initial load (requiring a hot reload) in some SDK versions — an intermittent issue that fails silently.
 
-**Prevention:**
-1. **Use platform-agnostic temp directory:**
-   ```python
-   import tempfile
-   TEMP_DIR = tempfile.gettempdir()
-   OUTPUT_DIR = os.path.join(TEMP_DIR, "wavium")
-   ```
-2. **Or use project-relative paths:**
-   ```python
-   OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "audio_output")
-   ```
-3. **Document dev environment requirements:** If backend must run on Linux, say so explicitly
-4. **CI/CD on multiple platforms:** Test builds on Windows, Mac, Linux
+**How to avoid:**
+- Always call `SplashScreen.preventAutoHideAsync()` before any component renders (at module level in the root layout, outside the component function).
+- Return `null` from the root layout while `!loaded && !error` — do not render the app skeleton at all.
+- Only call `SplashScreen.hideAsync()` in a `useEffect` when `loaded || error` — the `error` branch is critical: if font loading fails silently, the app should still unhide rather than hang on a splash screen forever.
+- Keep font files in `assets/fonts/` and verify paths are correct — a wrong path fails silently with `useFonts` returning `[false, null]` indefinitely.
+- Use `expo-font` with the config plugin for SDK 54+, not just the runtime `useFonts` hook — fonts listed in the config plugin are bundled and loaded before JS starts, eliminating the async race entirely.
 
-**Detection:**
-- FileNotFoundError or PermissionError on Windows when generating audio
-- Backend starts but audio generation endpoint returns 500 errors
-- Audio files written but not accessible at expected URLs
+**Warning signs:**
+- App hangs on splash screen after fresh install (fonts failed to load, error branch not handled)
+- Typography "snaps" on first render in development builds
+- `useFonts` returns `[false, null]` indefinitely (wrong font path or missing config plugin)
 
-**Phase mapping:**
-- Immediate fix: This blocks Windows development (already identified in PROJECT.md)
-
-**Source:** Current codebase analysis + standard Python cross-platform practice
+**Phase to address:** Typography system implementation. Get font loading right before building any typographic hierarchy.
 
 ---
 
-### Pitfall 5: Exposed API Keys in Git History
-**What goes wrong:** PROJECT.md confirms a Groq API key was exposed in git history. Even after removing the key from current files, it remains in git history forever. Attackers scan public repos for keys in commits.
+### Pitfall 5: Reanimated Infinite Animations Not Cancelled on Unmount (Memory Leak)
 
-**Why it happens:** Developer committed `.env` file or hardcoded key before adding `.gitignore`. Removing the file in a later commit doesn't erase history.
+**What goes wrong:**
+`withRepeat` animations with `-1` iterations (infinite loops) continue running after the component unmounts. This is documented behavior — Reanimated does not auto-cancel animations when a shared value goes out of scope. On screens that animate Mindi breathing, star glow pulses, and particle loops simultaneously, unmounting without cleanup leaves 5–10 animation loops running invisibly on the UI thread, increasing CPU/GPU load on the next screen.
 
-**Consequences:**
-- Exposed Groq API key gets scraped and abused
-- Unexpected API bills (if Groq charges for overuse)
-- Rate limits hit because others are using your key
-- Security audit failure before launch
+The documented `useSharedValue` memory leak (GitHub issues #5800, #5614) shows that memory allocated for shared values with array data is not released on unmount in some Reanimated versions.
 
-**Prevention:**
-1. **Rotate the key immediately:** Generate new Groq API key, revoke old one
-2. **Purge git history:**
-   ```bash
-   git filter-branch --force --index-filter \
-   'git rm --cached --ignore-unmatch backend/.env' \
-   --prune-empty --tag-name-filter cat -- --all
-   ```
-   **OR use BFG Repo-Cleaner** (faster, safer)
-3. **Force push cleaned history:** `git push origin --force --all`
-4. **Audit for other secrets:** Check for Supabase keys, R2 credentials, etc.
-5. **Use environment variables exclusively:** Never commit secrets
-6. **Add pre-commit hooks:** Tools like `detect-secrets` or `git-secrets`
+**Why it happens:**
+Reanimated runs animations on the UI thread via worklets. When the component unmounts, the React tree node is gone, but the worklet and its associated shared value can persist if not explicitly cancelled. This is a design choice (it prevents abrupt visual cuts) but requires explicit developer cleanup.
 
-**Detection:**
-- Search git history for "GROQ_API_KEY" or "sk-" prefixes
-- GitHub secret scanning alerts (if repo becomes public)
-- Unexpected API usage in Groq dashboard
+**How to avoid:**
+- Every `withRepeat(..., -1, ...)` animation must have a `useEffect` cleanup that calls `cancelAnimation(sharedValue)` on the same shared value.
+- Write a custom `useLoop` hook that encapsulates `withRepeat` + `withTiming` + cleanup so this pattern is reused consistently rather than repeated ad-hoc.
+- Avoid storing large arrays inside shared values (known memory leak with array-typed shared values). Use separate scalar shared values instead.
+- In THE VOID player (which has: Mindi glow pulse, affirmation reveal, progress bar animation, particle animations, nebula animations) — all of these need cleanup hooks. Audit each animated component for missing cleanup.
 
-**Phase mapping:**
-- **IMMEDIATE:** Rotate key before any other work (already compromised)
+**Warning signs:**
+- Memory usage climbs steadily after navigating between screens (Flipper memory profiler)
+- CPU usage doesn't drop when leaving animation-heavy screens
+- Animations "bleed through" to the next screen (stale worklet still running)
 
-**Source:** Current project context (PROJECT.md)
+**Phase to address:** Every phase that introduces `withRepeat` animations — establish the `useLoop` pattern in the first animation phase and enforce it throughout.
 
 ---
 
-### Pitfall 6: Supabase Real-time Subscription Memory Leaks
-**What goes wrong:** Subscribing to Supabase real-time channels in React Native components without unsubscribing on unmount causes memory leaks. Each re-render creates a new subscription, and zombie subscriptions keep piling up.
+### Pitfall 6: JS Thread Blocking Kills Animations That Seem Reanimated-Safe
 
-**Why it happens:** Real-time subscriptions maintain WebSocket connections. If the component unmounts without calling `unsubscribe()`, the connection persists and continues receiving data that nobody is listening for.
+**What goes wrong:**
+A developer uses Reanimated correctly (worklets, UI thread animations) but still sees jank. Investigation reveals that `useAnimatedStyle` callbacks are being called on the JS thread for the first render, and a blocking state update (Zustand store update, audio status polling, heavy computation) happens simultaneously. The 16.67ms frame budget is blown by JS work before animations even start.
 
-**Consequences:**
-- App memory usage grows over time (especially on Android)
-- Multiple duplicate updates for the same data (doubled, tripled subscriptions)
-- WebSocket connection limits hit (Supabase has per-connection limits)
-- App becomes sluggish or crashes after extended use
+Concretely: Wavium polls audio playback status (`expo-av` `onPlaybackStatusUpdate`), updates Zustand store, and derives animation state from that. If the playback status update triggers a cascade of re-renders, every Reanimated component re-evaluates its `useAnimatedStyle` on the JS thread, eating the frame budget.
 
-**Prevention:**
-1. **Always unsubscribe in cleanup:**
-   ```typescript
-   useEffect(() => {
-     const subscription = supabase
-       .channel('subliminals')
-       .on('postgres_changes', { ... }, handler)
-       .subscribe()
+**Why it happens:**
+Reanimated 3 worklets run on the UI thread — but only after the initial render. The first call to `useAnimatedStyle` runs on JS. Additionally, reading a shared value inside a non-worklet function runs on the JS thread, not the UI thread. Mixing Reanimated values with React state in the same component creates JS-thread dependency chains.
 
-     return () => {
-       subscription.unsubscribe()
-     }
-   }, [])
-   ```
-2. **Use Zustand stores for subscriptions:** Centralize subscriptions in state stores, not components
-3. **Avoid subscriptions for MVP:** Real-time is overkill for this app (only one user, no collaboration)
-4. **Monitor active connections:** Log subscription count in development
+**How to avoid:**
+- Never derive animation values from React state that updates at high frequency (audio position ticks, timer values). Instead, use `useSharedValue` directly and update it from within a worklet or via `runOnUI`.
+- Debounce or throttle `onPlaybackStatusUpdate` — poll at 500ms intervals for UI-driven updates rather than every 100ms.
+- Keep Mindi animation components isolated: no Zustand selectors, no React state. Drive their behavior from shared values passed as props.
+- Use `useDerivedValue` for computed animation state rather than deriving inside `useAnimatedStyle`.
 
-**Detection:**
-- Memory profiler shows growing heap size over time
-- Same data appears twice in UI after navigating back to a screen
-- "Max subscriptions reached" errors in Supabase logs
-- App performance degrades during long sessions
+**Warning signs:**
+- Perf monitor shows "JS Thread" consistently at 80–100% during audio playback
+- Animations stutter in sync with audio status update ticks
+- React DevTools shows frequent re-renders on animated components
 
-**Phase mapping:**
-- Database Integration: Skip real-time subscriptions for MVP
-- Post-MVP: Only add real-time if collaborative features are added
-
-**Sources:**
-- [Avoid Common Supabase Gotchas in React Native](https://www.prosperasoft.com/blog/database/supabase/supabase-react-native-gotchas/)
-- [Supabase Docs: React Native Auth](https://supabase.com/docs/guides/auth/quickstarts/react-native)
+**Phase to address:** THE VOID player (audio-synced animations) and Mindi glow pulse sync. Design the data flow architecture before implementing audio-reactive animations.
 
 ---
 
-## Moderate Pitfalls
+### Pitfall 7: Skia Backdrop Blur Cannot Blur Native Views Outside the Canvas
 
-Mistakes that cause delays, technical debt, or require refactoring.
+**What goes wrong:**
+The existing codebase uses Skia for Mindi rendering. A developer decides to use Skia's `BackdropBlur` to implement glassmorphism on cards, expecting it to blur whatever native views lie behind the canvas. It does not work. Skia's `BackdropBlur` only blurs content declared **inside the same Skia Canvas** — it cannot sample or blur native React Native views rendered outside the canvas. Attempts to snapshot the native view and blur the snapshot fail for scrollable content (the snapshot doesn't update as content scrolls).
 
-### Pitfall 7: Rive React Native Runtime Transition
-**What goes wrong:** The original Rive React Native library couldn't build with React Native 0.80+ (released July 2025). A critical glitching bug took 6 months to resolve. There's now a new Nitro-based runtime in development preview, but the API may change.
+**Why it happens:**
+Skia operates in its own rendering context. It has no access to the native compositing tree's framebuffer of surrounding views. This is a fundamental architecture boundary, not a bug. Official documentation states: "Backdrop blur won't work with scrollable content outside the Skia canvas."
 
-**Why it happens:** Rive is rebuilding their React Native runtime using Nitro (new architecture). The old runtime is effectively deprecated but not officially sunset. The new one is functional but in preview.
+**How to avoid:**
+- Use `expo-blur` (`BlurView`) for glassmorphism on cards that overlay native views — this IS the right tool.
+- Reserve Skia for: Mindi rendering, particle effects, star fields, nebula backgrounds, gradient animations, glow effects — all things rendered inside a Skia canvas.
+- Do not attempt to replace `expo-blur` with Skia `BackdropBlur` on cards. The two tools have different jobs and different access to the view hierarchy.
+- The `GlassmorphicCard` component should use `BlurView` for backdrop blur + a Skia canvas layer on top for inner glow/gradient decoration if needed.
 
-**Consequences:**
-- Time invested in learning old API becomes wasted if it breaks
-- Migration to new runtime mid-MVP causes delays
-- New runtime bugs without Stack Overflow solutions (too new)
-- Android error messages are non-descriptive in RN 0.78-0.79 (fixed in 0.80)
+**Warning signs:**
+- Skia BackdropBlur renders as transparent or only blurs other Skia-drawn content
+- Discussion threads showing "BackdropBlur not working on Android" — confirm which issue applies
 
-**Prevention:**
-1. **Use the new Nitro runtime from day one:** `rive-nitro-react-native` (preview but actively maintained)
-2. **Pin React Native to 0.80+:** Solves Android error message issues
-3. **Start with simple Rive files:** Test state machine transitions before creating complex Mindi animations
-4. **Create fallback static animations:** PNG sequence as backup if Rive breaks
-5. **Budget extra time:** Rive integration will take 2x longer than estimated (debugging unknowns)
-
-**Detection:**
-- Build failures on Android with Kotlin version conflicts (needs 1.8.0+)
-- iOS build errors requiring deployment target bump to 14.0+
-- Duplicate class errors during Android build
-- Animations freeze or reset on initial render
-
-**Phase mapping:**
-- Mindi Character: Allocate 1 week for Rive debugging alone
-- MVP: Keep Mindi animations simple (idle, listening, generating states only)
-- Post-MVP: Add complex emotional states after proving Rive stability
-
-**Sources:**
-- [Maintenance status of Rive React Native](https://github.com/rive-app/rive-react-native/issues/369)
-- [Rive Nitro React Native (new runtime)](https://github.com/rive-app/rive-nitro-react-native)
-- [Lag on initial Rive render](https://community.rive.app/c/support/lag-and-reset-on-initial-rive-render-critical-for-onboarding-react-native)
+**Phase to address:** GlassmorphicCard refinement phase. Establish the Skia-vs-BlurView boundary explicitly before implementing cards.
 
 ---
 
-### Pitfall 8: FastAPI WebSocket Timeout Mismatches in Production
-**What goes wrong:** Default 30-second timeout in Gunicorn kills active WebSocket workers mid-stream. If Nginx, Gunicorn, and application timeouts aren't aligned, audio generation progress streams disconnect randomly.
+### Pitfall 8: Reanimated + Skia Color Interpolation Incompatibility
 
-**Why it happens:** Audio generation (Groq AI + TTS + mixing) can take 30-60 seconds. Gunicorn's worker timeout assumes short-lived HTTP requests. WebSockets are persistent connections that need different timeout handling.
+**What goes wrong:**
+A developer uses Reanimated's `interpolateColor` to drive a color transition inside a Skia canvas (e.g., animating the nebula or Mindi glow from one color to another based on time-of-day). The interpolated color value is incorrect or renders as black/wrong hue. This is because Reanimated and Skia use different internal color representations — Skia stores colors in a non-standard format that Reanimated's `interpolateColor` does not produce.
 
-**Consequences:**
-- Progress updates stop after 30 seconds, but generation continues silently
-- Users see "Connection lost" errors during long generations
-- Partial audio files written but never delivered
-- Works in development (Uvicorn alone) but fails in production (Gunicorn + Nginx)
+**Why it happens:**
+React Native Skia internally encodes colors differently from Reanimated. When you pass the output of `interpolateColor` (which produces RGBA as a 32-bit integer in ARGB order) to a Skia property expecting its format, the channels are misinterpreted. The Skia docs explicitly note this incompatibility.
 
-**Prevention:**
-1. **Increase Gunicorn timeout for WebSocket workers:**
-   ```bash
-   gunicorn -k uvicorn.workers.UvicornWorker --timeout 120 main:app
-   ```
-2. **Align all timeouts:**
-   - Gunicorn: 120 seconds
-   - Nginx `proxy_read_timeout`: 120 seconds
-   - Application-level timeout: 120 seconds
-3. **Send keepalive pings:** Ping client every 15 seconds during generation to keep connection alive
-4. **Implement session resumption:** Allow client to reconnect mid-generation and resume progress
-5. **Or avoid WebSockets for MVP:** Use polling with status endpoint (simpler, more reliable)
+**How to avoid:**
+- Use `interpolateColors` from `@shopify/react-native-skia` instead of `interpolateColor` from `react-native-reanimated` when the output goes to a Skia property.
+- For Reanimated shared values that drive both Skia and native React Native properties, apply the appropriate interpolation function for each target.
+- The Wavium time-of-day theme system drives both native background views AND the Skia nebula renderer — ensure these two paths use compatible color representations.
 
-**Detection:**
-- WebSocket connections close after exactly 30 seconds
-- Generation completes but client never receives final message
-- Works locally with `uvicorn` but fails on deployed backend
-- Nginx logs show 502 Bad Gateway during long requests
+**Warning signs:**
+- Colors appear as wrong hues (typically wrong channel order — blue appears where red should be)
+- Color transitions snap rather than interpolate smoothly
+- Skia renders black where a colored gradient is expected
 
-**Phase mapping:**
-- Backend Deployment: Test audio generation end-to-end with production-like setup
-- MVP: Consider polling instead of WebSockets (simpler debugging)
-
-**Sources:**
-- [Deploying WebSocket Applications with FastAPI](https://hexshift.medium.com/deploying-websocket-applications-built-with-fastapi-using-uvicorn-gunicorn-and-nginx-04249b1cb87d)
-- [FastAPI WebSocket Production Best Practices](https://render.com/articles/fastapi-production-deployment-best-practices)
-- [Zero-Downtime WebSocket Deployment Strategies](https://hexshift.medium.com/zero-downtime-websocket-deployment-strategies-with-fastapi-2e2df9ebfe3d)
+**Phase to address:** Theme system color implementation. Verify color interpolation paths before building time-of-day transitions.
 
 ---
 
-### Pitfall 9: Supabase Email Verification Blocking Sign-ups
-**What goes wrong:** By default, Supabase Auth requires email verification before creating a session for new users. If the app doesn't implement deep link handling for email verification, users complete sign-up but can't log in.
+### Pitfall 9: Reanimated `transform` Not Animatable via Reanimated 3 on Skia (Use `matrix` Instead)
 
-**Why it happens:** Supabase assumes you'll handle email verification links that redirect back to the app. React Native needs Expo linking configuration and deep link handlers to catch these.
+**What goes wrong:**
+The `transform` prop on Skia components is not animatable by Reanimated 3 when using standard `useAnimatedStyle` patterns. Animation appears to work in development but the transform has no effect, or Reanimated warns about the property. For Mindi's entrance animations (translate + scale on entry to each screen), using `transform` on a Skia Group will silently fail.
 
-**Consequences:**
-- Users sign up successfully but see "Email not verified" errors
-- Email verification links open in browser, not in app
-- No way to complete verification flow from mobile device
-- Support tickets: "I signed up but can't log in"
+**Why it happens:**
+Skia components have their own prop system that doesn't map directly to React Native's style system. The `transform` array is a React Native style concept; Skia uses `matrix` for transformations. Reanimated's `createAnimatedComponent` and `useAnimatedProps` integration with Skia requires using `matrix` as the animatable property instead.
 
-**Prevention:**
-1. **Disable email verification for MVP:**
-   ```typescript
-   // Supabase Dashboard → Authentication → Email Auth → Disable "Confirm email"
-   ```
-2. **Or implement deep linking properly:**
-   - Configure `app.json` with URL scheme: `wavium://`
-   - Handle `wavium://auth/confirm` in app
-   - Supabase dashboard: Set redirect URL to custom scheme
-3. **Use magic links instead:** No password + no verification needed
-4. **Show clear instructions:** If verification required, tell users to check email
+**How to avoid:**
+- For Skia components, animate the `matrix` property using Reanimated shared values — do not use the `transform` array.
+- Skia supports direct usage of Reanimated shared and derived values as properties — pass shared values directly to Skia props, no need for `createAnimatedComponent` or `useAnimatedProps`.
+- For Mindi entrance animations: compute a transformation matrix from shared position/scale values and pass it to the Skia canvas's Group `matrix` prop.
 
-**Detection:**
-- Users report "Email not confirmed" errors after sign-up
-- Verification emails work, but links open in Safari/Chrome instead of app
-- Session is null after sign-up despite successful registration
-- Supabase logs show "email not verified" auth attempts
+**Warning signs:**
+- Mindi entrance animation defined but Mindi doesn't move
+- Console warning about `transform` prop in Reanimated context with Skia component
+- Animation frame rate is correct (worklet running) but visual output doesn't change
 
-**Phase mapping:**
-- Authentication Phase: Test sign-up flow end-to-end on physical device
-- MVP: Disable email verification to reduce friction
-
-**Sources:**
-- [Supabase React Native Quickstart](https://supabase.com/docs/guides/auth/quickstarts/react-native)
-- [Supabase Gotchas: Email Verification](https://www.prosperasoft.com/blog/database/supabase/supabase-react-native-gotchas/)
+**Phase to address:** Mindi entrance animations and idle breathing animation phases.
 
 ---
 
-### Pitfall 10: Cross-Platform Audio File Storage Paths
-**What goes wrong:** React Native audio playback requires platform-specific file paths. iOS uses `file://` URIs, Android uses content URIs or absolute paths, and caching directories differ between platforms.
+### Pitfall 10: Font Variants Missing — Bold/Italic Fallback to System Font Mid-Sentence
 
-**Why it happens:** Each platform has different file system security models. iOS sandboxes apps strictly, Android has shared storage vs app-private storage, and Expo's FileSystem API abstracts this but can still leak platform quirks.
+**What goes wrong:**
+A display font is loaded for headings. The body copy uses `fontWeight: '700'` expecting to get the bold variant. On iOS, `fontWeight` causes the OS to synthetically bold the regular variant (ugly). On Android, `fontWeight: '700'` does nothing if the 700-weight font file isn't loaded separately — it falls back to the system font mid-render, producing mixed typography: part display font, part system font on the same screen.
 
-**Consequences:**
-- Audio downloads succeed but playback fails with "file not found"
-- Files disappear after app restart (written to cache, OS clears it)
-- Offline playback works on iOS but fails on Android (or vice versa)
-- Storage path formatted correctly for one platform breaks the other
+**Why it happens:**
+React Native does not auto-load font variants. Each weight and style (Regular, Bold, Italic, SemiBold) must be loaded as a separate named font entry in `useFonts`. A developer loads "DisplayFont-Regular" and then tries `fontWeight: 'bold'` expecting the OS to figure it out.
 
-**Prevention:**
-1. **Use Expo FileSystem exclusively:**
-   ```typescript
-   import * as FileSystem from 'expo-file-system'
-   const audioPath = FileSystem.documentDirectory + 'subliminals/' + filename
-   ```
-2. **Use `documentDirectory` for permanent storage:** Not `cacheDirectory` (OS can delete)
-3. **Handle platform differences with FileSystem API:**
-   - Expo handles `file://` prefix automatically
-   - Don't construct file paths manually
-4. **Test on both platforms:** Android 13+ has different storage permissions
-5. **Handle missing files gracefully:** Check file exists before playback
+**How to avoid:**
+- Load every weight variant you intend to use explicitly in the `useFonts` map:
+  ```
+  'DisplayFont-Regular': require('./assets/fonts/DisplayFont-Regular.otf'),
+  'DisplayFont-SemiBold': require('./assets/fonts/DisplayFont-SemiBold.otf'),
+  ```
+- Reference fonts by their loaded name, not by `fontFamily` + `fontWeight`. Use `fontFamily: 'DisplayFont-SemiBold'` rather than `fontFamily: 'DisplayFont-Regular'` + `fontWeight: '600'`.
+- For the Wavium typography system: identify up front which weights are needed across all screens (Regular for body, SemiBold for UI labels, something heavier for display headings) and load only those — each font file adds to bundle size and startup load time.
 
-**Detection:**
-- Audio playback throws "source not found" on one platform but works on another
-- Downloaded files don't persist after app restart
-- Android 13+ throws permission errors despite requesting storage permission
-- Files visible in file explorer but app can't access them
+**Warning signs:**
+- Typography looks correct on iOS but falls back to system font on Android for bold text
+- Synthetic bold (ugly, low-quality letterforms) appearing on certain weights on iOS
+- Font bundle size unexpectedly large because all 9 weights of a family were loaded
 
-**Phase mapping:**
-- Audio Download Implementation: Test on physical Android and iOS devices
-- MVP: Android-only reduces testing surface
-
-**Sources:**
-- [Expo FileSystem Documentation](https://docs.expo.dev/versions/latest/sdk/filesystem/)
-- [React Native Audio Playback Offline Storage](https://rntp.dev/docs/guides/offline-playback)
-- [Platform-Specific Modules in Expo](https://docs.expo.dev/router/advanced/platform-specific-modules/)
+**Phase to address:** Typography system implementation phase (load fonts correctly the first time).
 
 ---
 
-## Minor Pitfalls
+## Technical Debt Patterns
 
-Mistakes that cause annoyance but are easily fixable.
-
-### Pitfall 11: CORS Misconfiguration Blocking React Native
-**What goes wrong:** Backend currently allows all origins (`allow_origins=["*"]`), which is flagged in PROJECT.md for production. But React Native doesn't send Origin headers like browsers do, so CORS can break unexpectedly when tightened.
-
-**Why it happens:** CORS is a browser security feature. React Native fetch() doesn't enforce CORS, but some middleware or CDN layers do. Changing from `*` to specific domains can break mobile app without warning.
-
-**Consequences:**
-- Works in development, fails in production after CORS lockdown
-- Confusing "Network request failed" errors with no CORS details
-- Works in Expo Go, fails in standalone app
-
-**Prevention:**
-1. **Test CORS changes with production build:** Not just Expo Go
-2. **Whitelist specific origins for web, keep permissive for mobile:**
-   ```python
-   origins = ["https://wavium.app"]  # Web only
-   if request.headers.get("User-Agent", "").startswith("wavium-mobile"):
-       origins.append("*")
-   ```
-3. **Or use API key authentication instead of CORS:** Better mobile security model
-4. **Don't rely on CORS for mobile security:** Not enforced client-side
-
-**Detection:**
-- Network requests fail with "CORS policy" errors (rare in RN, but possible)
-- Requests work from Postman but fail from app
-- Production app can't reach API despite correct URL
-
-**Phase mapping:**
-- Backend Deployment: Document CORS configuration for mobile vs web
-
-**Source:** Current codebase analysis + FastAPI CORS documentation
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Use `BlurView` with `intensity={80}` everywhere without Android testing | Fast development | Slow Android on all blur screens, no easy retrofit | Never — test on Android before committing |
+| Animate blur `intensity` instead of container `opacity` | One less layer | ~40fps on iOS, near 0fps on Android | Never |
+| Use `interpolateColor` from Reanimated on Skia props | Familiar API | Wrong colors rendered, hard to debug | Never — use `interpolateColors` from Skia |
+| Skip `cancelAnimation` cleanup in `useEffect` | Less boilerplate | Memory leaks, ghost animations, increasing CPU on navigation | Only acceptable for one-shot animations (not `withRepeat`) |
+| Load all font weights for a typeface | Covers all cases | 500KB–2MB added to bundle, longer cold start | Never — load only weights in use |
+| Derive animation values from React state via `useAnimatedStyle` | Simpler data flow | JS thread blocking on high-frequency updates (audio playback) | Only for low-frequency state changes |
 
 ---
 
-### Pitfall 12: Groq API Rate Limits During Testing
-**What goes wrong:** Groq's free tier has rate limits (requests per minute, tokens per day). Rapid testing of affirmation generation hits limits quickly, breaking development flow.
+## Integration Gotchas
 
-**Why it happens:** Each test run generates affirmations, burning through rate limits. No caching means same intention generates new API calls every time.
-
-**Consequences:**
-- Development blocked when rate limit is hit
-- Manual waiting for rate limit reset (1 minute or 24 hours)
-- Frustration during debugging ("it worked a minute ago")
-
-**Prevention:**
-1. **Cache affirmations by intention hash:**
-   ```python
-   cache_key = hashlib.md5(intention.encode()).hexdigest()
-   if cache_key in cache:
-       return cache[cache_key]
-   ```
-2. **Use mock responses in tests:** Don't hit real API during unit tests
-3. **Implement response fixtures:** Pre-generated affirmations for common intentions
-4. **Monitor rate limit headers:** Groq returns rate limit info in response headers
-5. **Add retry with exponential backoff:** Handle 429 errors gracefully
-
-**Detection:**
-- Groq API returns 429 "Rate limit exceeded" errors
-- Affirmation generation fails intermittently during rapid testing
-- Works once, then fails on retry without code changes
-
-**Phase mapping:**
-- Backend Development: Add caching before extensive testing
-
-**Source:** Standard API rate limiting practice + Groq API documentation
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| `expo-blur` + `expo-router` navigation | BlurView color changes on back-navigation | Wrap BlurView in a container with fixed background color; test nav transitions explicitly |
+| `expo-blur` + Android | Using `BlurView` without `experimentalBlurMethod` | Set `experimentalBlurMethod="blur"` on Android + have a fallback for pre-API-31 |
+| `expo-blur` + `borderRadius` | Applying `borderRadius` directly to BlurView | Apply `overflow: 'hidden'` + `borderRadius` to a wrapper View instead |
+| Skia + Reanimated | Passing `useAnimatedStyle` result to a Skia component | Pass Reanimated shared values directly to Skia props (no `createAnimatedComponent` needed) |
+| Skia `BackdropBlur` + native views | Expecting to blur content beneath the canvas | Use `expo-blur` for blurring native view content; Skia BackdropBlur only blurs intra-canvas content |
+| `expo-av` playback status + Reanimated | Updating shared values from `onPlaybackStatusUpdate` on JS thread | Use `runOnUI` to transfer playback values to UI thread, or throttle update frequency |
+| Time-of-day theme + Zustand interval | `setInterval` driving store updates causing cascade re-renders | Update theme store at most every 60 seconds; use `useMemo` to derive animation values |
 
 ---
 
-### Pitfall 13: Missing Python `__init__.py` Files Breaking Imports
-**What goes wrong:** PROJECT.md flags this issue: backend services lack `__init__.py` files. Without them, Python can't import modules properly, causing "ModuleNotFoundError" at runtime.
+## Performance Traps
 
-**Why it happens:** Python 3.3+ made `__init__.py` optional for namespace packages, but it's still best practice and required in some deployment environments.
-
-**Consequences:**
-- `from services.groq_service import generate_affirmations` fails
-- Works in development (loose import resolution) but fails in Docker
-- Confusing import errors that aren't consistent across environments
-
-**Prevention:**
-1. **Add `__init__.py` to every Python package directory:**
-   ```bash
-   touch backend/services/__init__.py
-   ```
-2. **Even empty files work:** They signal "this is a package"
-3. **Add to CI checks:** Fail build if `__init__.py` is missing in package dirs
-
-**Detection:**
-- ModuleNotFoundError despite files existing at the path
-- Works when running `python main.py` but fails when running as package
-- Docker builds fail with import errors
-
-**Phase mapping:**
-- Immediate fix: Takes 10 seconds, prevents mysterious bugs
-
-**Source:** Current project context (PROJECT.md)
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Multiple concurrent BlurViews | FPS drops to 20–30fps on Android | Max 2–3 BlurViews per screen; test on real device | From first BlurView on Android <API 31; degrades linearly |
+| Animating blur `intensity` | Android <15fps, iOS ~40fps | Animate container opacity instead | Immediately on any animated blur |
+| >5 semi-transparent overlay layers | GPU overdraw, consistent 20ms+ frame time | Budget layers, use `shouldRasterizeIOS` / `renderToHardwareTextureAndroid` on stable layers | Mid-range Android, any screen with glassmorphism stack |
+| `withRepeat` without cleanup | Rising CPU/memory over session; ghost animations | `useLoop` hook pattern with `cancelAnimation` cleanup | After navigating away from animated screen 3+ times |
+| JS-thread state driving animation | Jank in sync with state update frequency | Drive animations with shared values; keep animated components free of React state dependencies | When audio playback polling is <500ms interval |
+| Large shared value arrays | Memory grows without release | Use scalar shared values; avoid arrays in shared values | After 5–10 component mount/unmount cycles |
+| Skia path accumulation | Canvas slows after many draw calls | Clear and redraw on each frame; don't accumulate paths | After ~50 paths added to a canvas |
 
 ---
 
-## MVP Completion Anti-Patterns
+## UX Pitfalls
 
-### Pitfall 14: Scope Creep via "Nice to Have" Features
-**What goes wrong:** During MVP completion, the temptation to add "quick wins" derails focus. Features like social sharing, analytics, push notifications, or custom voice upload feel small but each adds days of work and testing.
-
-**Why it happens:** ~60% complete feels like the finish line is close, so adding "one more feature" seems harmless. But each feature has integration, testing, and edge case handling that balloons scope.
-
-**Consequences:**
-- MVP timeline extends from 2 weeks to 2 months
-- Core features remain buggy because attention is split
-- User testing delayed because "one more feature" is always needed
-- App never ships because definition of "complete" keeps changing
-
-**Prevention:**
-1. **Ruthlessly enforce the MVP scope in PROJECT.md:**
-   - Out of scope list is gospel
-   - New ideas go into "Post-MVP" document
-2. **Ask "Does missing this break the core experience?"**
-   - If no: defer it
-3. **Set hard deadline:** Ship MVP by X date regardless of "nice to haves"
-4. **Track "won't do" list:** Celebrate saying no to features
-5. **User test with gaps:** Better to ship and learn than polish in a vacuum
-
-**Detection:**
-- Roadmap keeps expanding with new tickets
-- "Just one more thing" becomes a daily phrase
-- Core features like authentication are still buggy but polishing UI
-- Launch date slips repeatedly
-
-**Phase mapping:**
-- Entire MVP: Review PROJECT.md weekly to prevent scope drift
-
-**Sources:**
-- [Common Mistakes in MVP Development](https://www.tresastronautas.com/en/blog/common-mistakes-in-mvp-development-essential-tips-for-success)
-- [Building an MVP? Avoid These 15 Common Mistakes](https://www.lowcode.agency/blog/mvp-development-challenges-mistakes)
-- [How to Prevent Scope Creep in MVP](https://imaginovation.net/blog/prevent-scope-creep-mvp-development/)
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Blur radius too high (>50) | Background content unrecognizable; card reads as opaque solid | Keep blur intensity 20–40; the blur effect works best at subtle levels where the background color bleeds through |
+| Too many glassmorphic cards on one screen | Premium effect becomes wallpaper; nothing stands out | Limit to 1–2 featured glass cards per screen; use flat dark surfaces for secondary content |
+| Affirmation ceremony too long | Users feel trapped, skip it; defeats the ceremony intent | Cap reveal timing — each affirmation should feel intentional but not slow; aim for <800ms per reveal |
+| Auto-hide controls hiding too fast in THE VOID | Users can't find controls; frustration | 3+ second timeout before controls fade; re-reveal on any tap |
+| Mindi animations blocking the main interaction | Mindi distracts from the content | Mindi should be ambient and reactive, not competing for attention; keep glow pulses subtle |
+| Font display size too large on smaller phones | Text wraps unexpectedly; layout breaks | Test all display font sizes on smallest supported screen size before finalizing |
+| Glassmorphism with very light backgrounds | Glass effect invisible; looks like a plain card | Glass requires a colorful, dynamic background to be visible — the nebula/gradient background is essential, not decorative |
 
 ---
 
-### Pitfall 15: Over-Engineering Solutions for Future Scale
-**What goes wrong:** Adding Redis for caching, implementing microservices, setting up Kubernetes, or building complex state machines for "when we have 10K users" — all while having zero users.
+## "Looks Done But Isn't" Checklist
 
-**Why it happens:** Engineering excitement about solving scale problems. Architecture patterns from big tech blogs feel professional. Fear that "we'll regret not doing this right."
-
-**Consequences:**
-- Development velocity tanks (configuring infrastructure instead of building features)
-- Bugs multiply with architectural complexity
-- MVP never ships because "the foundation isn't ready"
-- Simple problems solved with complex tools (using a cannon to kill a fly)
-
-**Prevention:**
-1. **Solve problems you have today, not problems you might have tomorrow**
-2. **Default to simple:**
-   - Database caching > Redis (Supabase has built-in caching)
-   - Monolith > Microservices (FastAPI + RN app is fine)
-   - Single server > Load balancer (handle 100 users first)
-3. **Budget for refactoring:** Accept you'll rebuild parts later (that's healthy)
-4. **Validate before optimizing:** Get 100 users before worrying about 10K users
-
-**Detection:**
-- Architecture diagrams have more boxes than features
-- Using buzzwords like "event-driven" or "eventually consistent" for MVP
-- Spending days configuring infrastructure, weeks since last user-facing feature
-- Teammates ask "why are we doing this?" and answer is "for scale"
-
-**Phase mapping:**
-- Entire MVP: Review architecture decisions for "do we need this today?"
-
-**Sources:**
-- [MVP Development Cost & Budget Breakdown](https://gainhq.com/blog/mvp-development-cost/)
-- [Top 5 Pre-requisites Before Building Your MVP](https://www.creolestudios.com/top-5-pre-requisites-you-should-consider-before-building-your-mvp/)
+- [ ] **Android blur:** Blur looks correct in iOS Simulator — verify on physical Android device (not emulator) before considering done
+- [ ] **Font loading:** Typography looks correct on hot reload — verify cold start (fresh install) for font flash behavior
+- [ ] **Animation cleanup:** Animations play correctly on the screen — verify memory/CPU doesn't grow after navigating away and back 5 times
+- [ ] **Time-of-day theme:** Colors look right at current time — verify the three time periods (morning/day/night) by spoofing time, not waiting
+- [ ] **THE VOID auto-hide controls:** Controls hide correctly — verify they re-appear on tap and the timeout feels right on device (not simulator with perfect touch)
+- [ ] **Mindi glow pulse:** Glow pulses in sync in development — verify sync holds after 60+ seconds of playback (no drift from audio/animation timer divergence)
+- [ ] **Affirmation reveal:** Animation plays on first view — verify it resets correctly when affirmations change or audio restarts
+- [ ] **Color interpolation:** Colors look right on iOS — verify on Android (Skia color encoding differences)
 
 ---
 
-### Pitfall 16: Perfectionism Blocking MVP Launch
-**What goes wrong:** Refusing to ship until every animation is perfect, every error message is polished, every edge case is handled. Chasing 100% quality for 0% users.
+## Recovery Strategies
 
-**Why it happens:** Emotional investment in the product. Fear of judgment ("what if people think it's ugly?"). Conflating MVP with final product.
-
-**Consequences:**
-- Months of polishing instead of shipping
-- Building features nobody asked for (assumed needs)
-- Competitor ships first with worse product but wins
-- Burnout from endless refinement without validation
-
-**Prevention:**
-1. **Define "done" as "usable" not "perfect":**
-   - Can a user create and listen to a subliminal? Ship it.
-2. **Ship with known bugs (if non-blocking):**
-   - Document them, fix after user feedback
-3. **Embrace ugly MVP:** Airbnb's first site was hideous, worked anyway
-4. **Time-box polish:** 20% of time for polish, 80% for functionality
-5. **Get embarrassed by v1:** If you're not embarrassed, you waited too long
-
-**Detection:**
-- Using words like "just needs a bit more polish" for weeks
-- Redesigning completed features instead of building missing ones
-- Fear of showing anyone the app
-- Blocked on subjective quality judgments ("does this feel right?")
-
-**Phase mapping:**
-- Final MVP Week: Ship even if it feels 80% done
-
-**Sources:**
-- [Common Mistakes When Building an MVP](https://www.fsk.ventures/resources/common-mistakes-made-when-building-an-mvp-and-how-to-avoid-them)
-- [MVP Scoping: When and How to Do It Right](https://www.upsilonit.com/blog/how-to-define-mvp-scope-tips-for-those-planning-development)
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Android blur too slow (already shipped to multiple screens) | HIGH | Audit all BlurView usage; replace non-essential blurs with semi-transparent overlays on Android via `Platform.OS === 'android'` conditional; add Android-specific styling pass |
+| Font loading glitch visible on release build | LOW | Add config plugin registration for fonts (pre-bundles fonts, eliminates async load race) |
+| Ghost animations causing memory leak | MEDIUM | Add `cancelAnimation` calls in `useEffect` cleanup for all `withRepeat` animations; no component changes needed |
+| Wrong colors in Skia (Reanimated interpolation incompatibility) | LOW | Swap `interpolateColor` for `interpolateColors` at call sites feeding Skia props |
+| `transform` not working on Skia components | LOW | Replace `transform` array with `matrix` computed from shared values |
+| Overdraw causing consistent 20ms frame time | HIGH | Profile with Android GPU overdraw tool; add `shouldRasterizeIOS`/`renderToHardwareTextureAndroid` to stable layer components; may require design changes to reduce layer count |
 
 ---
 
-## Phase-Specific Warnings
+## Pitfall-to-Phase Mapping
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Security & Key Rotation | Exposed Groq key still in git history (Critical #5) | Rotate key immediately, scrub git history with BFG |
-| Supabase Authentication | Email verification blocking sign-ups (Moderate #9) | Disable verification for MVP or implement deep linking |
-| Supabase Integration | 2026 API key breaking Edge Functions (Critical #1) | Test Edge Functions early, monitor GitHub for updates |
-| Rive Animation Integration | Build failures with old runtime (Moderate #7) | Use Nitro runtime from day one, budget 2x estimated time |
-| Audio Generation Pipeline | edge-tts rate limiting silently failing (Critical #2) | Add rate limiting, caching, retry logic, plan TTS migration |
-| Audio Mixing Implementation | FFmpegKit retirement breaking mobile FFmpeg (Critical #3) | Keep mixing server-side, avoid mobile FFmpeg for MVP |
-| Backend Deployment | WebSocket timeout mismatches (Moderate #8) | Align Gunicorn/Nginx/app timeouts to 120s, or use polling |
-| File Path Handling | Hardcoded `/tmp` failing on Windows (Critical #4) | Use `tempfile.gettempdir()` or project-relative paths |
-| Offline Audio Storage | Cross-platform path handling breaking playback (Moderate #10) | Use Expo FileSystem API exclusively, test on both platforms |
-| Roadmap Planning | Scope creep adding non-essential features (Anti-pattern #14) | Ruthlessly enforce PROJECT.md scope, defer everything else |
-| Final MVP Week | Perfectionism preventing launch (Anti-pattern #16) | Define "done" as usable, ship with known minor bugs |
-
----
-
-## Research Confidence Assessment
-
-| Area | Confidence | Rationale |
-|------|------------|-----------|
-| Supabase + React Native | HIGH | Official docs + community articles + 2026-specific GitHub issues |
-| edge-tts reliability | HIGH | Multiple sources confirm rate limiting + 10-min audio limit |
-| Rive animations | MEDIUM | New Nitro runtime is preview status, limited production experience |
-| FFmpeg mobile | HIGH | FFmpegKit retirement is official + documented alternatives |
-| FastAPI WebSockets | HIGH | Multiple production deployment guides + known timeout issues |
-| MVP anti-patterns | HIGH | Multiple 2026 resources + consistent patterns across sources |
-
----
-
-## Critical Path for MVP
-
-To minimize pitfalls during MVP completion, address in this order:
-
-1. **Week 1 - Security & Stability:**
-   - Rotate Groq API key (Critical #5)
-   - Fix hardcoded `/tmp` path (Critical #4)
-   - Add Python `__init__.py` files (Minor #13)
-
-2. **Week 2 - Backend Foundation:**
-   - Implement edge-tts rate limiting & caching (Critical #2)
-   - Test Supabase 2026 API key compatibility (Critical #1)
-   - Add Groq API response caching (Minor #12)
-
-3. **Week 3 - Frontend Integration:**
-   - Integrate Supabase auth (disable email verification) (Moderate #9)
-   - Connect frontend to backend API (avoid direct Groq calls)
-   - Test audio download with Expo FileSystem (Moderate #10)
-
-4. **Week 4 - Mindi & Polish:**
-   - Integrate Rive Nitro runtime (budget 1 week) (Moderate #7)
-   - Add WebSocket timeout configuration or switch to polling (Moderate #8)
-   - Test end-to-end on physical Android device
-
-5. **Week 5 - Launch:**
-   - Resist scope creep (Anti-pattern #14)
-   - Ship with known minor bugs (Anti-pattern #16)
-   - Monitor edge-tts reliability in production
-
----
-
-## Post-MVP Migration Flags
-
-Issues that will require refactoring after validation:
-
-- **edge-tts → Paid TTS:** When rate limits cause user complaints
-- **WebSockets → Polling:** If production timeout issues persist
-- **Rive complexity:** If Nitro runtime proves unstable
-- **Backend scaling:** When single server can't handle load (not a day 1 problem)
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Android blur performance | Glassmorphism / GlassmorphicCard phase | Run on physical Android mid-range device; FPS > 55 on blur screens |
+| Animating blur intensity | Any animation phase that touches blur | Code review: no direct animation of `intensity` or `blurRadius` props |
+| Stacked layer overdraw | Base theme / background layer phase | GPU profiler shows <3x overdraw on any screen |
+| Font flash on startup | Typography system phase | Cold-start test on device: no typography snap between splash and first screen |
+| Animation memory leaks | First Reanimated animation phase | Establish `useLoop` hook; navigate away/back 10x; Flipper memory stable |
+| JS thread blocking audio animations | THE VOID player phase | Audio playing + animations: JS thread <50% utilization in Perf Monitor |
+| Skia backdrop blur misuse | GlassmorphicCard phase | Architecture decision documented: BlurView for glass, Skia for decorative layers |
+| Color interpolation incompatibility | Theme color implementation phase | Test color transitions on both platforms; no hue shifting |
+| Skia `transform` vs `matrix` | Mindi animation phases | Mindi entrance/exit animations tested on both platforms |
+| Font weight fallback | Typography system phase | Test all text styles on Android device; no system font bleed-through |
 
 ---
 
 ## Sources
 
-### Supabase + React Native
-- [Avoid Common Supabase Gotchas in React Native](https://www.prosperasoft.com/blog/database/supabase/supabase-react-native-gotchas/)
-- [Use Supabase Auth with React Native | Supabase Docs](https://supabase.com/docs/guides/auth/quickstarts/react-native)
-- [Edge Function JWT Invalid with 2026 API Keys](https://github.com/orgs/supabase/discussions/41834)
-- [Solving Stream Module Issue in React Native with Supabase](https://medium.com/@josephmuhindo089/solving-the-stream-module-issue-in-react-native-with-supabase-a-clean-lightweight-solution-c8f2789f9a7b)
+- [expo/expo GitHub Issue #23239 — BlurView performance decreased on Android SDK 49 beta](https://github.com/expo/expo/issues/23239)
+- [expo/expo GitHub Discussion #37905 — expo-blur Android BlurView V3 upgrade](https://github.com/expo/expo/discussions/37905)
+- [expo/expo GitHub Issue #21289 — Adding Android 12+ native blur support via RenderNode](https://github.com/expo/expo/issues/21289)
+- [Expo SDK 55 Beta Changelog — RenderNode blur API for Android 12+](https://expo.dev/changelog/sdk-55-beta)
+- [BlurView — Expo Documentation (official)](https://docs.expo.dev/versions/latest/sdk/blur-view/)
+- [Fonts — Expo Documentation (official)](https://docs.expo.dev/develop/user-interface/fonts/)
+- [React Native Skia Animations Documentation](https://shopify.github.io/react-native-skia/docs/animations/animations/)
+- [React Native Skia Backdrop Filters Documentation](https://shopify.github.io/react-native-skia/docs/backdrops-filters/)
+- [Shopify/react-native-skia Discussion #1825 — transform vs matrix with Reanimated 3](https://github.com/Shopify/react-native-skia/discussions/1825)
+- [Shopify/react-native-skia Discussion #980 — Backdrop blur on elements under Canvas](https://shopify.github.io/react-native-skia/docs/backdrops-filters/)
+- [software-mansion/react-native-reanimated GitHub Issue #5800 — Memory leak in useSharedValue](https://github.com/software-mansion/react-native-reanimated/issues/5800)
+- [software-mansion/react-native-reanimated GitHub Issue #3304 — Massive memory leak with array values](https://github.com/software-mansion/react-native-reanimated/issues/3304)
+- [cancelAnimation — React Native Reanimated Documentation](https://docs.swmansion.com/react-native-reanimated/docs/core/cancelAnimation/)
+- [Performance — React Native Reanimated Documentation](https://docs.swmansion.com/react-native-reanimated/docs/guides/performance/)
+- [Expo SDK 54 Changelog — Known issues with Reanimated 4.x and new arch](https://expo.dev/changelog/sdk-54)
+- [expo/expo GitHub Issue #23539 — BlurView + Reanimated rendering issue](https://github.com/expo/expo/issues/23539)
+- [Islam Rustamov — React Native performance stress testing 2023 vs 2025](https://medium.com/@islamrustamov/how-react-native-improved-from-2023-to-2025-animation-stress-testing-and-a-little-bit-of-flutter-edd44297b815)
+- [Mikael Ainalem — Glassmorphism over scrollable content in React Native](https://mikael-ainalem.medium.com/mastering-glassmorphism-over-scrollable-content-in-react-native-971104dd707b)
+- [Callstack — 60fps animations in React Native](https://www.callstack.com/blog/60fps-animations-in-react-native)
 
-### Rive Animations
-- [Rive React Native - Maintenance Status Discussion](https://github.com/rive-app/rive-react-native/issues/369)
-- [Rive Nitro React Native (New Runtime)](https://github.com/rive-app/rive-nitro-react-native)
-- [Lag on Initial Rive Render - Critical for Onboarding](https://community.rive.app/c/support/lag-and-reset-on-initial-rive-render-critical-for-onboarding-react-native)
-
-### edge-tts Reliability
-- [Common Edge-TTS Errors](https://pyvideotrans.com/edgetts-error/)
-- [edge-tts GitHub Issues](https://github.com/rany2/edge-tts/issues)
-- [Long Text Strings Produce Incomplete Audio Files](https://github.com/rany2/edge-tts/issues/190)
-
-### FFmpeg Mobile
-- [FFmpegKit Shutdown - What's Next](https://www.itpathsolutions.com/ffmpegkit-shutdown-what-to-do-next)
-- [How to Use FFmpeg in Android with Example](https://www.geeksforgeeks.org/android/how-to-use-ffmpeg-in-android-with-example/)
-- [Using FFmpeg for Faster Audio Decoding](https://medium.com/@donturner/using-ffmpeg-for-faster-audio-decoding-967894e94e71)
-
-### FastAPI + WebSockets
-- [Deploying WebSocket Applications with FastAPI](https://hexshift.medium.com/deploying-websocket-applications-built-with-fastapi-using-uvicorn-gunicorn-and-nginx-04249b1cb87d)
-- [FastAPI Production Deployment Best Practices](https://render.com/articles/fastapi-production-deployment-best-practices)
-- [Zero-Downtime WebSocket Deployment Strategies](https://hexshift.medium.com/zero-downtime-websocket-deployment-strategies-with-fastapi-2e2df9ebfe3d)
-
-### React Native Audio & Storage
-- [Offline Playback | React Native Track Player](https://rntp.dev/docs/guides/offline-playback)
-- [Expo FileSystem Documentation](https://docs.expo.dev/versions/latest/sdk/filesystem/)
-- [Downloading and Saving Files in React Native Expo](https://medium.com/@fabi.mofar/downloading-and-saving-files-in-react-native-expo-5b3499adda84)
-- [Platform-Specific Modules - Expo Documentation](https://docs.expo.dev/router/advanced/platform-specific-modules/)
-
-### MVP Best Practices
-- [Common Mistakes in MVP Development - Essential Tips](https://www.tresastronautas.com/en/blog/common-mistakes-in-mvp-development-essential-tips-for-success)
-- [Building an MVP? Avoid These 15 Common Mistakes](https://www.lowcode.agency/blog/mvp-development-challenges-mistakes)
-- [How to Prevent & Manage Scope Creep in MVP](https://imaginovation.net/blog/prevent-scope-creep-mvp-development/)
-- [Avoiding Common Mistakes When Building an MVP](https://www.fsk.ventures/resources/common-mistakes-made-when-building-an-mvp-and-how-to-avoid-them)
-- [MVP Scoping: When and How to Do It Right](https://www.upsilonit.com/blog/how-to-define-mvp-scope-tips-for-those-planning-development)
+---
+*Pitfalls research for: React Native / Expo premium visual effects overhaul (Wavium)*
+*Researched: 2026-02-24*

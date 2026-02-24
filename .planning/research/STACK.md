@@ -1,565 +1,396 @@
-# Technology Stack for Wavium MVP Completion
+# Stack Research
 
-**Project:** Wavium - Subliminal Audio App
-**Research Date:** February 2, 2026
-**Focus:** Adding Supabase auth, Rive animations, and database persistence to existing React Native Expo + FastAPI app
+**Domain:** React Native Expo premium UI/UX — mindfulness/subliminal audio app aesthetic overhaul
+**Researched:** 2026-02-24
+**Confidence:** HIGH (all core libraries verified against installed package.json and official docs)
 
 ---
 
-## Executive Summary
+## Context: What's Already Installed
 
-This milestone adds three critical components to the existing Wavium stack: **Supabase authentication and database**, **Rive character animations** (Mindi mascot), and **persistent state management**. The recommended stack leverages modern, actively maintained libraries with strong React Native and FastAPI support.
+This is a subsequent milestone. The existing `wavium/package.json` already contains:
 
-**Key Decisions:**
-- **Supabase-js v2.93.3** + **supabase-py v2.27.2** for unified auth/database
-- **@rive-app/react-native (new runtime)** for Mindi animations
-- **Zustand persist + MMKV** for high-performance local state
-- **PyJWT** (NOT python-jose) for FastAPI JWT validation
-- **Keep edge-tts** for MVP (explore Kokoro TTS post-MVP)
+| Package | Installed Version |
+|---------|------------------|
+| expo | ~54.0.33 |
+| react-native | 0.81.5 |
+| @shopify/react-native-skia | 2.2.12 |
+| react-native-reanimated | ~4.1.1 |
+| react-native-gesture-handler | ~2.28.0 |
+| expo-blur | ^15.0.8 |
+| expo-linear-gradient | ^15.0.8 |
+| expo-haptics | ^15.0.8 |
+| react-native-worklets | 0.5.1 |
+
+**Critical implication:** Every UI technique in this stack must work within these existing dependencies. No new heavy native libraries. Typography (expo-font) and Google Fonts packages are the only new installs needed.
 
 ---
 
 ## Recommended Stack
 
-### Authentication & Database
+### Core Technologies
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| **@supabase/supabase-js** | ^2.93.3 | React Native client | Official Supabase client with React Native support, includes auth + realtime | HIGH |
-| **supabase** (Python) | ^2.27.2 | FastAPI backend client | Official Python SDK with auth, postgrest, storage, realtime | HIGH |
-| **PyJWT** | ^2.9.0 | JWT validation in FastAPI | Active maintenance, official FastAPI recommendation (python-jose is abandoned) | HIGH |
-| **expo-sqlite** | ^15.0.0 | Supabase dependency | Required for Supabase session persistence on mobile | HIGH |
-| **react-native-url-polyfill** | ^2.0.0 | Supabase dependency | URL polyfill required by supabase-js in React Native | HIGH |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| @shopify/react-native-skia | 2.2.12 (installed) | Animated gradients, glow effects, custom blur effects within Canvas | GPU-rendering on UI thread. Supports Reanimated shared values directly as props — no createAnimatedComponent needed. `interpolateColors` function handles gradient color animation natively. Already powers Mindi. Skia moved to Fabric reconciler in recent versions: ~50% faster iOS, ~200% faster Android vs Paper. |
+| react-native-reanimated | ~4.1.1 (installed) | All animations — breathing buttons, glow pulses, affirmation reveals, control auto-hide | Reanimated 4 ships with Expo SDK 54. Worklets run on UI thread, eliminating JS bridge overhead. Up to 120fps capable. Powers withSpring, withTiming, withRepeat for every animation pattern this overhaul needs. |
+| expo-blur | ^15.0.8 (installed) | Glassmorphism on cards, modals, tab bar | Native iOS implementation is solid. Android experimental (`experimentalBlurMethod` prop required). Version 15.0.0 fixed react-native-screens transition issues. Sufficient for Wavium's card-level blur. |
+| expo-linear-gradient | ^15.0.8 (installed) | Static gradients — backgrounds, gold palette overlays, button fills | Works on iOS, Android, web. Static use is fully reliable. Version 15.x confirmed for SDK 54. For animated gradient colors use Skia instead (see below). |
+| expo-font | ~13.x (SDK 54 SDK version, already available via expo) | Custom display typography | Config plugin approach embeds fonts at build time — available instantly on launch, no async loading code needed. OTF preferred over TTF for smaller size and better hinting. |
 
-**Why Supabase:**
-- Unified auth + PostgreSQL database + real-time + storage in one service
-- Strong React Native and Python SDK support
-- Row-level security (RLS) for data access control
-- Free tier sufficient for MVP
-- Established ecosystem with active maintenance
+### Supporting Libraries (New Installs)
 
-**Why PyJWT over python-jose:**
-- python-jose is abandoned (last release 2021, security issues)
-- FastAPI officially switched to PyJWT in 2026
-- Simpler API, active maintenance, Python 3.10+ compatible
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| @expo-google-fonts/cinzel | latest | Display font — headings, hero text, THE VOID title | Cinzel is derived from Roman inscriptions. Dramatic, ceremonial, all-caps elegance. Ideal for sacred/premium contexts. Use for H1-level display text only (1-3 words). Confirmed available in expo/google-fonts. |
+| @expo-google-fonts/cormorant-garamond | latest | Secondary display — affirmation text, screen subtitles | High-end editorial serif with luxury feel. Literary and upscale without being heavy. The standard choice for wellness/premium brands. Best at larger sizes (20px+). Confirmed available. |
+| @expo-google-fonts/raleway | latest | Body text, UI labels, navigation | Clean geometric sans-serif. Pairs perfectly with Cormorant Garamond. Readable at small sizes. Confirmed available. |
 
-**Sources:**
-- [Supabase Expo React Native Guide](https://supabase.com/docs/guides/getting-started/quickstarts/expo-react-native)
-- [supabase-js v2.93.3 Release](https://github.com/supabase/supabase-js)
-- [supabase-py v2.27.2](https://github.com/supabase/supabase-py)
-- [FastAPI PyJWT Discussion](https://github.com/fastapi/fastapi/discussions/11345)
-
----
-
-### Animation System (Mindi Character)
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| **@rive-app/react-native** | ^6.13.0+ | Mindi character animations | New Nitro-based runtime, state machine support, single file for all states | HIGH |
-| **expo-dev-client** | latest | Development build | Required for Rive (incompatible with Expo Go) | HIGH |
-| **expo-build-properties** | latest | Native configuration | Set Android compileSdkVersion 36 for Rive compatibility | HIGH |
-| **expo-custom-agp** | 8.9.2 | Android Gradle Plugin | Required for Expo SDK 53+ with Rive | MEDIUM |
-
-**Why @rive-app/react-native (new runtime):**
-- **State machine support**: Single .riv file with multiple Mindi states (idle, listening, peaceful, happy)
-- **Interactive animations**: Can respond to user input and app state changes
-- **Performance**: Nitro-based runtime optimized for React Native new architecture
-- **Better than Lottie**: Rive state machines eliminate need for multiple JSON files, enable complex logic
-
-**Why NOT Lottie:**
-- Lottie requires separate JSON file for each animation state
-- No state machine = more complex state management in JS
-- Less interactive (pre-rendered only)
-- Rive recommended by PRD for "state-based complexity"
-
-**Critical Gotcha - Expo Go Incompatibility:**
-Rive contains custom native code and **cannot run in Expo Go**. You MUST use a development build (`expo-dev-client`). This is non-negotiable.
-
-**Android SDK 53 Configuration:**
-Expo SDK 53 defaults to older Android SDK versions. Rive requires:
-- `compileSdkVersion` 36
-- Android Gradle Plugin 8.9.1+
-
-Configuration in `app.json`:
-```json
-{
-  "expo": {
-    "plugins": [
-      ["expo-custom-agp", "8.9.2"],
-      ["expo-build-properties", {
-        "android": { "compileSdkVersion": 36 }
-      }]
-    ]
-  }
-}
-```
-
-**Sources:**
-- [Rive Expo Integration Guide](https://rive.app/docs/runtimes/react-native/adding-rive-to-expo)
-- [Rive React Native GitHub](https://github.com/rive-app/rive-react-native)
-- [Rive Nitro Runtime Announcement](https://github.com/rive-app/rive-nitro-react-native)
-
----
-
-### State Management & Persistence
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| **zustand** | ^5.0.9 | Client state management | Already in project, lightweight, React 19 compatible | HIGH |
-| **react-native-mmkv** | ^4.1.0 | High-performance storage | Already in project, 30x faster than AsyncStorage for Zustand persist | HIGH |
-| **@react-native-async-storage/async-storage** | ^2.2.0 | Fallback storage | Already in project, used by Supabase for session storage | HIGH |
-
-**State Architecture:**
-
-**1. Zustand Stores (Client State)**
-- User preferences (haptics, notifications)
-- Mindi state (name, glow level, streak)
-- UI state (player controls, current track)
-- Temporary creation flow state
-
-**2. Supabase (Server State)**
-- User accounts and authentication
-- Subliminal library (affirmations, audio URLs)
-- Usage statistics for streaks
-
-**3. Persistence Strategy:**
-- **MMKV for Zustand**: High-frequency UI state (player position, preferences)
-- **Supabase for critical data**: User accounts, subliminal library, cannot be lost
-- **AsyncStorage for Supabase sessions**: Session tokens managed by Supabase SDK
-
-**Why MMKV over AsyncStorage for Zustand:**
-- 30x faster read/write operations
-- Synchronous API (no async hydration issues)
-- Already in your dependencies
-- "What AsyncStorage should have been" - community consensus
-
-**Zustand + Supabase Sync Pattern:**
-```typescript
-// Store holds optimistic local state
-const useSubliminalStore = create(
-  persist(
-    (set) => ({
-      subliminals: [],
-      addSubliminal: (sub) => {
-        set((state) => ({ subliminals: [...state.subliminals, sub] }))
-        // Sync to Supabase in background
-        supabase.from('subliminals').insert(sub)
-      }
-    }),
-    {
-      name: 'subliminals',
-      storage: createJSONStorage(() => new MMKV())
-    }
-  )
-)
-
-// Subscribe to Supabase real-time for sync across devices
-supabase
-  .channel('subliminals')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'subliminals' },
-    (payload) => {
-      useSubliminalStore.setState({ subliminals: payload.new })
-    }
-  )
-  .subscribe()
-```
-
-**Sources:**
-- [Zustand Persist Documentation](https://zustand.docs.pmnd.rs/integrations/persisting-store-data)
-- [zustand-mmkv-storage Guide](https://dev.to/mehdifaraji/zustand-mmkv-storage-blazing-fast-persistence-for-zustand-in-react-native-3ef1)
-- [Supabase Zustand Integration](https://www.restack.io/docs/supabase-knowledge-supabase-zustand-integration)
-
----
-
-### Backend API (FastAPI + Supabase Integration)
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| **fastapi** | ^0.109.0 | Already in use | Current, no change needed | HIGH |
-| **supabase** | ^2.27.2 | Supabase Python client | Auth, database, storage from FastAPI | HIGH |
-| **PyJWT** | ^2.9.0 | JWT token validation | Validate Supabase tokens, active maintenance | HIGH |
-| **python-dotenv** | ^1.0.0 | Already in use | Environment configuration | HIGH |
-
-**FastAPI + Supabase Auth Pattern:**
-
-**1. Dependency Injection for Auth:**
-```python
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer
-import jwt
-
-security = HTTPBearer()
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = credentials.credentials
-    try:
-        # Verify JWT with Supabase secret
-        payload = jwt.decode(
-            token,
-            settings.SUPABASE_JWT_SECRET,  # From Supabase dashboard: Settings > Auth
-            algorithms=["HS256"],
-            audience="authenticated"
-        )
-        return payload
-    except jwt.JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-# Protected route
-@app.post("/api/subliminals")
-async def create_subliminal(data: dict, user = Depends(get_current_user)):
-    # User is authenticated, access user["sub"] for user ID
-    return {"user_id": user["sub"]}
-```
-
-**2. Supabase Client with RLS:**
-```python
-from supabase import create_client
-
-# Service role for admin operations (bypass RLS)
-supabase_admin = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-
-# User-scoped client (respects RLS)
-def get_user_supabase(token: str):
-    supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
-    supabase.auth.set_session(token)  # Sets user context for RLS
-    return supabase
-```
-
-**Why This Pattern:**
-- FastAPI dependency injection provides clean auth checks
-- PyJWT validates tokens without external service calls (fast)
-- User-scoped Supabase client enforces Row Level Security
-- Service role client reserved for system operations only
-
-**Sources:**
-- [FastAPI Supabase Auth Integration](https://dev.to/j0/integrating-fastapi-with-supabase-auth-780)
-- [Validating Supabase JWT with FastAPI](https://dev.to/zwx00/validating-a-supabase-jwt-locally-with-python-and-fastapi-59jf)
-- [FastAPI + Supabase Template](https://euclideanai.substack.com/p/fastapi-supabase-template-for-llm)
-
----
-
-## Text-to-Speech Decision
-
-| Technology | Status | Purpose | Recommendation | Confidence |
-|------------|--------|---------|----------------|------------|
-| **edge-tts** | ^6.1.9 | Currently in use | **Keep for MVP** | HIGH |
-| **Kokoro TTS** | Alternative | Post-MVP upgrade | Evaluate after MVP | MEDIUM |
-
-**Why Keep edge-tts for MVP:**
-- Already integrated and working
-- Free (uses Microsoft Edge TTS service)
-- Good voice quality for subliminal use case
-- Low risk, don't disrupt working feature
-
-**Why Consider Kokoro TTS Post-MVP:**
-- **Self-hosted**: No reliance on Microsoft service availability
-- **Fast**: 82M parameter model, runs 36x real-time on CPU
-- **Quality**: Comparable to commercial TTS, beats ElevenLabs in some tests
-- **Open source**: Apache 2.0 license, full control
-- **FastAPI wrapper available**: Drop-in replacement with OpenAI-compatible API
-
-**When to Switch:**
-- Post-MVP when self-hosting infrastructure is ready
-- If Microsoft Edge TTS becomes unreliable
-- If voice customization becomes a differentiator
-
-**Kokoro Setup (Future):**
+**Installation:**
 ```bash
-# Docker deployment
-docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
-
-# Python client
-import requests
-response = requests.post(
-    "http://localhost:8880/v1/audio/speech",
-    json={"model": "kokoro", "input": text, "voice": "af_bella"}
-)
+npx expo install expo-font @expo-google-fonts/cinzel @expo-google-fonts/cormorant-garamond @expo-google-fonts/raleway
 ```
 
-**Sources:**
-- [Kokoro TTS Open Source Models](https://www.bentoml.com/blog/exploring-the-world-of-open-source-text-to-speech-models)
-- [Kokoro FastAPI Wrapper](https://github.com/remsky/Kokoro-FastAPI)
-- [Kokoro Setup Guide](https://medium.com/@shrinath.suresh/setting-up-kokoro-tts-locally-a-complete-beginner-friendly-guide-c1eaade469ca)
+### Development Tools
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| React Native Performance Monitor | Validate 60fps on mid-range Android | Enable via shake menu → Show Perf Monitor. Check UI thread FPS, not just JS thread. |
+| Hermes JS engine | Required for Reanimated 4 debugger support | Reanimated is incompatible with Remote JS Debugging on JSC. Already default in Expo 54. |
+| Flipper (optional) | Frame-level performance debugging | Use if perf monitor reveals Android-specific drops under blur. |
 
 ---
 
 ## Installation
 
-### React Native (Expo) - New Dependencies
-
 ```bash
-# Supabase
-npx expo install @supabase/supabase-js react-native-url-polyfill expo-sqlite
-
-# Rive animations
-npx expo install @rive-app/react-native expo-dev-client expo-build-properties expo-custom-agp
-
-# No additional state management needed (Zustand, MMKV already installed)
+# Typography only — everything else already installed
+npx expo install expo-font @expo-google-fonts/cinzel @expo-google-fonts/cormorant-garamond @expo-google-fonts/raleway
 ```
 
-### Backend (FastAPI) - New Dependencies
-
-```bash
-# Add to requirements.txt
-supabase==2.27.2
-PyJWT==2.9.0
-
-# Install
-pip install -r requirements.txt
-```
-
-### Configuration Files
-
-**app.json** (for Rive + Expo SDK 53):
+**app.json config plugin setup for fonts:**
 ```json
 {
   "expo": {
     "plugins": [
-      ["expo-custom-agp", "8.9.2"],
-      ["expo-build-properties", {
-        "android": { "compileSdkVersion": 36 },
-        "ios": { "deploymentTarget": "15.1" }
-      }]
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Cinzel-Regular.otf",
+            "./assets/fonts/Cinzel-Bold.otf",
+            "./assets/fonts/CormorantGaramond-Regular.otf",
+            "./assets/fonts/CormorantGaramond-Italic.otf",
+            "./assets/fonts/Raleway-Regular.otf",
+            "./assets/fonts/Raleway-Medium.otf"
+          ]
+        }
+      ]
     ]
   }
 }
 ```
 
-**backend/.env** (add Supabase config):
-```
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_KEY=your-service-key
-SUPABASE_JWT_SECRET=your-jwt-secret
+Alternatively, use `@expo-google-fonts` packages directly (no manual font file management):
+```typescript
+import { useFonts, Cinzel_400Regular, Cinzel_700Bold } from '@expo-google-fonts/cinzel';
+import { CormorantGaramond_400Regular, CormorantGaramond_400Regular_Italic } from '@expo-google-fonts/cormorant-garamond';
+import { Raleway_400Regular, Raleway_500Medium } from '@expo-google-fonts/raleway';
 ```
 
-### First-Time Setup Commands
+---
 
-```bash
-# Frontend: Rebuild with custom native code
-cd wavium
-npx expo prebuild --clean
-npx expo run:android  # or run:ios
+## Implementation Patterns by Domain
 
-# Backend: No changes needed to start command
-cd ../backend
-python main.py  # or uvicorn main:app --reload
+### 1. Glassmorphism / Blur Effects
+
+**The layered approach (recommended):**
+
+```typescript
+// Pattern: expo-blur for native blur + Skia for decorative glow layers
+import { BlurView } from 'expo-blur';
+
+// Glassmorphic card
+<BlurView
+  intensity={40}          // 20-50 range: subtle enough for legibility
+  tint="dark"             // "dark" for purple/cosmic palette
+  experimentalBlurMethod="dimezisBlurView"  // Android: required for actual blur
+  style={{
+    overflow: 'hidden',   // Required — borderRadius clips via overflow
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',  // subtle border for glass edge
+  }}
+>
+  {/* card content */}
+</BlurView>
 ```
+
+**Android reality check:** `expo-blur` on Android requires `experimentalBlurMethod="dimezisBlurView"` prop and may still have visual inconsistencies on older devices (pre-Android 12). The visual effect is less crisp than iOS. Mitigation: use `rgba(20, 15, 40, 0.6)` semi-transparent background as fallback for Android devices where blur isn't rendering cleanly.
+
+**When to use Skia blur instead:** Skia's `BackdropBlur` only works within a Canvas and cannot blur native views underneath it. Use expo-blur for native-view glassmorphism. Use Skia blur for in-canvas effects (e.g., blurring Mindi's glow halo, nebula effects).
+
+### 2. Gradient System
+
+**Static gradients (expo-linear-gradient):**
+```typescript
+import { LinearGradient } from 'expo-linear-gradient';
+
+// Gold palette gradient (replacing flat orange)
+<LinearGradient
+  colors={['#F7C873', '#D4A017', '#A0720C']}  // warm gold → deep amber
+  start={{ x: 0, y: 0 }}
+  end={{ x: 1, y: 1 }}
+  style={styles.buttonBackground}
+/>
+
+// Purple depth gradient (background layers)
+<LinearGradient
+  colors={['#0D0820', '#1A1040', '#2D1B69']}  // near-black → rich violet
+  locations={[0, 0.5, 1]}
+  style={StyleSheet.absoluteFill}
+/>
+```
+
+**Animated gradients (Skia — required for breathing/pulsing effects):**
+```typescript
+import { Canvas, LinearGradient, Rect, interpolateColors, vec } from '@shopify/react-native-skia';
+import { useSharedValue, useDerivedValue, withRepeat, withTiming } from 'react-native-reanimated';
+
+function BreathingGradient({ width, height }) {
+  const progress = useSharedValue(0);
+
+  // Skia uses interpolateColors from @shopify/react-native-skia, NOT Reanimated's
+  const colors = useDerivedValue(() => [
+    interpolateColors(progress.value, [0, 1], ['#F7C873', '#D4A017']),
+    interpolateColors(progress.value, [0, 1], ['#A0720C', '#F7C873']),
+  ]);
+
+  React.useEffect(() => {
+    progress.value = withRepeat(withTiming(1, { duration: 3000 }), -1, true);
+  }, []);
+
+  return (
+    <Canvas style={{ width, height }}>
+      <Rect x={0} y={0} width={width} height={height}>
+        <LinearGradient
+          start={vec(0, 0)}
+          end={vec(width, height)}
+          colors={colors}  // Reanimated shared value passed directly — no createAnimatedComponent
+        />
+      </Rect>
+    </Canvas>
+  );
+}
+```
+
+**Key distinction:** `interpolateColors` must be imported from `@shopify/react-native-skia`, not from Reanimated. They use different color storage formats and are not interchangeable.
+
+**Animated expo-linear-gradient colors (use with caution):** Animating the `colors` prop of expo-linear-gradient via `useAnimatedProps` is technically possible but has known Android issues — color changes fail or produce unexpected values. For anything that needs animated gradient color transitions, use Skia. For static or JS-state-driven color changes (not frame-by-frame), expo-linear-gradient is fine.
+
+### 3. Animated Buttons (Breathing/Glowing CTAs)
+
+**Pattern: Reanimated for scale/opacity + Skia for glow border:**
+
+```typescript
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+
+function GlowButton({ onPress, children }) {
+  const scale = useSharedValue(1);
+  const glowOpacity = useSharedValue(0.6);
+
+  // Breathing scale animation
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  // Glow pulse animation
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+  }));
+
+  React.useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.03, { duration: 1500 }),
+        withTiming(1.0, { duration: 1500 })
+      ),
+      -1,
+      false
+    );
+    glowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(1.0, { duration: 1500 }),
+        withTiming(0.5, { duration: 1500 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  return (
+    <Animated.View style={animatedStyle}>
+      {/* Glow layer — Animated.View with shadow/borderRadius glow */}
+      <Animated.View style={[styles.glowLayer, glowStyle]} />
+      {/* Gradient border + content */}
+      <LinearGradient
+        colors={['#F7C873', '#D4A017', '#A0720C']}
+        style={styles.gradientBorder}
+      >
+        <TouchableOpacity onPress={onPress} style={styles.buttonInner}>
+          {children}
+        </TouchableOpacity>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+```
+
+For a Skia-rendered glow border (more GPU-efficient, cleaner at any radius):
+
+```typescript
+// Skia canvas overlay for the glowing border ring
+import { Canvas, RoundedRect, Paint, BlurMask } from '@shopify/react-native-skia';
+
+<Canvas style={StyleSheet.absoluteFill}>
+  <RoundedRect x={2} y={2} width={width-4} height={height-4} r={16}>
+    <Paint color="rgba(247, 200, 115, 0.8)" style="stroke" strokeWidth={2}>
+      <BlurMask blur={8} style="solid" />
+    </Paint>
+  </RoundedRect>
+</Canvas>
+```
+
+### 4. Typography System
+
+**Font hierarchy for Wavium:**
+
+| Role | Font | Weight | Usage |
+|------|------|--------|-------|
+| Display (hero) | Cinzel | 700 Bold | Screen titles, "THE VOID", 1-3 word dramatic statements |
+| Editorial | Cormorant Garamond | 400 Regular / 400 Italic | Affirmation text, longer phrases, subtitles at 20px+ |
+| Body / UI | Raleway | 400 Regular / 500 Medium | Labels, descriptions, navigation tabs, form inputs |
+
+**Why Cinzel for display:** Roman inscription origins give it inherent gravitas. All-caps elegance reads as ceremonial rather than corporate. Perfect for THE VOID player title. Do not use for body text — readability drops below 18px.
+
+**Why Cormorant Garamond for affirmations:** The serif creates a sense of being "written" rather than displayed. Literary affect reinforces the ritualistic, intentional feel the app is going for. The Italic variant adds emotional intimacy to affirmation cards.
+
+**Why Raleway for body:** Clean geometric sans-serif pairs naturally with both display fonts. Reads well at 12-16px. The "W" letterform creates a subtle thematic resonance with "Wavium."
+
+**Font size scale (recommended):**
+```typescript
+const typography = {
+  display: { fontFamily: 'Cinzel_700Bold', fontSize: 32, letterSpacing: 4, textTransform: 'uppercase' },
+  heading: { fontFamily: 'Cinzel_400Regular', fontSize: 22, letterSpacing: 2 },
+  affirmation: { fontFamily: 'CormorantGaramond_400Regular', fontSize: 24, lineHeight: 36 },
+  affirmationItalic: { fontFamily: 'CormorantGaramond_400Regular_Italic', fontSize: 22, lineHeight: 34 },
+  body: { fontFamily: 'Raleway_400Regular', fontSize: 15, lineHeight: 22 },
+  label: { fontFamily: 'Raleway_500Medium', fontSize: 12, letterSpacing: 0.5 },
+};
+```
+
+### 5. Performance-Optimized Animation Architecture
+
+**Thread allocation:**
+- All Reanimated animations → UI thread via worklets (default behavior in Reanimated 4)
+- Skia canvas drawing → GPU thread, independent of JS and UI threads
+- expo-blur → native platform implementation, no JS involvement
+
+**Rules to maintain 60fps on mid-range Android:**
+
+1. **Limit simultaneous BlurViews to 2-3 per screen.** Blur is GPU-intensive. More than 3 overlapping blur regions on Android can cause frame drops. On THE VOID screen, use 1 BlurView max (the player controls overlay).
+
+2. **Never animate expo-blur `intensity` continuously.** Animating blur intensity triggers GPU recalculation every frame. Acceptable for one-shot transitions (fade-in); unacceptable for looping animations.
+
+3. **Use `useAnimatedStyle` not `useState` for any animation value.** `useState` triggers React re-renders; `useAnimatedStyle` mutates native props directly on the UI thread.
+
+4. **Skia Canvas isolation.** Each `<Canvas>` is a GPU surface. Avoid nesting Canvas components or placing Canvas inside FlatList items. For Mindi's glow sync to audio — update via Reanimated shared value, not re-renders.
+
+5. **`interpolateColors` in Skia derivations.** Run color interpolation inside `useDerivedValue` so it executes on the UI thread, never in a render function.
+
+6. **Test on Android API 29+ (Android 10).** `experimentalBlurMethod="dimezisBlurView"` on expo-blur requires Android API 31 (Android 12) for native RenderEffect-based blur. On API 29-30, it falls back to a software blur that is visually acceptable but heavier. Have a fallback strategy (semi-transparent solid background) for API < 31.
 
 ---
 
 ## Alternatives Considered
 
-### Authentication
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Backend Auth | **Supabase** | Firebase Auth | Supabase better for self-hosted, SQL database, FastAPI integration |
-| | | Custom JWT + Postgres | More work, Supabase provides auth + database + real-time |
-| JWT Library | **PyJWT** | python-jose | Abandoned, security issues, not Python 3.10+ compatible |
-| | | authlib | More features than needed, PyJWT simpler for MVP |
-
-### Animation
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Character Animation | **Rive** | Lottie | No state machines, requires multiple files per state |
-| | | React Native Animated | Too low-level, more code for complex Mindi states |
-| | | react-native-skia | Already in project but overkill for character animation |
-
-### State Management
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Client State | **Zustand** | Redux Toolkit | Already using Zustand, no reason to switch |
-| | | Jotai | Already in project but Zustand better for persist |
-| Persistence | **MMKV** | AsyncStorage | 30x slower, async hydration issues |
-| | | expo-secure-store | For sensitive data only, slower for general state |
-
-### Text-to-Speech
-
-| Category | Current (MVP) | Future Alternative | Why Switch Later |
-|----------|---------------|-------------------|------------------|
-| TTS Engine | **edge-tts** | Kokoro TTS | Self-hosted, faster, more control, but requires infrastructure |
-| | | ElevenLabs API | Too expensive ($0.18-0.30/1K chars), vendor lock-in |
-| | | Coqui XTTS v2 | Good quality but slower than Kokoro, larger model |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Skia for animated gradients | expo-linear-gradient with useAnimatedProps | Documented Android bug: color animation fails on Android (expo/expo #29408). Skia is more reliable and GPU-accelerated. |
+| expo-blur for glassmorphism | @react-native-community/blur | Would be a new native dependency requiring native rebuild. expo-blur already installed and SDK-compatible. Community blur has better Android support but is not worth the dependency addition when expo-blur is already present. |
+| Cinzel + Cormorant Garamond | System fonts | System fonts lack drama. San Francisco / Roboto reads as utility app, not sacred portal. The project brief explicitly calls out typography as a requirement. |
+| Cinzel + Cormorant Garamond | Playfair Display | Playfair Display is the standard "premium" choice — overused in wellness apps. Cinzel has more ceremonial weight and less generic brand recognition. |
+| Reanimated 4 worklets | react-native-animated (built-in) | Built-in Animated runs on JS thread; blocks on JS thread congestion. Reanimated 4 worklets are independent. For a visuals-first app with simultaneous blur + animation, Reanimated is non-negotiable. |
+| BlurMask (Skia) for in-canvas glows | box-shadow | React Native's shadow is platform-inconsistent and can't achieve soft, multi-layer glow. Skia BlurMask renders identically on iOS and Android. |
+| expo-font config plugin | useFonts hook | Config plugin embeds fonts at build time — zero loading delay, no splash screen flash. useFonts is async and requires loading state management. |
 
 ---
 
-## Architecture Pattern
+## What NOT to Use
 
-### Data Flow: Auth + Database
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     REACT NATIVE APP                            │
-│                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │   Zustand    │  │   Supabase   │  │     Rive     │         │
-│  │  (UI State)  │  │   Client     │  │   (Mindi)    │         │
-│  └──────┬───────┘  └──────┬───────┘  └──────────────┘         │
-│         │                  │                                     │
-│         │ MMKV persist     │ JWT auth + realtime                │
-│         ▼                  ▼                                     │
-│  ┌──────────────┐  ┌──────────────┐                            │
-│  │ Local Storage│  │  Supabase    │                            │
-│  │   (MMKV)     │  │   Session    │                            │
-│  └──────────────┘  │ (AsyncStorage)│                            │
-│                    └──────┬───────┘                             │
-└───────────────────────────┼─────────────────────────────────────┘
-                            │ HTTPS (JWT bearer token)
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     FASTAPI BACKEND                              │
-│                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │ JWT Validate │→ │   Supabase   │  │  edge-tts    │         │
-│  │   (PyJWT)    │  │  Python SDK  │  │  (Audio Gen) │         │
-│  └──────────────┘  └──────┬───────┘  └──────────────┘         │
-│                            │                                     │
-└────────────────────────────┼─────────────────────────────────────┘
-                             │ Postgrest API
-                             ▼
-                    ┌─────────────────┐
-                    │    SUPABASE     │
-                    │   (PostgreSQL)  │
-                    │  • Auth         │
-                    │  • Database     │
-                    │  • Storage      │
-                    │  • Realtime     │
-                    └─────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| **Zustand Store** | UI state, optimistic updates, local preferences | MMKV (persist), Supabase (sync) |
-| **Supabase Client (RN)** | Auth state, database queries, real-time subscriptions | Zustand (state updates), FastAPI (initial auth) |
-| **Rive Runtime** | Mindi character rendering, state machine | Zustand (reads state for animation triggers) |
-| **MMKV** | Fast local persistence for Zustand | Zustand middleware |
-| **FastAPI** | AI generation, audio mixing, protected endpoints | Supabase (data access), PyJWT (token validation) |
-| **Supabase (service)** | User accounts, subliminal storage, real-time sync | FastAPI (via SDK), React Native (via SDK) |
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| Animating expo-linear-gradient colors via useAnimatedProps | Known Android bug (expo/expo #29408): colors fail to animate or produce wrong values on Android. iOS-only at best. | Skia LinearGradient with useDerivedValue + interpolateColors |
+| Skia BackdropBlur over native views | BackdropBlur only blurs content declared within the same Canvas. Cannot blur native React Native views underneath it. | expo-blur BlurView for native view glassmorphism |
+| More than 3 BlurViews per screen on Android | Performance degradation. Dimezis BlurView V3 is better but still GPU-intensive. Stacked blurs compound the cost. | Limit to 1-2 BlurViews; use semi-transparent backgrounds elsewhere |
+| useState for animation-driven values | Triggers React re-render on every frame → JS thread load → jank | useSharedValue + useAnimatedStyle |
+| Variable fonts | Incomplete support across Android versions. Can cause rendering inconsistencies. | Static font files (Regular, Bold, Italic as separate files) |
+| react-native-linear-gradient (community) | Not needed — expo-linear-gradient already installed and SDK-aligned. Using both creates confusion. | expo-linear-gradient (already installed) |
 
 ---
 
-## Migration Notes
+## Version Compatibility
 
-### Existing Code Impacts
-
-**What Stays:**
-- React Native 0.81.5, Expo 54 (no version changes)
-- Zustand state management structure
-- FastAPI endpoints (add auth middleware)
-- edge-tts audio generation
-- FFmpeg mixing
-
-**What Changes:**
-- **Add** Supabase auth to login/signup flows
-- **Replace** local-only storage with Supabase + Zustand sync
-- **Add** Rive animations for Mindi character
-- **Add** JWT validation to FastAPI routes
-- **Add** Supabase Python client for backend database access
-
-**Migration Checklist:**
-1. Set up Supabase project (create database, enable auth)
-2. Configure RLS policies for `subliminals` table
-3. Add Supabase environment variables to `.env`
-4. Install React Native dependencies
-5. Configure `app.json` for Rive (compileSdkVersion 36)
-6. Run `expo prebuild --clean` (rebuild with native code)
-7. Create Rive animation file (`.riv`) with Mindi states
-8. Install Python dependencies (supabase, PyJWT)
-9. Add JWT validation dependency to FastAPI routes
-10. Update Zustand stores to sync with Supabase
+| Package | Version | Compatible With | Notes |
+|---------|---------|-----------------|-------|
+| expo-blur@15.0.8 | SDK 54 / RN 0.81 | expo-blur 15.x is the SDK 54 release | Android requires experimentalBlurMethod prop |
+| expo-linear-gradient@15.0.8 | SDK 54 / RN 0.81 | Confirmed compatible | Static use reliable; animated colors → use Skia |
+| react-native-reanimated@4.1.1 | Expo SDK 54 | Requires New Architecture (default in SDK 54) | Do NOT add to babel.config.js in Expo projects — babel-preset-expo handles this |
+| @shopify/react-native-skia@2.2.12 | Reanimated 3+ / Fabric | Works with Reanimated 4.x shared values directly | Pass shared values as direct props, no createAnimatedComponent |
+| @expo-google-fonts/* | expo-font any SDK 54 version | expo-font ships with SDK; google-fonts packages are standalone | Use npx expo install to get SDK-aligned expo-font version |
 
 ---
 
-## Risk Assessment
+## Stack Patterns by Variant
 
-| Risk | Severity | Mitigation |
-|------|----------|------------|
-| Rive requires dev build (no Expo Go) | Medium | Document clearly, provide build commands, one-time setup |
-| Expo SDK 53 + Rive Android conflicts | Medium | Use expo-custom-agp and expo-build-properties, documented solution |
-| Supabase RLS misconfiguration | High | Start with restrictive policies, test with user tokens, document patterns |
-| MMKV async hydration in Zustand | Low | Zustand handles async storage, use `onRehydrateStorage` callback if needed |
-| PyJWT version conflicts | Low | Pin version ^2.9.0, widely used, stable API |
-| edge-tts API changes | Medium | Have Kokoro TTS researched as backup, monitor edge-tts reliability |
+**If implementing glassmorphism on a screen with scrolling content:**
+- Do NOT wrap the BlurView around the scroll container
+- Use BlurView only for fixed-position overlays (headers, player controls, modals)
+- Because BlurView does not update when content beneath it changes during scroll
 
----
+**If implementing glassmorphism on Android API < 31:**
+- Use `backgroundColor: 'rgba(20, 10, 50, 0.65)'` as BlurView replacement
+- Add `borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)'` for glass edge illusion
+- Because Dimezis BlurView only has native RenderEffect on API 31+; older fallback is visually acceptable but heavier
 
-## Performance Considerations
+**If implementing the Mindi glow pulse synced to audio:**
+- Store playback amplitude as a Reanimated shared value
+- Drive Skia BlurMask blur radius and Canvas opacity via useDerivedValue
+- Never setState from audio callback → no re-renders
 
-| Concern | Strategy | Expected Impact |
-|---------|----------|-----------------|
-| Rive animation battery drain | Use state machine idle/active states, reduce particle count during background | Minimal with proper state management |
-| MMKV write frequency | Debounce Zustand state updates (e.g., save player position every 5s, not every second) | High performance, synchronous writes |
-| Supabase real-time connections | Only subscribe to user's own data, unsubscribe when not needed | ~1 connection per user, negligible |
-| JWT validation overhead | Validate once per request, cache user in request scope, no external API calls | <1ms per request |
-
----
-
-## Success Criteria
-
-This stack is successful if:
-
-- [ ] User can sign up/login with email + password via Supabase
-- [ ] Subliminals persist to Supabase database, sync across app restarts
-- [ ] Mindi character animates with at least 4 states (idle, listening, peaceful, happy) via Rive
-- [ ] Zustand + MMKV provides fast local state with Supabase sync
-- [ ] FastAPI validates Supabase JWT tokens on protected routes
-- [ ] No performance regressions (animations maintain 60fps)
-- [ ] Development build works on Android (target platform)
+**If implementing the affirmation ceremony (one-by-one reveal):**
+- Use Reanimated FadeIn layout animation + staggered withDelay
+- Cormorant Garamond Italic for each affirmation line
+- opacity: 0 → 1 with withTiming(1, { duration: 800 }) and withDelay(index * 300)
 
 ---
 
-## Open Questions
+## Sources
 
-**For Implementation Phase:**
-1. What Supabase RLS policies are needed for `subliminals` table? (user can CRUD own data only)
-2. Who creates the Mindi `.riv` animation file? (designer needed, or use placeholder)
-3. What Zustand stores need Supabase sync vs MMKV-only? (subliminals sync, UI preferences local)
-4. Do we need offline mode? (Supabase caches locally, but creation requires backend)
-
-**For Post-MVP:**
-1. When to migrate from edge-tts to Kokoro TTS? (based on reliability or self-hosting need)
-2. Should we add `@react-native-google-signin` for OAuth? (email/password sufficient for MVP per PRD)
-3. Do we need Supabase Storage for audio files or use Cloudflare R2? (PRD mentions R2)
-
----
-
-## Sources Summary
-
-### Official Documentation (HIGH Confidence)
-- [Supabase Expo React Native Guide](https://supabase.com/docs/guides/getting-started/quickstarts/expo-react-native)
-- [Rive Expo Integration](https://rive.app/docs/runtimes/react-native/adding-rive-to-expo)
-- [Zustand Persist Middleware](https://zustand.docs.pmnd.rs/integrations/persisting-store-data)
-- [FastAPI Security](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/)
-
-### GitHub Repositories (HIGH Confidence)
-- [supabase-js v2.93.3](https://github.com/supabase/supabase-js)
-- [supabase-py v2.27.2](https://github.com/supabase/supabase-py)
-- [rive-react-native](https://github.com/rive-app/rive-react-native)
-- [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)
-
-### Community Resources (MEDIUM Confidence)
-- [FastAPI + Supabase Auth Pattern](https://dev.to/j0/integrating-fastapi-with-supabase-auth-780)
-- [Zustand MMKV Storage Guide](https://dev.to/mehdifaraji/zustand-mmkv-storage-blazing-fast-persistence-for-zustand-in-react-native-3ef1)
-- [PyJWT vs python-jose Discussion](https://github.com/fastapi/fastapi/discussions/11345)
-- [Open Source TTS Comparison 2026](https://www.bentoml.com/blog/exploring-the-world-of-open-source-text-to-speech-models)
+- `wavium/package.json` — exact installed versions (verified 2026-02-24)
+- [expo-blur changelog (unpkg)](https://app.unpkg.com/expo-blur@15.0.6/files/CHANGELOG.md) — version 15.0.8 current, 15.0.0 Android fix verified — HIGH confidence
+- [Expo BlurView docs](https://docs.expo.dev/versions/latest/sdk/blur-view/) — experimentalBlurMethod, intensity animation, borderRadius workaround — HIGH confidence
+- [Expo Fonts docs](https://docs.expo.dev/develop/user-interface/fonts/) — config plugin approach, OTF preference — HIGH confidence
+- [expo/google-fonts GALLERY.md](https://github.com/expo/google-fonts/blob/main/GALLERY.md) — Cinzel, Cormorant Garamond, Raleway confirmed available — HIGH confidence
+- [Expo SDK 54 changelog](https://expo.dev/changelog/sdk-54) — Reanimated 4.x ships with SDK 54; New Architecture required — HIGH confidence
+- [React Native Skia animations docs](https://shopify.github.io/react-native-skia/docs/animations/animations/) — Reanimated v3+ required, shared values as direct props, interpolateColors from Skia — HIGH confidence
+- [Skia gradients docs](https://shopify.github.io/react-native-skia/docs/shaders/gradients/) — LinearGradient, vec, color handling — HIGH confidence
+- [expo/expo #29408](https://github.com/expo/expo/issues/29408) — Android animated gradient colors bug confirmed — HIGH confidence (official issue tracker)
+- [WebSearch: Skia 2.4.21 latest, Fabric reconciler 50%/200% perf gains](https://www.npmjs.com/package/@shopify/react-native-skia) — MEDIUM confidence (WebSearch + official Shopify engineering posts)
+- [Cinzel + Cormorant Garamond pairing](https://daveyandkrista.com/font-pairings-cormorant-garamond-raleway/) — MEDIUM confidence (design community consensus, not engineering docs)
+- [React Native Reanimated 3/4 performance guide](https://dev.to/eragelagz/react-native-reanimated-3-the-ultimate-guide-to-high-performance-animations-in-2025-4ae4) — MEDIUM confidence (verified by official Reanimated architecture docs)
 
 ---
 
-## Conclusion
-
-This stack provides a **solid foundation for MVP completion** with minimal risk:
-
-1. **Supabase** unifies auth + database + real-time (eliminates need for separate services)
-2. **Rive** enables rich Mindi character with state machines (better than Lottie for this use case)
-3. **Zustand + MMKV** provides fast local state with Supabase sync (best of both worlds)
-4. **PyJWT** for FastAPI is the modern standard (python-jose is dead)
-5. **Keep edge-tts** for MVP, explore Kokoro post-MVP (don't introduce risk)
-
-All libraries are **actively maintained in 2026**, have **strong community support**, and **integrate cleanly with the existing React Native + FastAPI stack**.
-
-**Next Steps:** Proceed to roadmap creation with these technology decisions locked in.
+*Stack research for: Wavium premium UI/UX aesthetic overhaul (React Native Expo 54)*
+*Researched: 2026-02-24*

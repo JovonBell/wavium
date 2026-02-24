@@ -1,1591 +1,597 @@
-# Architecture Integration Patterns
+# Architecture Research
 
-**Project:** Wavium Subliminal Audio App
-**Researched:** 2026-02-02
-**Confidence:** HIGH
-
-## Executive Summary
-
-Integrating authentication, database, and character animations into an existing React Native + FastAPI architecture requires careful attention to authentication flow, state synchronization, and animation event binding. This document provides production-ready patterns for:
-
-1. **Supabase JWT authentication** through FastAPI middleware
-2. **Zustand + Supabase sync** for offline-first data persistence
-3. **Rive state machine integration** for emotion-driven character animations
-4. **Offline-first audio** download and playback architecture
-
-The recommended architecture maintains clear boundaries between concerns while enabling efficient data flow and responsive user experience.
+**Domain:** React Native premium aesthetic system (visual/theme layer for mindfulness app)
+**Researched:** 2026-02-24
+**Confidence:** HIGH (primary findings verified against official Skia, Reanimated, and Expo documentation)
 
 ---
 
-## Current Architecture Overview
+## Standard Architecture
 
-### Existing Components
+### System Overview
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    CURRENT SYSTEM                       │
-├─────────────────────────────────────────────────────────┤
-│  Frontend (React Native Expo)                           │
-│  ├─ Zustand Stores (local state, AsyncStorage persist) │
-│  ├─ expo-av (audio playback)                            │
-│  ├─ API Client (typed HTTP + WebSocket)                 │
-│  └─ Mindi Component (basic renderer)                    │
-├─────────────────────────────────────────────────────────┤
-│  Backend (FastAPI)                                      │
-│  ├─ Groq AI (affirmation generation)                    │
-│  ├─ edge-tts (text-to-speech)                           │
-│  ├─ FFmpeg (audio mixing)                               │
-│  ├─ Cloudflare R2 (audio storage)                       │
-│  └─ WebSocket (generation progress)                     │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                      SCREEN LAYER                               │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
+│  │  Home    │  │  Create  │  │  Tracks  │  │ THE VOID │        │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘        │
+│       │             │             │              │              │
+├───────┴─────────────┴─────────────┴──────────────┴──────────────┤
+│                   COMPONENT LAYER                               │
+│  ┌────────────────┐  ┌───────────────┐  ┌────────────────────┐  │
+│  │ GlassmorphicCard│  │  HapticButton │  │ TimeShiftBackground│  │
+│  │  GlowText      │  │  StreakCard   │  │ MindiRenderer      │  │
+│  └────────┬───────┘  └───────┬───────┘  └─────────┬──────────┘  │
+│           │                 │                     │             │
+├───────────┴─────────────────┴─────────────────────┴─────────────┤
+│                   ANIMATION SYSTEM                              │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Shared Values (Reanimated)  ←→  Skia Props (direct)    │   │
+│  │  audioLevel SV → Skia radius/opacity (no bridge needed) │   │
+│  │  isPlaying SV → animation drivers → UI thread worklets  │   │
+│  └──────────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────────┤
+│                   THEME SYSTEM                                  │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────────┐  │
+│  │  Design Tokens │  │  ThemeStore    │  │  Font System       │  │
+│  │  colors.ts     │  │  (Zustand)     │  │  typography.ts     │  │
+│  │  spacing.ts    │  │  timeOfDay →   │  │  + display font    │  │
+│  │  animations.ts │  │  colors object │  │                    │  │
+│  └────────────────┘  └────────────────┘  └────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Current Data Flow
+### Component Boundaries
 
-1. User enters intention → Frontend
-2. Frontend calls FastAPI `/api/generate-affirmations`
-3. Backend uses Groq AI → returns affirmations
-4. Frontend calls `/api/generate-audio` with voice selection
-5. Backend uses edge-tts + FFmpeg → uploads to R2 → returns URL
-6. Frontend downloads audio → plays via expo-av
-7. State persists to AsyncStorage via Zustand middleware
-
-**Current gaps:**
-- No user authentication (anyone can spoof user IDs)
-- No persistent database (library resets on app uninstall)
-- No emotion-driven character animations
-- No offline audio storage (re-downloads every time)
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| Theme System (`src/theme/`) | Static design tokens — color scales, spacing, animation constants, typography scale | ThemeStore, all UI components |
+| ThemeStore (`useThemeStore`) | Runtime theme state — current `timeOfDay`, resolved `colors` object, manual override | All components via `useThemeStore()` hook |
+| Animation System | Shared values, drivers, spring configs — no layout side effects | Skia components (direct prop pass), Animated.View styles |
+| GlassmorphicCard | Surface-level glass effect using `expo-blur` BlurView + inner glow overlay | ThemeStore (for `primary`, `surfaceGlow` colors) |
+| GlowText | Animated text shadow pulsing via Reanimated `useSharedValue` | ThemeStore (for text color), typography scale |
+| HapticButton | Press-scale animation + haptic feedback + gradient border (new) | ThemeStore (for colors), `expo-haptics`, spring configs |
+| TimeShiftingBackground | Full-screen Skia canvas — gradient + ambient orbs + stars | ThemeStore (for `timeOfDay`) |
+| MindiRenderer | Character body assembly (Skia canvas) + floating/scale animation driver | MindiStore (state machine), ThemeStore (mindi colors), audioLevel prop |
+| MindiGlow | Skia canvas — multi-layer radial gradient glow, audio-reactive scale | audioLevel prop, animation constants |
+| MindiEyes | Skia canvas — eyes, blink, pupil tracking | MindiStore state |
+| NebulaRenderer | Skia canvas — audio-reactive cloud system with parallax | audioLevel prop, gyro state, ThemeStore (nebula colors by `timeOfDay`) |
+| VoidContainer | Player orchestrator — audio playback, gyro, controls auto-hide | MindiStore, ThemeStore, all void sub-components |
 
 ---
 
-## Recommended Architecture (With Integrations)
-
-### System-Level Architecture
+## Recommended Project Structure
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                         CLIENT (React Native)                        │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌──────────────────┐  ┌────────────────────┐  ┌─────────────────┐ │
-│  │  Auth Manager    │  │  Zustand Stores    │  │  Rive Runtime   │ │
-│  │  - Supabase Auth │  │  - Local state     │  │  - State        │ │
-│  │  - JWT tokens    │  │  - Persist config  │  │    machine      │ │
-│  │  - Session mgmt  │  │  - Optimistic      │  │  - Inputs       │ │
-│  │                  │  │    updates         │  │  - Triggers     │ │
-│  └──────┬───────────┘  └────────┬───────────┘  └───────┬─────────┘ │
-│         │                       │                      │           │
-│         ├───────────────────────┼──────────────────────┘           │
-│         │                       │                                  │
-│  ┌──────▼───────────────────────▼──────────────────────────────┐  │
-│  │              API Client (with JWT injection)                │  │
-│  │  - HTTP requests with Authorization header                  │  │
-│  │  - WebSocket with token in query param                      │  │
-│  └──────────────────────────────┬──────────────────────────────┘  │
-│                                  │                                  │
-│  ┌───────────────────────────────▼─────────────────────────────┐  │
-│  │          Offline Audio Manager                              │  │
-│  │  - expo-av playback                                          │  │
-│  │  - FileSystem downloads                                      │  │
-│  │  - Local cache management                                    │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-└────────────────────────────────┬─────────────────────────────────────┘
-                                 │
-                                 │ HTTPS + WSS
-                                 │ Authorization: Bearer <JWT>
-                                 │
-┌────────────────────────────────▼─────────────────────────────────────┐
-│                         SERVER (FastAPI)                             │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │              JWT Verification Middleware                      │  │
-│  │  - Verify JWT signature (JWKS from Supabase)                 │  │
-│  │  - Extract user_id from token claims                          │  │
-│  │  - Inject user context into request                           │  │
-│  └─────────────────────────────┬─────────────────────────────────┘  │
-│                                │                                    │
-│  ┌─────────────────────────────▼─────────────────────────────────┐  │
-│  │                     API Endpoints                             │  │
-│  │  - /api/library (authenticated)                               │  │
-│  │  - /api/sessions (authenticated)                              │  │
-│  │  - /api/evolution/state (authenticated)                       │  │
-│  │  - /api/generate-affirmations (authenticated)                 │  │
-│  │  - /ws/generate (WebSocket with token)                        │  │
-│  └─────────────────────────────┬─────────────────────────────────┘  │
-│                                │                                    │
-│  ┌─────────────────────────────▼─────────────────────────────────┐  │
-│  │          Supabase Client (Service Role)                       │  │
-│  │  - Database operations                                         │  │
-│  │  - Bypass RLS (backend operations)                            │  │
-│  │  - User-scoped queries                                         │  │
-│  └─────────────────────────────┬─────────────────────────────────┘  │
-│                                │                                    │
-│  ┌─────────────────────────────▼─────────────────────────────────┐  │
-│  │          Audio Pipeline (Existing)                            │  │
-│  │  - Groq AI → edge-tts → FFmpeg → R2                          │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────┘
-                                 │
-┌────────────────────────────────▼─────────────────────────────────────┐
-│                    SUPABASE (PostgreSQL + Auth)                      │
-├──────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────┐  ┌──────────────────────────────────────┐  │
-│  │  Auth Service       │  │  Database (with RLS)                 │  │
-│  │  - User accounts    │  │  - users                             │  │
-│  │  - JWT issuing      │  │  - subliminals (user_id FK)          │  │
-│  │  - JWKS endpoint    │  │  - sessions (user_id FK)             │  │
-│  │                     │  │  - mindi_state (user_id FK)          │  │
-│  └─────────────────────┘  └──────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────┘
+wavium/src/
+├── theme/
+│   ├── colors.ts           # Color scales per TimeOfDay — EXTEND with gold gradient tokens
+│   ├── typography.ts        # Font scale — ADD display font family constant
+│   ├── spacing.ts           # Spacing/radius — stable, minimal change needed
+│   ├── animations.ts        # Spring configs, timing, cycle constants
+│   └── index.ts             # Barrel export
+│
+├── stores/
+│   ├── useThemeStore.ts     # TimeOfDay + resolved colors — stable
+│   └── useMindiStore.ts     # MindiState + subliminals + streak — stable
+│
+├── components/
+│   ├── ui/                  # Surface-level UI components (consume theme tokens)
+│   │   ├── GlassmorphicCard.tsx     # REFACTOR: add layered depth, inner glow
+│   │   ├── GlowText.tsx             # REFACTOR: add display font variant
+│   │   ├── HapticButton.tsx         # REFACTOR: add gradient border, glow CTA
+│   │   ├── TimeShiftingBackground.tsx  # REFACTOR: deepen purple spectrum
+│   │   ├── StreakCard.tsx            # REFACTOR: glassmorphism treatment
+│   │   ├── TabBar.tsx                # REFACTOR: floating glass pill style
+│   │   └── ...
+│   │
+│   ├── mindi/               # Skia character (GPU-rendered, animation-driven)
+│   │   ├── MindiRenderer.tsx        # REFACTOR: audio pulse sync to isPlaying
+│   │   ├── MindiGlow.tsx            # REFACTOR: idle breathing animation
+│   │   ├── MindiEyes.tsx            # REFACTOR: eye tracking + entrance animation
+│   │   ├── MindiParticles.tsx       # stable — extend for entrance effects
+│   │   ├── MindiSpeech.tsx          # stable
+│   │   └── index.ts
+│   │
+│   └── void/                # THE VOID player (full-screen immersive layer)
+│       ├── VoidContainer.tsx        # REFACTOR: audioLevel as SharedValue, not state
+│       ├── NebulaRenderer.tsx       # stable structure — colors updated via theme
+│       ├── StarField.tsx            # stable
+│       ├── ParallaxLayer.tsx        # stable
+│       ├── AffirmationSpirals.tsx   # REFACTOR: one-by-one ceremony reveal
+│       ├── PlayerControls.tsx       # REFACTOR: elegant minimal progress bar
+│       └── index.ts
 ```
+
+### Structure Rationale
+
+- **`theme/`:** Pure constants — no React, no imports from elsewhere. Anything here can be imported by any file without circular dependency risk.
+- **`stores/`:** Runtime state bridges theme tokens to components. ThemeStore is the single source of truth for which `colors` object is active.
+- **`components/ui/`:** Consume tokens from ThemeStore. Never reach into other stores directly.
+- **`components/mindi/`:** Isolated Skia rendering domain. Takes audioLevel and MindiState as props, self-contained animation drivers.
+- **`components/void/`:** Isolated immersive player domain. VoidContainer owns audio playback and passes audioLevel down.
 
 ---
 
-## Component Boundaries
+## Architectural Patterns
 
-### 1. Authentication Layer
+### Pattern 1: Design Token Layering (Two-Tier Color System)
 
-| Component | Responsibility | Communicates With | Technology |
-|-----------|---------------|-------------------|------------|
-| **Supabase Auth Client** | User sign-up, login, session management | Supabase Auth API | `@supabase/supabase-js` |
-| **JWT Token Manager** | Store access token, refresh on expiry | Supabase Auth, API Client | React Context + AsyncStorage |
-| **FastAPI JWT Middleware** | Verify JWT signature, extract user claims | Supabase JWKS endpoint | `PyJWT` + `httpx` |
-| **WebSocket Auth Handler** | Validate token from query param or first message | JWT Middleware | Custom dependency |
+**What:** Separate raw palette constants from semantic theme tokens.
 
-**Key decisions:**
-- **Client uses anon key + user JWT**: Frontend authenticates with Supabase, receives JWT, passes to FastAPI
-- **Backend uses service role**: FastAPI bypasses RLS using service role key, implements own authorization logic
-- **JWT verification via JWKS**: Backend fetches public keys from `https://[project].supabase.co/auth/v1/.well-known/jwks.json`
+**When to use:** Whenever a color must adapt to `timeOfDay` context. Raw palette for fixed values (success green), semantic for variable values (primary, background).
 
-### 2. Database Sync Layer
+**Current state:** The existing `colors.ts` is already one-tier (semantic only). The gap is that gradient stop values are hardcoded in individual components (`TimeShiftingBackground`, `NebulaRenderer`) rather than flowing from the token system.
 
-| Component | Responsibility | Communicates With | Technology |
-|-----------|---------------|-------------------|------------|
-| **Zustand Store** | In-memory app state, fast reads | React components | `zustand` |
-| **AsyncStorage Persist** | Local persistence for offline access | Zustand middleware | `@react-native-async-storage/async-storage` |
-| **Supabase Sync Service** | Background sync between Zustand and Supabase | Zustand stores, API Client | Custom hook |
-| **API Endpoints** | CRUD operations on database | FastAPI routes, Supabase client | `supabase-py` |
-
-**Key decisions:**
-- **Optimistic UI updates**: Zustand updates immediately, sync to Supabase in background
-- **Conflict resolution**: Last-write-wins for MVP (use `updated_at` timestamps)
-- **Sync triggers**: On app focus, after mutations, periodic background sync
-- **Offline queue**: Store failed mutations in AsyncStorage, retry on reconnect
-
-### 3. Character Animation Layer
-
-| Component | Responsibility | Communicates With | Technology |
-|-----------|---------------|-------------------|------------|
-| **Rive Runtime** | Load .riv file, manage state machine | Rive View, Animation Controller | `@rive-app/react-native` |
-| **Animation Controller** | Map app events to animation states | Zustand stores, Rive Runtime | Custom React hook |
-| **Mindi State Machine** | Define emotion states and transitions | Rive file (.riv) | Rive Editor |
-| **Particle System** | Visual effects for affirmation absorption | Rive file or react-native-reanimated | Rive or custom |
-
-**Key decisions:**
-- **State machine inputs**: `listening` (boolean), `emotion` (enum), `glow_level` (number), `trigger_generate` (trigger)
-- **Emotion mapping**: Map user actions to emotions (idle → listening → peaceful → happy → excited)
-- **Animation triggers**: WebSocket generation events trigger `trigger_generate`, session completion triggers glow increase
-- **Performance**: Rive runs on separate thread, no impact on audio playback
-
-### 4. Offline Audio Layer
-
-| Component | Responsibility | Communicates With | Technology |
-|-----------|---------------|-------------------|------------|
-| **Audio Player** | Playback controls, progress tracking | expo-av | `expo-av` |
-| **Download Manager** | Download audio files from R2, store locally | FileSystem, R2 URLs | `expo-file-system` |
-| **Cache Manager** | Track downloaded files, evict old files | AsyncStorage (metadata) | Custom hook |
-| **Session Recorder** | Track listening duration, completion | API Client, Zustand | Custom hook |
-
-**Key decisions:**
-- **Download strategy**: Download after generation completes, before playback
-- **Cache location**: `FileSystem.documentDirectory + 'audio/' + subliminal_id + '.mp3'`
-- **Cache eviction**: LRU (Least Recently Used) when storage exceeds 500MB
-- **Offline playback**: Always play from local cache if available, fallback to stream
-
----
-
-## Data Flow Patterns
-
-### Pattern 1: User Authentication Flow
-
-```
-┌──────────┐
-│  User    │
-│  signs   │
-│  up      │
-└────┬─────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Supabase Auth Client             │
-│  supabase.auth.signUp(email, password)      │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Supabase Auth Service                      │
-│  - Creates user record                      │
-│  - Issues JWT (access + refresh tokens)     │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Token Manager                    │
-│  - Store tokens in AsyncStorage             │
-│  - Set up auto-refresh (on expiry)          │
-│  - Inject token in API Client               │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Navigate to onboarding           │
-│  - Name Mindi screen                        │
-│  - Set first intention                      │
-└─────────────────────────────────────────────┘
-```
-
-### Pattern 2: Authenticated API Request Flow
-
-```
-┌──────────┐
-│  User    │
-│  action  │
-└────┬─────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Zustand Store                    │
-│  - Optimistic update (immediate UI change)  │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: API Client                       │
-│  - Add Authorization: Bearer <jwt>          │
-│  - POST /api/library                        │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Backend: JWT Middleware                    │
-│  - Extract token from header                │
-│  - Verify signature with Supabase JWKS      │
-│  - Validate claims (exp, iss, aud)          │
-│  - Extract user_id from sub claim           │
-│  - Inject user_id into request context      │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Backend: API Endpoint                      │
-│  - Access user_id from request              │
-│  - Query Supabase with user_id filter       │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Supabase Database                          │
-│  - Execute query (service role bypasses RLS)│
-│  - Return filtered results                  │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Backend: Return response                   │
-│  - Serialize data                           │
-│  - Return JSON                              │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Update Zustand                   │
-│  - Merge server response                    │
-│  - Persist to AsyncStorage                  │
-└─────────────────────────────────────────────┘
-```
-
-### Pattern 3: WebSocket Generation with Auth
-
-```
-┌──────────┐
-│  User    │
-│  creates │
-│  audio   │
-└────┬─────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: WebSocket Connection             │
-│  - ws://backend/ws/generate?token=<jwt>     │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Backend: WebSocket Auth Handler            │
-│  - Extract token from query param           │
-│  - Verify JWT (same as HTTP middleware)     │
-│  - Extract user_id                          │
-│  - Accept connection or reject (403)        │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Backend: Generation Pipeline               │
-│  - Receive generation params                │
-│  - Stream progress events:                  │
-│    • "Generating affirmations..." (10%)     │
-│    • "Creating audio..." (40%)              │
-│    • "Mixing with background..." (70%)      │
-│    • "Uploading..." (90%)                   │
-│    • Complete with audio_url (100%)         │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Progress Updates                 │
-│  - Update Mindi state (generating)          │
-│  - Update progress bar                      │
-│  - Trigger animation state changes          │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Download Audio                   │
-│  - FileSystem.downloadAsync(url, localPath) │
-│  - Save metadata to AsyncStorage            │
-│  - Update Zustand with local path           │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Sync to Supabase                 │
-│  - POST /api/library with subliminal data   │
-│  - Store audio_url (R2) + local_path        │
-└─────────────────────────────────────────────┘
-```
-
-### Pattern 4: Offline-First Library Access
-
-```
-┌──────────┐
-│  User    │
-│  opens   │
-│  library │
-└────┬─────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Check Zustand Store              │
-│  - Read from in-memory state                │
-│  - Instant UI render (no loading spinner)   │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Background Sync (if online)      │
-│  - GET /api/library                         │
-│  - Compare server timestamps with local     │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Conflict Resolution                        │
-│  - If server newer: Update Zustand          │
-│  - If local newer: Push to server           │
-│  - If equal: No action                      │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Frontend: Update UI (if changes)           │
-│  - React re-renders on Zustand change       │
-│  - Persist updated state to AsyncStorage    │
-└─────────────────────────────────────────────┘
-```
-
-### Pattern 5: Mindi Animation State Binding
-
-```
-┌──────────┐
-│  App     │
-│  event   │
-└────┬─────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Event Mapping (useMindiAnimations hook)    │
-│  - app.onFocus → 'idle'                     │
-│  - user.setIntention → 'listening'          │
-│  - generation.progress → 'generating'       │
-│  - audio.playing → 'peaceful'               │
-│  - session.complete → 'happy' + glow++      │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Animation Controller                       │
-│  - Map event to Rive input                  │
-│  - Debounce rapid state changes             │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Rive Runtime                               │
-│  - Set boolean input: listening = true      │
-│  - Set number input: glow_level = 5         │
-│  - Fire trigger: absorb_affirmation         │
-└────┬────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────────────────┐
-│  Rive State Machine (in .riv file)          │
-│  - Transition from idle to listening        │
-│  - Play listening animation loop            │
-│  - On absorb_affirmation trigger:           │
-│    • Play particle burst                    │
-│    • Increase glow opacity                  │
-└─────────────────────────────────────────────┘
-```
-
----
-
-## Patterns to Follow
-
-### Pattern 1: JWT Verification Middleware (FastAPI)
-
-**What:** Dependency injection pattern for verifying Supabase JWTs on all authenticated routes.
-
-**When:** Use for all API endpoints that require user authentication.
-
-**Implementation:**
-
-```python
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import httpx
-import jwt
-from functools import lru_cache
-from datetime import datetime, timedelta
-
-security = HTTPBearer()
-
-# Cache JWKS for 10 minutes (Supabase edge caches for 10 min)
-JWKS_CACHE_DURATION = timedelta(minutes=10)
-_jwks_cache = {"data": None, "expires_at": None}
-
-@lru_cache(maxsize=1)
-def get_supabase_config():
-    """Get Supabase configuration from environment."""
-    return {
-        "project_url": os.getenv("SUPABASE_URL"),
-        "project_id": os.getenv("SUPABASE_URL").split("//")[1].split(".")[0],
-    }
-
-async def get_jwks():
-    """Fetch JWKS from Supabase with 10-minute cache."""
-    now = datetime.utcnow()
-
-    if _jwks_cache["data"] and _jwks_cache["expires_at"] > now:
-        return _jwks_cache["data"]
-
-    config = get_supabase_config()
-    jwks_url = f"{config['project_url']}/auth/v1/.well-known/jwks.json"
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(jwks_url)
-        response.raise_for_status()
-
-    _jwks_cache["data"] = response.json()
-    _jwks_cache["expires_at"] = now + JWKS_CACHE_DURATION
-
-    return _jwks_cache["data"]
-
-async def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> dict:
-    """
-    Verify Supabase JWT and return user claims.
-
-    Returns:
-        dict with keys: user_id, email, role
-    """
-    token = credentials.credentials
-
-    try:
-        # Get JWKS
-        jwks = await get_jwks()
-
-        # Decode header to get key ID
-        unverified_header = jwt.get_unverified_header(token)
-        kid = unverified_header.get("kid")
-
-        # Find matching key
-        key = None
-        for jwk in jwks.get("keys", []):
-            if jwk.get("kid") == kid:
-                key = jwt.algorithms.RSAAlgorithm.from_jwk(jwk)
-                break
-
-        if not key:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token key"
-            )
-
-        # Verify token
-        config = get_supabase_config()
-        payload = jwt.decode(
-            token,
-            key,
-            algorithms=["RS256"],
-            audience="authenticated",
-            issuer=f"{config['project_url']}/auth/v1",
-        )
-
-        return {
-            "user_id": payload.get("sub"),
-            "email": payload.get("email"),
-            "role": payload.get("role"),
-        }
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired"
-        )
-    except jwt.InvalidTokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {str(e)}"
-        )
-
-# Usage in routes
-@app.get("/api/library")
-async def get_library(user: dict = Depends(verify_token)):
-    user_id = user["user_id"]
-    # Query database filtered by user_id
-    return await db.get_user_subliminals(user_id)
-```
-
-**Why this pattern:**
-- Uses official Supabase JWKS endpoint (no shared secrets)
-- Caches keys for performance (aligned with Supabase edge cache)
-- Works with Supabase's asymmetric signing (RS256)
-- Dependency injection makes auth explicit and testable
-- Returns user context for authorization logic
-
-### Pattern 2: WebSocket Authentication
-
-**What:** Authenticate WebSocket connections using JWT from query parameter or first message.
-
-**When:** Use for real-time features like generation progress streaming.
-
-**Implementation:**
-
-```python
-from fastapi import WebSocket, WebSocketDisconnect, Query
-from urllib.parse import parse_qs
-
-async def verify_websocket_token(token: str) -> dict:
-    """Verify JWT for WebSocket (reuses HTTP verification logic)."""
-    # Create mock HTTPAuthorizationCredentials
-    from fastapi.security import HTTPAuthorizationCredentials
-    credentials = HTTPAuthorizationCredentials(
-        scheme="Bearer",
-        credentials=token
-    )
-    return await verify_token(credentials)
-
-@app.websocket("/ws/generate")
-async def websocket_generate(
-    websocket: WebSocket,
-    token: str = Query(None)
-):
-    """
-    WebSocket endpoint for audio generation with auth.
-    Token can come from query param or first message.
-    """
-    user = None
-
-    # Try token from query param first
-    if token:
-        try:
-            user = await verify_websocket_token(token)
-        except HTTPException:
-            await websocket.close(code=1008)  # Policy violation
-            return
-
-    await websocket.accept()
-
-    # If no query token, expect token in first message
-    if not user:
-        try:
-            first_message = await websocket.receive_json()
-            token = first_message.get("token")
-
-            if not token:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "Authentication required"
-                })
-                await websocket.close(code=1008)
-                return
-
-            user = await verify_websocket_token(token)
-
-        except HTTPException:
-            await websocket.send_json({
-                "type": "error",
-                "message": "Invalid token"
-            })
-            await websocket.close(code=1008)
-            return
-
-    # Now authenticated, proceed with generation
-    try:
-        # ... existing generation logic ...
-        # Use user["user_id"] for database operations
-
-        await websocket.send_json({
-            "type": "progress",
-            "percent": 10,
-            "message": "Generating affirmations..."
-        })
-
-        # ... rest of generation pipeline ...
-
-    except WebSocketDisconnect:
-        # Client disconnected
-        pass
-```
-
-**Why this pattern:**
-- WebSocket doesn't support headers, so token goes in query param
-- Fallback to first message allows flexibility
-- Reuses HTTP JWT verification logic (DRY)
-- Closes connection early if auth fails (no wasted resources)
-
-### Pattern 3: Optimistic Zustand + Supabase Sync
-
-**What:** Update local state immediately, sync to server in background, handle conflicts gracefully.
-
-**When:** Use for all user data mutations (library, sessions, Mindi state).
-
-**Implementation:**
+**Target pattern:**
 
 ```typescript
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '../api/client';
-import NetInfo from '@react-native-community/netinfo';
+// theme/colors.ts — ADD: gradient token groups per theme
+export const goldScale = {
+  50:  '#fffbeb',
+  100: '#fef3c7',
+  200: '#fde68a',
+  300: '#fcd34d',  // ← warm gold base
+  400: '#fbbf24',
+  500: '#f59e0b',  // ← primary gold (replaces flat orange)
+  600: '#d97706',
+  700: '#b45309',
+};
 
-interface SyncQueueItem {
-  id: string;
-  operation: 'create' | 'update' | 'delete';
-  resource: 'subliminal' | 'session';
-  data: any;
-  timestamp: number;
+// Each TimeOfDay theme gets a gradient array in addition to flat colors
+export interface ThemeColors {
+  // existing flat colors...
+  primaryGradient: [string, string, string];  // for LinearGradient stops
+  glassOverlay: string;                        // rgba for glass surface tint
+  glassBorder: string;                         // rgba for glass edge highlight
 }
 
-interface SyncState {
-  isOnline: boolean;
-  isSyncing: boolean;
-  syncQueue: SyncQueueItem[];
-  lastSyncAt: number | null;
-}
-
-export const useSyncStore = create<SyncState>()(
-  persist(
-    (set, get) => ({
-      isOnline: true,
-      isSyncing: false,
-      syncQueue: [],
-      lastSyncAt: null,
-
-      // Add operation to queue
-      queueSync: (item: Omit<SyncQueueItem, 'timestamp'>) => {
-        set((state) => ({
-          syncQueue: [
-            ...state.syncQueue,
-            { ...item, timestamp: Date.now() }
-          ]
-        }));
-
-        // Trigger sync if online
-        if (get().isOnline) {
-          get().processSyncQueue();
-        }
-      },
-
-      // Process queued operations
-      processSyncQueue: async () => {
-        const { syncQueue, isSyncing } = get();
-
-        if (isSyncing || syncQueue.length === 0) return;
-
-        set({ isSyncing: true });
-
-        const queue = [...syncQueue];
-        const processed: string[] = [];
-
-        for (const item of queue) {
-          try {
-            // Execute API call based on operation
-            if (item.operation === 'create' && item.resource === 'subliminal') {
-              await api.createSubliminal(item.data);
-            } else if (item.operation === 'update') {
-              await api.updateSubliminal(item.id, item.data);
-            }
-            // ... other operations ...
-
-            processed.push(item.id);
-
-          } catch (error) {
-            console.error(`Sync failed for ${item.id}:`, error);
-            // Keep in queue for retry
-            break; // Stop processing on first error
-          }
-        }
-
-        // Remove successfully processed items
-        set((state) => ({
-          syncQueue: state.syncQueue.filter(
-            (item) => !processed.includes(item.id)
-          ),
-          isSyncing: false,
-          lastSyncAt: Date.now()
-        }));
-      },
-
-      // Set online status and trigger sync
-      setOnlineStatus: (isOnline: boolean) => {
-        set({ isOnline });
-        if (isOnline) {
-          get().processSyncQueue();
-        }
-      }
-    }),
-    {
-      name: 'wavium-sync',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
-
-// Usage in Mindi store
-export const useMindiStore = create<MindiStoreState>()(
-  persist(
-    (set, get) => ({
-      // ... existing state ...
-
-      saveSubliminal: (title, audioUrl) => {
-        const { creation, subliminals } = get();
-        const newSubliminal: Subliminal = {
-          id: Date.now().toString(),
-          title,
-          intention: creation.intention,
-          affirmations: creation.affirmations,
-          track: creation.selectedTrack || 'ocean-waves',
-          audioUrl,
-          createdAt: new Date().toISOString(),
-        };
-
-        // 1. OPTIMISTIC UPDATE (immediate)
-        set({
-          subliminals: [newSubliminal, ...subliminals],
-          creation: { ...initialCreation },
-        });
-
-        // 2. QUEUE SYNC (background)
-        useSyncStore.getState().queueSync({
-          id: newSubliminal.id,
-          operation: 'create',
-          resource: 'subliminal',
-          data: newSubliminal
-        });
-
-        return newSubliminal;
-      },
-
-      // ... rest of store ...
-    }),
-    {
-      name: 'wavium-store',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
-
-// Set up network listener
-NetInfo.addEventListener((state) => {
-  useSyncStore.getState().setOnlineStatus(state.isConnected ?? false);
-});
+export const nightTheme: ThemeColors = {
+  // ...existing
+  primaryGradient: ['#6366f1', '#8b5cf6', '#a78bfa'],
+  glassOverlay: 'rgba(99, 102, 241, 0.08)',
+  glassBorder: 'rgba(167, 139, 250, 0.25)',
+};
 ```
 
-**Why this pattern:**
-- Immediate UI feedback (no spinners for local operations)
-- Works offline (queue persists to AsyncStorage)
-- Automatic retry on reconnect
-- Preserves operation order
-- Separates sync logic from business logic
+**Trade-offs:** More token keys to maintain across 4 themes. Worth it because components stop hardcoding color values — NebulaRenderer and TimeShiftingBackground can pull from `colors.primaryGradient` instead of inline hex strings.
 
-### Pattern 4: Rive State Machine Integration
+---
 
-**What:** Create custom hook that maps app events to Rive animation state machine inputs.
+### Pattern 2: Shared Value as Animation Driver (Skia Direct Integration)
 
-**When:** Use to control Mindi character animations based on app state.
+**What:** Reanimated `useSharedValue` flows directly into Skia component props — no `createAnimatedComponent`, no `useAnimatedProps`, no bridge.
 
-**Implementation:**
+**When to use:** Any Skia component property that must animate (radius, opacity, color stops, cx/cy). This is the canonical pattern verified by Shopify's official Skia documentation.
+
+**The critical insight:** The current codebase uses `audioLevel` as React state (`useState`), updated by a polling interval at 100ms. This forces JS thread → React re-render → Skia re-render. The correct architecture uses `audioLevel` as a `useSharedValue`, updated from a worklet, flowing directly into Skia props on the UI thread.
+
+**Target pattern:**
 
 ```typescript
-import { useRef, useEffect } from 'react';
-import { useRive, useStateMachineInput } from '@rive-app/react-native';
-import { useMindiStore } from '../stores/useMindiStore';
+// In VoidContainer — replace useState audioLevel with SharedValue
+const audioLevel = useSharedValue(0);  // ← shared value, not state
 
-// Define emotion states matching Rive state machine
-type EmotionState = 'idle' | 'listening' | 'peaceful' | 'happy' | 'excited' | 'generating';
+// Polling worklet updates it without re-renders
+useEffect(() => {
+  const interval = setInterval(() => {
+    // This runs on JS thread — but Skia reads the SV on UI thread
+    audioLevel.value = 0.3 + Math.random() * 0.4;
+  }, 16); // 60fps
+  return () => clearInterval(interval);
+}, [isPlaying]);
 
-export function useMindiAnimations() {
-  const currentState = useMindiStore((s) => s.currentState);
-  const glowLevel = useMindiStore((s) => s.glowLevel); // Derived from sessions
+// Pass as prop — Skia reads it directly, no bridge
+<MindiGlow audioLevel={audioLevel} />  // ← SharedValue prop
 
-  // Load Rive file
-  const { rive, RiveComponent } = useRive({
-    artboard: 'Mindi',
-    stateMachines: 'MainStateMachine',
-    autoplay: true,
-  });
+// MindiGlow.tsx — accepts SharedValue, passes to Skia props
+const glowRadius = useDerivedValue(() =>
+  baseRadius * (1 + audioLevel.value * 0.15)
+);
 
-  // Get state machine inputs
-  const emotionInput = useStateMachineInput(rive, 'MainStateMachine', 'emotion');
-  const glowInput = useStateMachineInput(rive, 'MainStateMachine', 'glow_level');
-  const absorbTrigger = useStateMachineInput(rive, 'MainStateMachine', 'absorb_affirmation');
+<Circle r={glowRadius} ... />  // ← direct Skia prop, UI thread only
+```
 
-  // Map app state to animation state
-  useEffect(() => {
-    if (!emotionInput) return;
+**Color animation note:** Do NOT use Reanimated's `interpolateColor` for Skia. Use Skia's own `interpolateColors` which handles its internal color format. This is a verified gotcha in the official Skia documentation.
 
-    // Map Zustand currentState to Rive emotion input
-    const emotionMap: Record<MindiState, number> = {
-      idle: 0,
-      listening: 1,
-      peaceful: 2,
-      happy: 3,
-      excited: 4,
-      generating: 5,
-    };
+**Trade-offs:** Slight refactor of prop types (accept `SharedValue<number>` instead of `number` for audio-reactive props). The payoff is true GPU-thread animation with zero JS thread involvement — essential for 60fps during audio playback.
 
-    emotionInput.value = emotionMap[currentState] || 0;
-  }, [currentState, emotionInput]);
+---
 
-  // Update glow level
-  useEffect(() => {
-    if (!glowInput) return;
-    glowInput.value = glowLevel;
-  }, [glowLevel, glowInput]);
+### Pattern 3: Glassmorphism Component Pattern (Layered Depth)
 
-  // Trigger absorption effect
-  const triggerAbsorption = () => {
-    if (absorbTrigger) {
-      absorbTrigger.fire();
-    }
-  };
+**What:** Three-layer glass stack: background blur (BlurView) + semi-transparent surface tint + edge highlight border.
 
-  return {
-    RiveComponent,
-    triggerAbsorption,
-  };
-}
+**When to use:** All card surfaces, modal overlays, the tab bar.
 
-// Usage in component
-function MindiCharacter() {
-  const { RiveComponent, triggerAbsorption } = useMindiAnimations();
-  const setCurrentState = useMindiStore((s) => s.setCurrentState);
+**Platform reality (HIGH confidence — verified against Expo SDK 54 docs):** BlurView on Android remains experimental in Expo SDK 54. The `experimentalBlurMethod` prop must be set explicitly. Perceived blur intensity differs from iOS due to `blurReductionFactor` (default: 4). The `borderRadius` prop does not apply — must use `overflow: 'hidden'` on the container. iOS has stable production blur.
 
-  useEffect(() => {
-    // Listen to WebSocket generation events
-    const unsubscribe = api.onGenerationComplete(() => {
-      triggerAbsorption();
-      setCurrentState('happy');
-    });
+**Target pattern for GlassmorphicCard:**
 
-    return unsubscribe;
-  }, []);
+```typescript
+// GlassmorphicCard.tsx — three-layer approach
+export default function GlassmorphicCard({ children, style, intensity = 25, variant = 'default' }) {
+  const { colors } = useThemeStore();
 
   return (
-    <RiveComponent
-      style={{ width: 300, height: 300 }}
-      artboard="Mindi"
-      stateMachines={['MainStateMachine']}
-    />
+    <View style={[styles.container, style]}>
+      {/* Layer 1: Blur (iOS native, Android experimental) */}
+      <BlurView
+        intensity={intensity}
+        tint="dark"
+        experimentalBlurMethod="dimezisBlurView"  // Android
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Layer 2: Colored surface tint (theme-aware) */}
+      <View style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: colors.glassOverlay }  // new token
+      ]} />
+
+      {/* Layer 3: Inner glow highlight at top edge */}
+      <LinearGradient
+        colors={[colors.glassBorder, 'transparent']}
+        style={[styles.topHighlight]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Border via container shadow + explicit border */}
+      <View style={[styles.content, { borderColor: colors.glassBorder }]}>
+        {children}
+      </View>
+    </View>
   );
 }
 ```
 
-**Why this pattern:**
-- Decouples animation logic from components
-- Automatic state synchronization via React hooks
-- Type-safe emotion mapping
-- Easy to test (mock Rive hooks)
-- Centralized animation control
-
-### Pattern 5: Offline Audio Download & Cache
-
-**What:** Download audio files after generation, play from local cache, manage storage limits.
-
-**When:** Use for all subliminal audio to enable offline playback.
-
-**Implementation:**
-
-```typescript
-import * as FileSystem from 'expo-file-system';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av';
-
-interface AudioCacheMetadata {
-  subliminal_id: string;
-  local_path: string;
-  remote_url: string;
-  file_size: number;
-  downloaded_at: number;
-  last_played_at: number;
-}
-
-const AUDIO_CACHE_DIR = `${FileSystem.documentDirectory}audio/`;
-const MAX_CACHE_SIZE_MB = 500;
-const CACHE_METADATA_KEY = 'audio_cache_metadata';
-
-class AudioCacheManager {
-  private metadata: AudioCacheMetadata[] = [];
-
-  async initialize() {
-    // Create cache directory
-    const dirInfo = await FileSystem.getInfoAsync(AUDIO_CACHE_DIR);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(AUDIO_CACHE_DIR, {
-        intermediates: true
-      });
-    }
-
-    // Load cache metadata
-    const stored = await AsyncStorage.getItem(CACHE_METADATA_KEY);
-    if (stored) {
-      this.metadata = JSON.parse(stored);
-    }
-  }
-
-  async downloadAudio(
-    subliminalId: string,
-    remoteUrl: string,
-    onProgress?: (progress: number) => void
-  ): Promise<string> {
-    const localPath = `${AUDIO_CACHE_DIR}${subliminalId}.mp3`;
-
-    // Check if already cached
-    const cached = this.metadata.find((m) => m.subliminal_id === subliminalId);
-    if (cached) {
-      const fileInfo = await FileSystem.getInfoAsync(cached.local_path);
-      if (fileInfo.exists) {
-        return cached.local_path;
-      }
-    }
-
-    // Download file
-    const downloadResumable = FileSystem.createDownloadResumable(
-      remoteUrl,
-      localPath,
-      {},
-      (progress) => {
-        const percent = progress.totalBytesWritten / progress.totalBytesExpectedToWrite;
-        onProgress?.(percent);
-      }
-    );
-
-    const result = await downloadResumable.downloadAsync();
-
-    if (!result) {
-      throw new Error('Download failed');
-    }
-
-    // Get file size
-    const fileInfo = await FileSystem.getInfoAsync(result.uri);
-    const fileSize = fileInfo.size || 0;
-
-    // Add to metadata
-    const newMetadata: AudioCacheMetadata = {
-      subliminal_id: subliminalId,
-      local_path: result.uri,
-      remote_url: remoteUrl,
-      file_size: fileSize,
-      downloaded_at: Date.now(),
-      last_played_at: Date.now(),
-    };
-
-    this.metadata.push(newMetadata);
-    await this.saveMetadata();
-
-    // Check cache size and evict if needed
-    await this.evictIfNeeded();
-
-    return result.uri;
-  }
-
-  async getLocalPath(subliminalId: string): Promise<string | null> {
-    const cached = this.metadata.find((m) => m.subliminal_id === subliminalId);
-
-    if (!cached) return null;
-
-    // Verify file still exists
-    const fileInfo = await FileSystem.getInfoAsync(cached.local_path);
-    if (!fileInfo.exists) {
-      // Remove stale metadata
-      this.metadata = this.metadata.filter((m) => m.subliminal_id !== subliminalId);
-      await this.saveMetadata();
-      return null;
-    }
-
-    return cached.local_path;
-  }
-
-  async updateLastPlayed(subliminalId: string) {
-    const cached = this.metadata.find((m) => m.subliminal_id === subliminalId);
-    if (cached) {
-      cached.last_played_at = Date.now();
-      await this.saveMetadata();
-    }
-  }
-
-  private async evictIfNeeded() {
-    const totalSize = this.metadata.reduce((sum, m) => sum + m.file_size, 0);
-    const maxSizeBytes = MAX_CACHE_SIZE_MB * 1024 * 1024;
-
-    if (totalSize <= maxSizeBytes) return;
-
-    // Sort by last played (LRU)
-    const sorted = [...this.metadata].sort((a, b) =>
-      a.last_played_at - b.last_played_at
-    );
-
-    // Evict oldest until under limit
-    let currentSize = totalSize;
-    for (const item of sorted) {
-      if (currentSize <= maxSizeBytes) break;
-
-      // Delete file
-      await FileSystem.deleteAsync(item.local_path, { idempotent: true });
-
-      // Remove from metadata
-      this.metadata = this.metadata.filter(
-        (m) => m.subliminal_id !== item.subliminal_id
-      );
-
-      currentSize -= item.file_size;
-    }
-
-    await this.saveMetadata();
-  }
-
-  private async saveMetadata() {
-    await AsyncStorage.setItem(
-      CACHE_METADATA_KEY,
-      JSON.stringify(this.metadata)
-    );
-  }
-
-  getCacheStats() {
-    const totalSize = this.metadata.reduce((sum, m) => sum + m.file_size, 0);
-    return {
-      totalFiles: this.metadata.length,
-      totalSizeMB: totalSize / (1024 * 1024),
-      maxSizeMB: MAX_CACHE_SIZE_MB,
-    };
-  }
-}
-
-export const audioCacheManager = new AudioCacheManager();
-
-// Usage in audio player
-export function useAudioPlayer(subliminalId: string, remoteUrl: string) {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const loadAudio = async () => {
-    setIsLoading(true);
-
-    try {
-      // Try to get from cache
-      let localPath = await audioCacheManager.getLocalPath(subliminalId);
-
-      // Download if not cached
-      if (!localPath) {
-        localPath = await audioCacheManager.downloadAudio(
-          subliminalId,
-          remoteUrl,
-          (progress) => {
-            console.log(`Download progress: ${progress * 100}%`);
-          }
-        );
-      }
-
-      // Update last played
-      await audioCacheManager.updateLastPlayed(subliminalId);
-
-      // Load audio
-      const { sound: audioSound } = await Audio.Sound.createAsync(
-        { uri: localPath },
-        { shouldPlay: false }
-      );
-
-      setSound(audioSound);
-
-    } catch (error) {
-      console.error('Failed to load audio:', error);
-      // Fallback to streaming
-      const { sound: audioSound } = await Audio.Sound.createAsync(
-        { uri: remoteUrl },
-        { shouldPlay: false }
-      );
-      setSound(audioSound);
-
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAudio();
-
-    return () => {
-      sound?.unloadAsync();
-    };
-  }, [subliminalId]);
-
-  return { sound, isLoading };
-}
-```
-
-**Why this pattern:**
-- Offline-first (always prefer local cache)
-- Automatic cache management (LRU eviction)
-- Fallback to streaming on cache miss
-- Metadata tracked separately for fast lookups
-- Progress tracking for downloads
+**Trade-offs:** Android blur requires testing with `experimentalBlurMethod`. Falls back gracefully to semi-transparent tint where blur unavailable — still looks premium because the tint + border layers carry the glass aesthetic without blur.
 
 ---
 
-## Anti-Patterns to Avoid
+### Pattern 4: Mindi Audio Pulse Sync Pattern
 
-### Anti-Pattern 1: Storing JWT in Zustand Persist
+**What:** Mindi's glow intensity and scale respond to audio playback — but only when `isPlaying` is true. The pulse uses its own idle breathing animation that audio reactivity modulates rather than replaces.
 
-**What:** Persisting access tokens in Zustand state that syncs to AsyncStorage.
+**When to use:** MindiGlow and MindiRenderer during VoidContainer active playback.
 
-**Why bad:**
-- Tokens expire and need refresh, but Zustand doesn't handle token lifecycle
-- Couples authentication state with application state
-- Makes token refresh logic scattered across the app
-- Risk of stale tokens being loaded on app restart
+**Current problem:** `audioLevel` is simulated (`Math.random()`) as React state, updated every 100ms by `setInterval`. This causes 10 React re-renders per second just for the player screen — unnecessary and expensive.
 
-**Instead:**
-- Use Supabase Auth's built-in session management
-- Let Supabase handle token refresh automatically
-- Store session in SecureStore (for sensitive tokens) or dedicated auth context
-- Inject current token into API calls via interceptor
+**Target pattern:**
 
 ```typescript
-// BAD
-const useMindiStore = create()(
-  persist(
-    (set) => ({
-      accessToken: '', // DON'T DO THIS
-      user: null,
-    }),
-    { name: 'wavium-store' }
-  )
-);
+// MindiGlow.tsx — idle breath + audio modulation combined
+const breathPhase = useSharedValue(0);  // ← autonomous idle breath
+const audioBoost = useSharedValue(0);   // ← injected from parent
 
-// GOOD
-import { useSupabaseAuth } from '../auth/SupabaseAuthProvider';
-
-function MyComponent() {
-  const { session, user } = useSupabaseAuth(); // Managed by Supabase
-  const token = session?.access_token; // Always fresh
-}
-```
-
-### Anti-Pattern 2: Synchronous AsyncStorage Operations in Render
-
-**What:** Reading from AsyncStorage during component render or in Zustand state initialization.
-
-**Why bad:**
-- AsyncStorage is async, blocking render leads to race conditions
-- Causes "Can't perform a React state update on an unmounted component" warnings
-- Degrades app startup performance
-- Hydration happens after initial render, causing flicker
-
-**Instead:**
-- Use Zustand persist middleware (handles async hydration correctly)
-- Show loading state until hydration completes
-- Use `onRehydrateStorage` callback to detect when state is ready
-
-```typescript
-// BAD
-const useMindiStore = create((set) => {
-  // DON'T DO THIS - async in sync context
-  AsyncStorage.getItem('user').then((user) => {
-    set({ user: JSON.parse(user) });
-  });
-
-  return { user: null };
-});
-
-// GOOD
-const useMindiStore = create()(
-  persist(
-    (set) => ({
-      user: null,
-      _hasHydrated: false,
-    }),
-    {
-      name: 'wavium-store',
-      storage: createJSONStorage(() => AsyncStorage),
-      onRehydrateStorage: () => (state) => {
-        state._hasHydrated = true;
-      },
-    }
-  )
-);
-
-// In component
-function App() {
-  const hasHydrated = useMindiStore((s) => s._hasHydrated);
-
-  if (!hasHydrated) {
-    return <LoadingScreen />;
-  }
-
-  return <MainApp />;
-}
-```
-
-### Anti-Pattern 3: Calling Supabase Database Methods from Frontend
-
-**What:** Using `supabase.from('table').select()` directly in React Native components.
-
-**Why bad:**
-- Exposes database schema to client (security risk)
-- Bypasses backend validation and business logic
-- Harder to add rate limiting or analytics
-- Violates single source of truth (backend owns data shape)
-- Requires exposing anon key with broad RLS policies
-
-**Instead:**
-- All database operations go through FastAPI endpoints
-- Frontend calls REST API, backend uses Supabase service role
-- Enables backend to add caching, validation, transformation
-- Single security boundary to audit
-
-```typescript
-// BAD
-import { createClient } from '@supabase/supabase-js';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-function MyComponent() {
-  useEffect(() => {
-    // DON'T DO THIS - direct database access from client
-    supabase.from('subliminals')
-      .select('*')
-      .eq('user_id', userId)
-      .then(({ data }) => setSubliminals(data));
-  }, []);
-}
-
-// GOOD
-import { api } from '../api/client';
-
-function MyComponent() {
-  useEffect(() => {
-    // Backend handles Supabase, validates, returns shaped data
-    api.getLibrary().then(({ data }) => {
-      if (data) setSubliminals(data.subliminals);
-    });
-  }, []);
-}
-```
-
-### Anti-Pattern 4: Polling for Sync Instead of Event-Driven
-
-**What:** Using `setInterval` to periodically check server for updates.
-
-**Why bad:**
-- Wastes battery and bandwidth
-- Unnecessary server load
-- Delayed updates (up to poll interval)
-- Doesn't scale (N clients = N * poll rate requests)
-
-**Instead:**
-- Sync on app focus (React Native AppState)
-- Sync after mutations (optimistic update pattern)
-- Use WebSocket or Supabase Realtime for push updates
-- Exponential backoff for retry logic
-
-```typescript
-// BAD
+// Idle breath runs forever, audio boost modulates on top
 useEffect(() => {
-  // DON'T DO THIS - constant polling
-  const interval = setInterval(async () => {
-    await syncWithServer();
-  }, 5000); // Every 5 seconds
-
-  return () => clearInterval(interval);
+  breathPhase.value = withRepeat(
+    withTiming(1, { duration: glowPulseDuration, easing: Easing.inOut(Easing.sin) }),
+    -1, true
+  );
 }, []);
 
-// GOOD
-import { useEffect } from 'react';
-import { AppState } from 'react-native';
+// Derived: combine breath + audio boost
+const glowScale = useDerivedValue(() =>
+  1 + breathPhase.value * 0.08 + audioBoost.value * 0.15
+);
 
-function useSyncOnFocus() {
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        // Sync only when app comes to foreground
-        syncWithServer();
-      }
-    });
-
-    return () => subscription.remove();
-  }, []);
-}
+<Canvas>
+  <Circle r={useDerivedValue(() => baseRadius * glowScale.value)} ... />
+</Canvas>
 ```
 
-### Anti-Pattern 5: Triggering Rive Animations with Direct State Mutations
+**Trade-offs:** VoidContainer must pass `audioLevel` as `SharedValue<number>` prop. All Mindi sub-components that accept audio reactivity need their prop types updated. One-time refactor, large ongoing performance gain.
 
-**What:** Directly setting Rive state machine values from scattered components without coordination.
+---
 
-**Why bad:**
-- Race conditions when multiple components trigger animations
-- Animation state out of sync with app state
-- Hard to debug ("Why did Mindi change emotion?")
-- Violates single source of truth
+### Pattern 5: Typography Display Font Pattern
 
-**Instead:**
-- Centralize animation control in custom hook
-- Derive animation state from Zustand store
-- Use event bus or pub/sub for complex triggers
-- Debounce rapid state changes
+**What:** A separate display font family (loaded via expo-font config plugin) for h1/h2/dramatic headings. Body text uses system font or a clean geometric sans. The two-font system creates hierarchy that makes screens feel editorial rather than functional.
+
+**When to use:** Page titles, section headers in THE VOID, affirmation text, Mindi name displays.
+
+**Implementation pattern:**
 
 ```typescript
-// BAD
-function IntentionScreen() {
-  const { rive } = useRive(...);
+// theme/typography.ts — ADD display font family
+export const fontFamilies = {
+  display: 'CormorantGaramond-Light',  // or Playfair Display — loads via expo-font
+  body: undefined,    // system default (San Francisco on iOS, Roboto on Android)
+};
 
-  const handleSubmit = () => {
-    // Scattered animation triggers
-    rive.setNumberInput('emotion', 1); // What if another component also sets this?
-    submitIntention();
-  };
-}
+// Display variants use fontFamily — body variants do not
+export const textStyles = {
+  displayHero: {
+    fontFamily: fontFamilies.display,
+    fontSize: fontSizes['5xl'],   // 40px
+    fontWeight: fontWeights.regular,  // serifs look better at light weight
+    lineHeight: fontSizes['5xl'] * lineHeights.tight,
+    letterSpacing: 2,
+  },
+  displayLarge: {
+    fontFamily: fontFamilies.display,
+    fontSize: fontSizes['4xl'],
+    fontWeight: fontWeights.regular,
+    letterSpacing: 1,
+  },
+  // existing h1, h2, h3 remain as system-font fallbacks for dense UI
+};
+```
 
-// GOOD
-function IntentionScreen() {
-  const setCurrentState = useMindiStore((s) => s.setCurrentState);
+**Font loading:** Use expo-font config plugin (not `useFonts()` at runtime) so the font is embedded at build time and available frame 0 with no loading flash.
 
-  const handleSubmit = () => {
-    // Single source of truth for Mindi state
-    setCurrentState('listening'); // useMindiAnimations hook reacts to this
-    submitIntention();
-  };
-}
+**Trade-offs:** Adds 1-2 font files to the bundle (~100-200KB per variant). Limit to 1-2 display font variants (Light and Regular). The visual impact — screens reading as premium vs. utility — is the single highest ROI change in the entire overhaul.
 
-// Animation hook automatically syncs
-function useMindiAnimations() {
-  const currentState = useMindiStore((s) => s.currentState);
-  const emotionInput = useStateMachineInput(rive, 'MainStateMachine', 'emotion');
+---
 
-  useEffect(() => {
-    // Single place where Zustand state → Rive input
-    emotionInput.value = EMOTION_MAP[currentState];
-  }, [currentState]);
-}
+## Data Flow
+
+### Theme Token Flow (static → runtime → component)
+
+```
+theme/colors.ts (constants)
+    ↓ imported at startup
+useThemeStore (Zustand)
+    timeOfDay → colors object (resolved ThemeColors)
+    ↓ useThemeStore() hook in each component
+Component reads colors.primary, colors.glassOverlay, etc.
+    ↓ passes to StyleSheet or Skia props
+Native rendering (UI thread)
+```
+
+**Key rule:** Theme tokens flow DOWN only. Components never write to the theme store. Only `updateTimeOfDay()` (called by app-level timer) or `setManualTheme()` (user override) mutate the store.
+
+---
+
+### Audio State → Visual Reaction Flow
+
+```
+VoidContainer
+    isPlaying (React state — boolean, triggers re-render OK)
+    audioLevel = useSharedValue(0)   ← SharedValue, no re-renders
+         |
+         ├──→ MindiRenderer
+         │       audioLevel (SharedValue prop)
+         │           ↓ useDerivedValue in MindiGlow
+         │       Skia Circle radius/opacity (UI thread, GPU)
+         │
+         ├──→ NebulaRenderer
+         │       audioLevel (SharedValue prop)
+         │           ↓ useDerivedValue for cloud scale
+         │       Skia Circle radius (UI thread, GPU)
+         │
+         └──→ AffirmationSpirals
+                 audioLevel (SharedValue prop)
+                 currentIndex (React state — triggers re-render for ceremony reveal)
+```
+
+**Key rule:** `audioLevel` as SharedValue never causes React re-renders. `isPlaying` and `currentAffirmationIndex` remain React state because they do need to trigger UI changes (show/hide controls, advance affirmation text).
+
+---
+
+### MindiState → Animation Branch Flow
+
+```
+MindiStore.currentState ('idle' | 'peaceful' | 'happy' | 'excited' | 'listening' | 'generating')
+    ↓ useEffect watching state in MindiRenderer
+Branch to spring animation:
+    idle → float y + breath glow (autonomous loops)
+    peaceful → slower float, half-closed eyes, softer glow
+    happy → bounce scale, wide eyes, sparkle
+    excited → rapid scale pulse, wide eyes
+    listening → head tilt, pupil shift
+    generating → slow scale pulse
+```
+
+**Build order implication:** MindiState machine is already correct. Animation branches need the audio sync added to `peaceful` state (glow scales with audioLevel when in THE VOID).
+
+---
+
+### Screen-to-Component Visual Stack (THE VOID)
+
+```
+VoidContainer (full screen, backgroundColor = colors.background)
+    ├── ParallaxLayer (gyro driver)
+    │   ├── StarField layer="deep" (Skia, slowest parallax)
+    │   ├── NebulaRenderer (Skia, audio-reactive clouds)
+    │   ├── StarField layer="medium"
+    │   ├── AffirmationSpirals (React Native Text, ceremony reveal)
+    │   ├── MindiRenderer (Skia body + glow + particles)
+    │   │   └── ProgressRing (Skia, replaces current CSS hack)
+    │   └── StarField layer="near" (fastest parallax)
+    ├── tap gesture handler (toggles controls)
+    └── PlayerControls (Reanimated opacity fade, auto-hide)
 ```
 
 ---
 
-## Build Order and Dependencies
+## Refactor vs. Replace Assessment
 
-### Recommended Implementation Phases
+### Refactor (keep structure, enhance implementation)
 
-```
-Phase 1: Authentication Foundation
-├─ Backend: JWT verification middleware
-├─ Backend: Supabase client setup (service role)
-├─ Frontend: Supabase Auth integration
-├─ Frontend: Token manager with auto-refresh
-└─ Frontend: Protected route wrapper
+**GlassmorphicCard** — Solid pattern, wrong depth. Add the inner glow LinearGradient layer. Add `glassOverlay` and `glassBorder` tokens from ThemeStore. Add `experimentalBlurMethod` for Android. Current `borderGlow` shadow approach is good but needs to use the gradient border token instead of a fixed `colors.primary`.
 
-Phase 2: Database Persistence
-├─ Backend: Supabase schema creation (migrations)
-├─ Backend: Authenticated endpoints (library, sessions, evolution)
-├─ Frontend: Sync service (optimistic updates)
-├─ Frontend: Network status detection
-└─ Testing: Offline/online transitions
+**GlowText** — Refactor to add `displayFont` variant using the new fontFamily token. Current animated `textShadowRadius` approach works. Add `letterSpacing` for display variants.
 
-Phase 3: Offline Audio
-├─ Frontend: Audio cache manager
-├─ Frontend: Download service with progress
-├─ Frontend: LRU eviction logic
-├─ Backend: R2 URL signing (if private storage)
-└─ Testing: Cache limits, eviction, corruption
+**HapticButton** — Primary variant needs gradient border treatment (animated on press, using `LinearGradient` from `expo-linear-gradient` already in dependencies). The scale spring on press is correct. Add a breathing glow animation for CTA variants.
 
-Phase 4: Character Animations
-├─ Design: Rive file with state machine (external tool)
-├─ Frontend: Rive runtime integration
-├─ Frontend: Animation controller hook
-├─ Frontend: Event mapping (Zustand → Rive)
-└─ Testing: Smooth transitions, performance
+**TimeShiftingBackground** — Move hardcoded gradient hex strings into `ThemeColors.primaryGradient` token. Add deeper purple spectrum tokens to night theme. Logic is sound.
 
-Phase 5: Integration & Polishing
-├─ WebSocket auth implementation
-├─ Generation progress → animation triggers
-├─ Session recording → glow level updates
-├─ End-to-end testing
-└─ Performance optimization
-```
+**MindiGlow** — The layered radial gradient approach is architecturally correct. Main changes: (a) accept `audioLevel` as `SharedValue<number>` not raw number, (b) use `useDerivedValue` to combine breath animation + audio boost into final radius, (c) pass derived value directly to Skia `<Circle r={}>`.
 
-### Critical Dependencies
+**MindiEyes** — Solid. Add eye tracking that reacts to touch position on screen (requires touch coords piped from parent). Add entrance animation per-screen.
 
-```
-Phase 1 must complete before Phase 2
-├─ Database endpoints need JWT verification
-└─ Can't query user data without user_id from token
+**AffirmationSpirals** — Replace the "all affirmations floating simultaneously" approach with sequential ceremony reveal: fade in one at a time, hold, fade out. The `currentIndex` state from VoidContainer already drives this — just needs the staggered reveal animation added.
 
-Phase 2 must complete before Phase 3
-├─ Audio downloads need authenticated endpoints
-└─ Cache metadata needs user_id for multi-account support
+### Keep As-Is (stable, correct)
 
-Phase 4 can be parallelized with Phase 2-3
-├─ Rive animations don't depend on auth or sync
-└─ Can develop with mock state initially
+- `MindiParticles` — particle system is correct, aesthetics already decent
+- `NebulaRenderer` — structure is correct, only color tokens need updating
+- `StarField` — works, no changes needed
+- `ParallaxLayer` — correct, stable
+- `PlayerControls` — needs UI polish (minimal progress bar) but architecture is correct
+- All stores (ThemeStore, MindiStore) — stable, no structural changes
+- All theme constants (spacing, animations) — stable
 
-Phase 5 requires Phases 1-4 complete
-├─ WebSocket auth needs Phase 1 middleware
-├─ Generation triggers need Phase 4 animations
-└─ Session recording needs Phase 2 database
-```
+### Replace (wrong pattern, not worth patching)
+
+**ProgressRing in VoidContainer** — Current implementation uses two CSS `borderColor` rings with `transform: rotate`. Replace with a proper Skia arc/path that renders on the GPU thread. The existing borders approach creates layout artifacts at certain progress values and cannot animate smoothly as a SharedValue-driven Skia path would.
+
+**HapticButton primary gradient** — Currently uses `backgroundColor: colors.primary` (flat color). Replace with `expo-linear-gradient` LinearGradient wrapping. The gradient border (`borderColor`) remains but the fill surface needs the gradient.
 
 ---
 
-## Scalability Considerations
+## Build Order
 
-### At 100 Users (Current MVP Target)
+The aesthetic overhaul has hard dependencies. This is the correct sequence:
 
-| Concern | Approach | Rationale |
-|---------|----------|-----------|
-| **Authentication** | Supabase free tier | 50,000 monthly active users included |
-| **Database queries** | Service role with user_id filter | Simple, no RLS complexity needed yet |
-| **Audio storage** | Cloudflare R2 with direct URLs | 10GB free storage, sufficient for 100 users |
-| **Sync conflicts** | Last-write-wins | Rare with 100 users, simple to implement |
-| **Cache eviction** | Client-side LRU | Each device manages own 500MB cache |
-| **WebSocket connections** | Single Uvicorn worker | Can handle ~100 concurrent connections |
+**Phase 1: Foundation (must exist before anything else)**
+1. Extend `ThemeColors` interface with `primaryGradient`, `glassOverlay`, `glassBorder` tokens
+2. Add gradient token values to all 4 themes (morning/afternoon/evening/night)
+3. Add `fontFamilies.display` constant to `typography.ts`
+4. Load display font via expo-font config plugin
+5. Add `displayHero` and `displayLarge` text styles to `typography.ts`
 
-### At 10K Users
+*Why first:* Every component in Phase 2 pulls from these tokens. If tokens don't exist, all glass components use hardcoded values and the system isn't coherent.
 
-| Concern | Approach | Rationale |
-|---------|----------|-----------|
-| **Authentication** | Supabase Pro tier ($25/mo) | 100,000 MAU, better support |
-| **Database queries** | Add indexes on user_id, created_at | Query performance optimization |
-| **Audio storage** | R2 with signed URLs | Prevent hotlinking, enable analytics |
-| **Sync conflicts** | Add conflict detection | Flag conflicts, let user choose |
-| **Cache eviction** | Intelligent prefetch | Predict which subliminals to cache |
-| **WebSocket connections** | Multiple workers + sticky sessions | Load balancing with session affinity |
-| **Database** | Enable RLS policies | Defense-in-depth security |
+**Phase 2: Core UI Components (can parallelize after Phase 1)**
+1. Refactor `GlassmorphicCard` with three-layer depth
+2. Refactor `GlowText` with display font variant
+3. Refactor `HapticButton` with gradient CTA treatment
+4. Refactor `TimeShiftingBackground` to use `primaryGradient` token
 
-### At 1M Users
+*Why second:* These are used across all screens. Getting them right first means screen-level work in Phase 3 gets the full aesthetic effect automatically.
 
-| Concern | Approach | Rationale |
-|---------|----------|-----------|
-| **Authentication** | Consider Auth0 or custom | More control, better analytics |
-| **Database queries** | Read replicas + caching layer | Redis for hot data (library) |
-| **Audio storage** | CDN + multi-region R2 | Lower latency worldwide |
-| **Sync conflicts** | CRDT or OT | Automatic conflict resolution |
-| **Cache eviction** | Server-assisted prefetch | Backend recommends what to cache |
-| **WebSocket connections** | Managed service (Pusher, Ably) | Offload real-time infrastructure |
-| **Database** | Supabase Enterprise or migrate | Dedicated resources, SLA |
-| **Observability** | Full tracing + metrics | Identify bottlenecks proactively |
+**Phase 3: Mindi Animation System (requires Phase 1 + working Skia baseline)**
+1. Change `VoidContainer.audioLevel` from `useState` to `useSharedValue`
+2. Update `MindiGlow` to accept `SharedValue<number>` prop + use `useDerivedValue`
+3. Update `MindiRenderer` audio scaling to use `useDerivedValue`
+4. Update `NebulaRenderer` audio scaling to use `useDerivedValue`
+5. Add Mindi idle breathing animation (distinct from glow pulse)
+6. Add Mindi eye tracking (requires touch position SharedValue from parent)
+7. Add Mindi entrance animations (per-screen variants)
+
+*Why third:* Skia + SharedValue refactor must happen as a unit. Doing MindiGlow without fixing the audioLevel source creates a broken intermediate state.
+
+**Phase 4: THE VOID Polish (requires Phase 2 + Phase 3)**
+1. Replace ProgressRing with Skia arc path
+2. Refactor `AffirmationSpirals` to one-by-one ceremony reveal
+3. Add current affirmation highlight (glow pulse during playback)
+4. Polish PlayerControls minimal progress bar design
+5. Verify auto-hide controls flow (already implemented, needs timing tuning)
+
+**Phase 5: Screen-Level Aesthetic (requires Phase 2 as baseline)**
+1. Apply updated components to Home screen (spacing, typography hierarchy)
+2. Sound Picker mood preview (background color shifts per selected track)
+3. Affirmations screen ceremony layout
+4. Tab bar floating glass pill treatment
+
+---
+
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| Current (single user, single device) | All Skia on GPU — no server-side rendering concerns. 60fps target = 16.7ms budget per frame. |
+| Performance bottleneck | `audioLevel` as React state (10 setState calls/sec in player). Fix: SharedValue approach in Phase 3. |
+| Next bottleneck | Multiple simultaneous Skia canvases (MindiRenderer, NebulaRenderer, StarField x3, AffirmationSpirals). Each canvas has overhead. Group into fewer canvases where layers can share a coordinate space. |
+| Mid-range Android | BlurView with `experimentalBlurMethod` has known performance issues. Reduce `intensity` on Android (target 15-20 instead of 25-40). Use `blurReductionFactor` prop. Keep glass layer count low (max 3 stacked BlurViews on screen at once). |
+
+---
+
+## Anti-Patterns
+
+### Anti-Pattern 1: audioLevel as React State in Animation-Heavy Screens
+
+**What people do:** `const [audioLevel, setAudioLevel] = useState(0)` updated by `setInterval` at 10-60Hz.
+
+**Why it's wrong:** Every `setAudioLevel` call triggers a React reconciliation cycle. In THE VOID, this means the entire component tree (StarField, NebulaRenderer, MindiGlow) checks for re-renders at 10fps. Causes jank on mid-range devices. The current codebase does exactly this.
+
+**Do this instead:** `const audioLevel = useSharedValue(0)`. Update from interval (JS thread update is fine — Skia reads the value on the UI thread without a React cycle). Pass as prop. Skia reads it directly.
+
+---
+
+### Anti-Pattern 2: Hardcoded Color Hex Strings in Skia Components
+
+**What people do:** `colors={['#ff9f43', '#ff6b6b', '#ffeaa7']}` inside `NebulaRenderer`.
+
+**Why it's wrong:** When theme tokens change (e.g., replacing flat orange with gold gradient), you must hunt down every Skia component that has hardcoded values. The current codebase has this problem in `NebulaRenderer` and `TimeShiftingBackground`.
+
+**Do this instead:** Add `primaryGradient: [string, string, string]` to `ThemeColors`. Pull from `colors.primaryGradient` in all Skia gradient arrays. One token change updates all renderers.
+
+---
+
+### Anti-Pattern 3: Reanimated's interpolateColor with Skia Properties
+
+**What people do:** Use `interpolateColor` from `react-native-reanimated` to animate color values passed to Skia components.
+
+**Why it's wrong:** Reanimated and Skia use different internal color storage formats. `interpolateColor` produces values Skia cannot parse — the animation silently breaks or produces incorrect colors.
+
+**Do this instead:** Use `interpolateColors` from `@shopify/react-native-skia`. Same API, compatible format.
+
+---
+
+### Anti-Pattern 4: Multiple Independent Skia Canvases for the Same Coordinate Space
+
+**What people do:** MindiRenderer, MindiGlow, MindiParticles each have their own `<Canvas>` — three separate GPU contexts all centered on the same screen location.
+
+**Why it's wrong:** Each Canvas is a separate GPU surface. Three small overlapping canvases has more overhead than one large canvas with grouped elements. The current MindiRenderer does this: MindiGlow is a separate Canvas below the body Canvas, MindiEyes is a separate Canvas above.
+
+**Do this instead:** Merge MindiGlow + MindiRenderer body + MindiEyes into a single Canvas using Skia's `<Group>` for layering. This reduces GPU surface count from 3 to 1 for Mindi. MindiParticles can remain separate because it intentionally renders behind Mindi at a different z-index.
+
+---
+
+### Anti-Pattern 5: BorderRadius on BlurView
+
+**What people do:** Apply `borderRadius` directly to `<BlurView style={{ borderRadius: 16 }}>`.
+
+**Why it's wrong:** expo-blur's BlurView ignores `borderRadius` on both iOS and Android — this is documented in the official Expo SDK 54 docs as a known limitation.
+
+**Do this instead:** Wrap BlurView in a `<View style={{ borderRadius: 16, overflow: 'hidden' }}>`. The overflow clip on the parent creates the rounded blur effect.
+
+---
+
+## Integration Points
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| ThemeStore ↔ all UI components | Zustand hook (`useThemeStore()`) | One-way: components read, never write |
+| MindiStore ↔ MindiRenderer | Zustand hook (`useMindiStore()`) | MindiState read for animation branching |
+| VoidContainer ↔ Mindi sub-components | Props (audioLevel as SharedValue) | After refactor: SharedValue passed as prop, not React state |
+| VoidContainer ↔ PlayerControls | Props + callbacks | Controls write back via `onPlayPause`, `onSeek` callbacks |
+| screens ↔ components | Props only | Screens orchestrate, components are dumb renderers |
+| theme constants ↔ stores | Direct import | theme/colors.ts imported by useThemeStore — no circular deps |
+
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| expo-blur BlurView | Wrap in overflow container, set experimentalBlurMethod on Android | Test Android blur quality early — fallback to tint-only if performance regresses |
+| expo-linear-gradient | LinearGradient wrapping HapticButton, top highlight in GlassmorphicCard | Already in dependencies — no new install needed |
+| expo-font (config plugin) | Add display font to `app.json` plugins config, embed at build time | Do NOT use `useFonts()` — config plugin is faster, no FOUT |
+| expo-haptics | Called directly in HapticButton — no architectural change needed | Stable |
+| @shopify/react-native-skia 2.2.12 | Direct SharedValue props on Skia components. Use `interpolateColors` from Skia (not Reanimated) for color interpolation | Skia 2.x + Reanimated 4 are compatible per official docs |
+| react-native-reanimated 4.1.1 | useSharedValue, useDerivedValue, useAnimatedStyle — all stable. No createAnimatedComponent needed for Skia | Reanimated 4 maintains full backward compat with 3.x patterns |
 
 ---
 
 ## Sources
 
-### Official Documentation
-
-- [Supabase JWT Documentation](https://supabase.com/docs/guides/auth/jwts) - JWT verification, JWKS endpoint, best practices
-- [Rive React Native Documentation](https://rive.app/docs/runtimes/react-native/react-native) - Installation, state machine integration
-- [Expo Local-First Architecture](https://docs.expo.dev/guides/local-first/) - Persistence, state management, syncing patterns
-
-### Authentication Integration
-
-- [Integrating FastAPI with Supabase Auth](https://dev.to/j0/integrating-fastapi-with-supabase-auth-780) - Practical implementation guide
-- [Implementing Supabase Auth in FastAPI](https://phillyharper.medium.com/implementing-supabase-auth-in-fastapi-63d9d8272c7b) - JWT middleware pattern
-- [Validating Supabase JWT with Python and FastAPI](https://dev.to/zwx00/validating-a-supabase-jwt-locally-with-python-and-fastapi-59jf) - JWKS verification example
-- [FastAPI WebSocket Authentication with JWT](https://hexshift.medium.com/authenticating-websocket-clients-in-fastapi-with-jwt-and-dependency-injection-d636d48fdf48) - WebSocket auth pattern
-
-### Database Sync
-
-- [React Native Offline-First with WatermelonDB and Supabase](https://supabase.com/blog/react-native-offline-first-watermelon-db) - Offline-first architecture
-- [PowerSync: Bringing Offline-First to Supabase](https://www.powersync.com/blog/bringing-offline-first-to-supabase) - Sync strategies
-- [Zustand Persisting Store Data](https://zustand.docs.pmnd.rs/integrations/persisting-store-data) - AsyncStorage integration
-
-### Character Animations
-
-- [Rive Character Animation for Mobile Apps](https://dev.to/uianimation/rive-character-animation-for-mobile-apps-a-production-ready-design-and-state-machine-breakdown-5e3m) - State machine design patterns
-- [Engineering Interactive Mascots with Rive](https://dev.to/uianimation/engineering-interactive-mascots-with-rives-state-machine-and-runtime-architecture-4e2h) - Emotion-driven animation architecture
-
-### Audio Architecture
-
-- [React Native Track Player Documentation](https://rntp.dev/) - Audio playback library
-- [Transform Your React Native App with Offline Audio Downloads](https://dev.to/amitkumar13/transform-your-react-native-app-with-offline-audio-video-downloads-2hmd) - Download and cache patterns
-- [The Offline-First Multilingual Audio Tour App Built with Expo](https://expo.dev/blog/the-offline-first-multilingual-audio-tour-app-built-with-expo) - Real-world offline-first audio architecture
-
-### Security & Performance
-
-- [Supabase Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security) - RLS with service role pattern
-- [Supabase RLS Performance and Best Practices](https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv) - Performance optimization
+- [React Native Skia — Animations documentation](https://shopify.github.io/react-native-skia/docs/animations/animations/) — HIGH confidence (official Shopify docs)
+- [React Native Skia — Hooks documentation](https://shopify.github.io/react-native-skia/docs/animations/hooks/) — HIGH confidence (official Shopify docs)
+- [Expo BlurView — SDK 54 documentation](https://docs.expo.dev/versions/latest/sdk/blur-view/) — HIGH confidence (official Expo docs, current SDK)
+- [React Native Reanimated — useSharedValue](https://docs.swmansion.com/react-native-reanimated/docs/core/useSharedValue/) — HIGH confidence (official Software Mansion docs)
+- [Reanimated 4 Migration Guide](https://docs.swmansion.com/react-native-reanimated/docs/guides/migration-from-3.x/) — HIGH confidence (official docs confirming Skia + Gesture Handler compat unchanged)
+- [Expo Fonts — Config Plugin](https://docs.expo.dev/develop/user-interface/fonts/) — HIGH confidence (official Expo docs)
+- Codebase analysis — all component files read directly from `/Users/joshuabellhome/wavium/wavium/src/` — HIGH confidence (ground truth)
 
 ---
 
-## Confidence Assessment
-
-| Area | Confidence | Reason |
-|------|------------|--------|
-| **JWT Authentication** | HIGH | Official Supabase docs + multiple verified implementations |
-| **Database Sync** | MEDIUM | Established patterns but custom implementation needed |
-| **Rive Integration** | HIGH | Official React Native runtime + production examples |
-| **Offline Audio** | HIGH | Well-documented expo-file-system + proven patterns |
-| **WebSocket Auth** | MEDIUM | Pattern documented but requires custom adapter |
-| **Build Order** | HIGH | Clear dependency chain from architecture analysis |
-
----
-
-## Summary
-
-### Key Architectural Decisions
-
-1. **Authentication**: Supabase Auth issues JWT → FastAPI verifies via JWKS → Backend uses service role
-2. **Sync**: Zustand + AsyncStorage (local) → Optimistic updates → Background sync to Supabase
-3. **Animations**: Rive state machine driven by Zustand store via custom hook
-4. **Audio**: Download-first with LRU cache, fallback to streaming
-
-### Critical Integration Points
-
-- JWT token flows through HTTP headers and WebSocket query params
-- Zustand state changes trigger both Supabase API calls and Rive animations
-- Audio download completes before database record created (atomic operation)
-- Network status changes trigger sync queue processing
-
-### Build Order Rationale
-
-Start with authentication (foundation for all features) → Add database persistence (enables cloud sync) → Implement offline audio (works independently) → Integrate animations (visual polish) → Connect everything in Phase 5.
-
-Each phase builds on previous work without breaking existing functionality.
+*Architecture research for: Wavium aesthetic overhaul — React Native premium visual system*
+*Researched: 2026-02-24*
