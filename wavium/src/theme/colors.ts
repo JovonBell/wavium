@@ -5,6 +5,12 @@
 
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
 
+export const goldScale = {
+  light: '#F7C873',  // warm gold — gradient start
+  mid:   '#D4A017',  // primary gold — gradient middle
+  deep:  '#A0720C',  // deep amber — gradient end
+} as const;
+
 export interface ThemeColors {
   // Backgrounds
   background: string;
@@ -36,13 +42,18 @@ export interface ThemeColors {
   // Particles
   particlePrimary: string;
   particleSecondary: string;
+
+  // Gradient tokens (COLR-04)
+  primaryGradient: [string, string, string];  // 3-stop tuple for LinearGradient + Skia
+  glassOverlay: string;                        // rgba — colored surface tint for glass cards
+  glassBorder: string;                         // rgba — glass card edge highlight
 }
 
 // Morning Theme (5am - 12pm): Warm, fresh, awakening
 export const morningTheme: ThemeColors = {
-  background: '#1a1520',
-  backgroundAlt: '#2d1f35',
-  surface: '#2a2035',
+  background: '#0A0A0F',
+  backgroundAlt: '#0E0E18',
+  surface: '#14141F',
   surfaceGlow: 'rgba(255, 179, 102, 0.1)',
 
   primary: '#ffb366',
@@ -54,9 +65,9 @@ export const morningTheme: ThemeColors = {
   mindiGlow: '#ffb366',
   mindiHighlight: '#fff5eb',
 
-  textPrimary: '#fff5eb',
-  textSecondary: '#ccb399',
-  textMuted: '#998866',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.82)',
+  textMuted: 'rgba(255, 255, 255, 0.55)',
 
   success: '#34d399',
   error: '#f87171',
@@ -64,13 +75,17 @@ export const morningTheme: ThemeColors = {
 
   particlePrimary: '#ffe4b3',
   particleSecondary: '#ffb366',
+
+  primaryGradient: ['#F7C873', '#D4A017', '#A0720C'],
+  glassOverlay: 'rgba(247, 200, 115, 0.08)',
+  glassBorder: 'rgba(212, 160, 23, 0.20)',
 };
 
 // Afternoon Theme (12pm - 5pm): Clear, balanced, focused
 export const afternoonTheme: ThemeColors = {
-  background: '#0f0f1a',
-  backgroundAlt: '#151525',
-  surface: '#1a1a2e',
+  background: '#0A0A12',
+  backgroundAlt: '#0E0E1A',
+  surface: '#141425',
   surfaceGlow: 'rgba(167, 139, 250, 0.1)',
 
   primary: '#a78bfa',
@@ -82,9 +97,9 @@ export const afternoonTheme: ThemeColors = {
   mindiGlow: '#e879f9',
   mindiHighlight: '#ffe4ec',
 
-  textPrimary: '#ffffff',
-  textSecondary: '#a1a1aa',
-  textMuted: '#71717a',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.82)',
+  textMuted: 'rgba(255, 255, 255, 0.55)',
 
   success: '#34d399',
   error: '#f87171',
@@ -92,13 +107,17 @@ export const afternoonTheme: ThemeColors = {
 
   particlePrimary: '#f0abfc',
   particleSecondary: '#a78bfa',
+
+  primaryGradient: ['#a78bfa', '#8b5cf6', '#7c3aed'],
+  glassOverlay: 'rgba(167, 139, 250, 0.08)',
+  glassBorder: 'rgba(139, 92, 246, 0.20)',
 };
 
 // Evening Theme (5pm - 9pm): Golden hour, warm, relaxing
 export const eveningTheme: ThemeColors = {
-  background: '#1a1210',
-  backgroundAlt: '#2a1a15',
-  surface: '#2a1f1a',
+  background: '#0A0A0E',
+  backgroundAlt: '#0E0E18',
+  surface: '#14141E',
   surfaceGlow: 'rgba(245, 158, 11, 0.1)',
 
   primary: '#f59e0b',
@@ -110,9 +129,9 @@ export const eveningTheme: ThemeColors = {
   mindiGlow: '#f97316',
   mindiHighlight: '#fff7ed',
 
-  textPrimary: '#fff7ed',
-  textSecondary: '#d6a87a',
-  textMuted: '#a67c52',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.82)',
+  textMuted: 'rgba(255, 255, 255, 0.55)',
 
   success: '#34d399',
   error: '#f87171',
@@ -120,13 +139,17 @@ export const eveningTheme: ThemeColors = {
 
   particlePrimary: '#fcd34d',
   particleSecondary: '#f59e0b',
+
+  primaryGradient: ['#F7C873', '#D4A017', '#A0720C'],
+  glassOverlay: 'rgba(245, 158, 11, 0.08)',
+  glassBorder: 'rgba(251, 191, 36, 0.20)',
 };
 
 // Night Theme (9pm - 5am): Cosmic, deep, dreamy
 export const nightTheme: ThemeColors = {
-  background: '#050510',
-  backgroundAlt: '#0a0a1a',
-  surface: '#0f0f20',
+  background: '#0A0A12',
+  backgroundAlt: '#0D0D18',
+  surface: '#12121F',
   surfaceGlow: 'rgba(99, 102, 241, 0.1)',
 
   primary: '#6366f1',
@@ -138,9 +161,9 @@ export const nightTheme: ThemeColors = {
   mindiGlow: '#8b5cf6',
   mindiHighlight: '#f0e8ff',
 
-  textPrimary: '#e0e0ff',
-  textSecondary: '#7070a0',
-  textMuted: '#505080',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.82)',
+  textMuted: 'rgba(255, 255, 255, 0.55)',
 
   success: '#34d399',
   error: '#f87171',
@@ -148,6 +171,10 @@ export const nightTheme: ThemeColors = {
 
   particlePrimary: '#a78bfa',
   particleSecondary: '#6366f1',
+
+  primaryGradient: ['#6366f1', '#8b5cf6', '#a78bfa'],
+  glassOverlay: 'rgba(99, 102, 241, 0.08)',
+  glassBorder: 'rgba(167, 139, 250, 0.20)',
 };
 
 // Theme map for easy lookup
