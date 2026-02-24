@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Every screen should feel like entering a portal where reality dissolves — the aesthetic IS the product
-**Current focus:** Phase 1 — Token Foundation
+**Current focus:** Phase 2 — Core UI Components
 
 ## Current Position
 
-Phase: 1 of 5 (Token Foundation)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-24 — Roadmap created (5 phases, 42 requirements mapped)
+Phase: 2 of 5 (Core UI Components)
+Plan: 3 of 3 in current phase
+Status: Executing
+Last activity: 2026-02-24 — Completed 02-02 HapticButton Gradient CTA + Micro-interactions
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██▓░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -37,6 +37,8 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-token-foundation P01 | 5 | 2 tasks | 1 files |
 | Phase 01-token-foundation P02 | 92s | 2 tasks | 3 files |
 | Phase 01-token-foundation P03 | 4 | 2 tasks | 2 files |
+| Phase 02-core-ui-components P01 | 65s | 1 tasks | 1 files |
+| Phase 02-core-ui-components P02 | 70s | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -53,6 +55,12 @@ Recent decisions affecting current work:
 - [Phase 01-token-foundation]: Six named fontFamily variants only, no fontWeight on new textStyles entries — prevents Android Roboto fallback
 - [Phase 01-token-foundation]: primaryGradient 3-stop tuple used as nebula cloud colors — eliminates per-time-of-day switch in NebulaRenderer
 - [Phase 01-token-foundation]: TimeShiftingBackground gradient uses background/backgroundAlt/surface tokens — dark-to-dark depth from theme, not hardcoded
+- [Phase 02-core-ui-components]: borderGlow prop repurposed as intensity control (0.15 default, 0.3 when true) rather than on/off toggle
+- [Phase 02-core-ui-components]: Android blur fallback uses opacity 0.85 on glassOverlay for solid-looking glass without BlurView
+- [Phase 02-core-ui-components]: Top-edge highlight is 1px horizontal LinearGradient from transparent through glassBorder to transparent
+- [Phase 02-core-ui-components]: Variant-specific render paths (early returns) for primary/secondary instead of single conditional tree
+- [Phase 02-core-ui-components]: LinearGradient as child of AnimatedTouchable -- shadow/glow on outer view, gradient fill on inner
+- [Phase 02-core-ui-components]: Type cast primaryGradient for expo-linear-gradient tuple compatibility
 
 ### Pending Todos
 
@@ -67,5 +75,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Roadmap created, REQUIREMENTS.md traceability updated — ready to plan Phase 1
+Stopped at: Completed 02-02-PLAN.md (HapticButton Gradient CTA + Micro-interactions)
 Resume file: None
