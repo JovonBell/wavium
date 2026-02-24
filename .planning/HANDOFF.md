@@ -6,43 +6,43 @@
 **Working directory:** `/Users/joshuabellhome/wavium`
 **Workflow:** `/gsd:new-project --auto` (auto mode, YOLO, no user interaction needed)
 
-## Completed Steps
+## Completed
 
-1. **config.json** — committed (yolo, quick depth, parallel, balanced models, all agents enabled)
-2. **PROJECT.md** — committed (aesthetic overhaul scope, frontend-only, existing stack)
-3. **Research (4 parallel agents)** — ALL COMPLETE, committed at `7a0b9a0`
-   - STACK.md — Cinzel + Cormorant Garamond + Raleway fonts, Skia for animated gradients, expo-blur for glassmorphism
-   - FEATURES.md — table stakes, differentiators, anti-features, competitor matrix, MVP ordering
-   - ARCHITECTURE.md — 5-phase build order, token extension first, component refactor second
-   - PITFALLS.md — Android blur limits, Skia/Reanimated incompatibilities, animation cleanup patterns
+1. **Project setup** — config.json, PROJECT.md committed
+2. **Research (4 agents)** — STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md
+3. **Research synthesis** — SUMMARY.md committed at `5e7eb49`
+4. **Requirements** — 42 requirements defined, committed at `355dc08`
+5. **Roadmap** — 5 phases, all requirements mapped, committed at `28f8ac2`
+6. **Phase 1: Token Foundation** — COMPLETE ✓ (committed at `57cae76`)
+   - Plan 01-01: Color token system (ThemeColors extended, goldScale, 4 themes updated)
+   - Plan 01-02: Typography system (3 Google Fonts, expo-font config plugin, fontFamilies + textStyles)
+   - Plan 01-03: Skia token cleanup (NebulaRenderer + TimeShiftingBackground consume theme tokens)
+   - Verification: PASSED (5/5 must-haves, 12/12 requirements)
 
 ## Next Steps (resume here)
 
-4. **Synthesize research** — Spawn gsd-research-synthesizer to create SUMMARY.md from the 4 research files
-5. **Define requirements** — Auto-mode: include all table stakes + features from idea document, auto-approve
-6. **Create roadmap** — Spawn gsd-roadmapper, auto-approve
-7. **Commit roadmap** — ROADMAP.md, STATE.md, REQUIREMENTS.md
-8. **Then: plan + execute each phase** (user said "do the whole project without my interjection")
+7. **Phase 2: Core UI Components** — Plan → Execute
+   - Requirements: SURF-01..05, INTR-01..05, PERF-03 (11 requirements)
+   - Goal: GlassmorphicCard 3-layer depth, gold gradient CTAs, micro-interactions, spacing system
+   - Phase directory needs creation: `.planning/phases/02-core-ui-components/`
+
+8. **Phase 3: Mindi Animation System** — Plan → Execute
+9. **Phase 4: THE VOID Player** — Plan → Execute
+10. **Phase 5: Screen Polish** — Plan → Execute
 
 ## User Instructions
 
 - "do the whole project without my interjection" — full autopilot through all phases
 - "i trust you" — no approval gates needed
 - Auto-advance enabled in config.json
-
-## Key Research Findings for Roadmap
-
-Architecture research recommends this phase order:
-1. Token Extension (fonts, gold palette, glass tokens)
-2. Core UI Components (GlassmorphicCard, GlowText, HapticButton, TimeShiftingBackground)
-3. Mindi Animation System (SharedValue for audioLevel, breathing, eye tracking)
-4. THE VOID Polish (auto-hide controls, affirmation ceremony, progress bar)
-5. Screen-Level Aesthetic (apply to all screens, sound picker mood, tab bar)
+- YOLO mode — auto-approve everything
 
 ## Resume Command
 
 ```
-/gsd:resume-work
+/gsd:plan-phase 2 --auto
 ```
 
-Or manually: pick up at Step 4 (synthesize research) in the new-project workflow.
+Or use `/gsd:resume-work` to auto-detect next action.
+
+The full pipeline for remaining phases: research → plan → check → execute → verify → advance (repeat for phases 2-5).
