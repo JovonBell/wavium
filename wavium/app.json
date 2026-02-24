@@ -27,7 +27,20 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./node_modules/@expo-google-fonts/cinzel/400Regular/Cinzel_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/cinzel/700Bold/Cinzel_700Bold.ttf",
+            "./node_modules/@expo-google-fonts/cormorant-garamond/400Regular/CormorantGaramond_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/cormorant-garamond/400Regular_Italic/CormorantGaramond_400Regular_Italic.ttf",
+            "./node_modules/@expo-google-fonts/raleway/400Regular/Raleway_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/raleway/500Medium/Raleway_500Medium.ttf"
+          ]
+        }
+      ]
     ]
   }
 }
