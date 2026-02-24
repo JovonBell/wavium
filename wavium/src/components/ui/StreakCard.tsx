@@ -187,11 +187,11 @@ const styles = StyleSheet.create({
   },
   streakLabel: {
     ...typography.body,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   statsSection: {
     alignItems: 'flex-end',
-    gap: 4,
+    gap: spacing.xs,
   },
   tierBadge: {
     borderWidth: 1,
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   statRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
   statText: {
     ...typography.caption,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   dayColumn: {
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
   dot: {
     width: 10,

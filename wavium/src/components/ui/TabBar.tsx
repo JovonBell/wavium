@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     ...typography.caption,
-    marginTop: 4,
+    marginTop: spacing.xs,
     fontSize: 10,
   },
   activeIndicator: {
