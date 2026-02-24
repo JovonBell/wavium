@@ -56,7 +56,7 @@ export default function VoidContainer({
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [audioLevel, setAudioLevel] = useState(0);
+  const audioLevel = useSharedValue(0);
   const [voiceVolume, setVoiceVolume] = useState(0.15); // Subliminal = low voice
   const [backgroundVolume, setBackgroundVolume] = useState(0.7);
   const [currentAffirmationIndex, setCurrentAffirmationIndex] = useState(0);
@@ -152,7 +152,7 @@ export default function VoidContainer({
 
     if (isPlaying) {
       levelInterval = setInterval(() => {
-        setAudioLevel(0.3 + Math.random() * 0.4);
+        audioLevel.value = 0.3 + Math.random() * 0.4;
       }, 100);
 
       // Poll real audio position from background sound (most reliable)
@@ -174,7 +174,7 @@ export default function VoidContainer({
         }
       }, 1000);
     } else {
-      setAudioLevel(0);
+      audioLevel.value = 0;
     }
 
     return () => {
