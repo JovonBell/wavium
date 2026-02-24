@@ -30,7 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The near-black purple-tinted background (#0A0A12 range) is visible on all screens — no pure black or grey backgrounds remain
   4. Text hierarchy is visible — hero text, body, and captions are clearly differentiated by font, size, and opacity
   5. ThemeColors interface includes primaryGradient, glassOverlay, and glassBorder tokens accessible to all components
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Color token system: extend ThemeColors interface + all 4 theme objects with gradient tokens (Wave 1)
+- [ ] 01-02-PLAN.md — Typography system: install fonts, register expo-font config plugin, fontFamilies + textStyles (Wave 1)
+- [ ] 01-03-PLAN.md — Skia token cleanup: refactor NebulaRenderer and TimeShiftingBackground to consume theme tokens (Wave 2)
 
 ### Phase 2: Core UI Components
 **Goal**: Shared UI components deliver real glassmorphism, gold gradient interactions, and a consistent spatial system so all screens automatically inherit the premium aesthetic
@@ -87,7 +92,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Token Foundation | 0/TBD | Not started | - |
+| 1. Token Foundation | 0/3 | Not started | - |
 | 2. Core UI Components | 0/TBD | Not started | - |
 | 3. Mindi Animation System | 0/TBD | Not started | - |
 | 4. THE VOID Player | 0/TBD | Not started | - |
