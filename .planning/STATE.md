@@ -42,6 +42,7 @@ Progress: [█████░░░░░] 53%
 | Phase 02 P03 | 107 | 3 tasks | 5 files |
 | Phase 03-mindi-animation-system P01 | 193s | 3 tasks | 7 files |
 | Phase 03-mindi-animation-system P02 | 105s | 3 tasks | 2 files |
+| Phase 03 P03 | 102s | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase 03-mindi-animation-system]: Audio scale 0.2 + opacity base shift 0.15 for perceptible glow intensification
 - [Phase 03-mindi-animation-system]: GlowCircle sub-component for per-layer useDerivedValue in MindiGlow
 - [Phase 03-mindi-animation-system]: NebulaCloud receives SharedValue and computes derived radius/opacity internally
+- [Phase 03]: Touch pupil offset uses 0.015 multiplier with 0.5x/0.4x radius clamp for natural eye movement
+- [Phase 03]: Entrance wraps all layers in single Animated.View for unified appearance
+- [Phase 03]: onResponderMove for lightweight touch tracking instead of gesture handler
 
 ### Pending Todos
 
