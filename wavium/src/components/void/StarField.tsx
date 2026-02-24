@@ -13,6 +13,7 @@ import {
   vec,
 } from '@shopify/react-native-skia';
 import Animated, {
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -39,7 +40,7 @@ interface StarFieldProps {
   layer: 'deep' | 'medium' | 'near';
   gyroX: number;
   gyroY: number;
-  audioLevel?: number;
+  audioLevel?: SharedValue<number>;
 }
 
 // Generate stars for a layer
@@ -78,10 +79,10 @@ function generateStars(layer: 'deep' | 'medium' | 'near'): Star[] {
 // Individual twinkling star
 const TwinklingStar = ({
   star,
-  audioLevel = 0,
+  audioLevel,
 }: {
   star: Star;
-  audioLevel?: number;
+  audioLevel?: SharedValue<number>;
 }) => {
   const opacity = useSharedValue(star.opacity);
 
@@ -102,7 +103,7 @@ const TwinklingStar = ({
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
-      opacity.value + audioLevel * 0.3,
+      opacity.value + (audioLevel?.value ?? 0) * 0.3,
       [0, 1],
       [starField.twinkleMinOpacity, starField.twinkleMaxOpacity]
     ),
@@ -138,7 +139,7 @@ export default function StarField({
   layer,
   gyroX,
   gyroY,
-  audioLevel = 0,
+  audioLevel,
 }: StarFieldProps) {
   // Memoize stars so they don't regenerate on every render
   const stars = useMemo(() => generateStars(layer), [layer]);

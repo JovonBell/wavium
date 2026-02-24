@@ -14,8 +14,10 @@ import {
   Circle,
 } from '@shopify/react-native-skia';
 import Animated, {
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
+  useDerivedValue,
   withRepeat,
   withTiming,
   Easing,
@@ -27,36 +29,49 @@ import { nebula } from '../../theme/animations';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface NebulaRendererProps {
-  audioLevel: number;
+  audioLevel: SharedValue<number>;
   gyroX: number;
   gyroY: number;
 }
 
-// Nebula cloud component (simpler approach without complex shaders)
+// Nebula cloud component with audio-reactive Skia props via useDerivedValue
 const NebulaCloud = ({
   x,
   y,
-  radius,
+  baseRadius,
   color,
-  opacity,
+  baseOpacity,
   blur,
+  audioLevel,
+  bassMultiplier,
 }: {
   x: number;
   y: number;
-  radius: number;
+  baseRadius: number;
   color: string;
-  opacity: number;
+  baseOpacity: number;
   blur: number;
-}) => (
-  <Circle cx={x} cy={y} r={radius} opacity={opacity}>
-    <RadialGradient
-      c={vec(x, y)}
-      r={radius}
-      colors={[color, `${color}60`, `${color}20`, 'transparent']}
-    />
-    <BlurMask blur={blur} style="normal" />
-  </Circle>
-);
+  audioLevel: SharedValue<number>;
+  bassMultiplier: number;
+}) => {
+  const derivedRadius = useDerivedValue(() => {
+    return baseRadius * (1 + audioLevel.value * bassMultiplier);
+  });
+  const derivedOpacity = useDerivedValue(() => {
+    return baseOpacity + audioLevel.value * 0.05;
+  });
+
+  return (
+    <Circle cx={x} cy={y} r={derivedRadius} opacity={derivedOpacity}>
+      <RadialGradient
+        c={vec(x, y)}
+        r={baseRadius}
+        colors={[color, `${color}60`, `${color}20`, 'transparent']}
+      />
+      <BlurMask blur={blur} style="normal" />
+    </Circle>
+  );
+};
 
 export default function NebulaRenderer({
   audioLevel,
@@ -150,10 +165,9 @@ export default function NebulaRenderer({
     };
   };
 
-  // Audio-reactive scale
-  const audioScale = 1 + audioLevel * nebula.bassIntensityMultiplier;
-
   const animatedStyle = useAnimatedStyle(() => {
+    const audioVal = audioLevel.value;
+    const audioScale = 1 + audioVal * nebula.bassIntensityMultiplier;
     const scale = interpolate(
       pulseValue.value,
       [0, 1],
@@ -162,7 +176,7 @@ export default function NebulaRenderer({
 
     return {
       transform: [{ scale }],
-      opacity: 0.8 + audioLevel * 0.2,
+      opacity: 0.8 + audioVal * 0.2,
     };
   });
 
@@ -177,10 +191,12 @@ export default function NebulaRenderer({
                 key={cloud.id}
                 x={pos.x}
                 y={pos.y}
-                radius={cloud.radius * audioScale}
+                baseRadius={cloud.radius}
                 color={cloud.color}
-                opacity={cloud.opacity + audioLevel * 0.05}
+                baseOpacity={cloud.opacity}
                 blur={cloud.blur}
+                audioLevel={audioLevel}
+                bassMultiplier={nebula.bassIntensityMultiplier}
               />
             );
           })}

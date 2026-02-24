@@ -6,6 +6,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Text, Dimensions } from 'react-native';
 import Animated, {
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -34,7 +35,7 @@ interface AffirmationParticle {
 interface AffirmationSpiralsProps {
   affirmations: string[];
   isPlaying: boolean;
-  audioLevel?: number;
+  audioLevel?: SharedValue<number>;
   currentIndex?: number; // Current affirmation being spoken by TTS
 }
 
@@ -42,11 +43,11 @@ interface AffirmationSpiralsProps {
 const SpiralText = ({
   particle,
   onComplete,
-  audioLevel = 0,
+  audioLevel,
 }: {
   particle: AffirmationParticle;
   onComplete: (id: number) => void;
-  audioLevel?: number;
+  audioLevel?: SharedValue<number>;
 }) => {
   const { colors } = useThemeStore();
 
@@ -92,7 +93,7 @@ const SpiralText = ({
     const y = CENTER_Y + Math.sin(currentAngle) * currentRadius;
 
     // Audio reactive glow
-    const glowIntensity = 1 + audioLevel * 0.3;
+    const glowIntensity = 1 + (audioLevel?.value ?? 0) * 0.3;
 
     return {
       transform: [
@@ -123,7 +124,7 @@ const SpiralText = ({
 export default function AffirmationSpirals({
   affirmations,
   isPlaying,
-  audioLevel = 0,
+  audioLevel,
   currentIndex = 0,
 }: AffirmationSpiralsProps) {
   const [activeParticles, setActiveParticles] = useState<AffirmationParticle[]>([]);
