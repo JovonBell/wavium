@@ -26,6 +26,10 @@ export const borderRadius = {
   '2xl': 24,
   '3xl': 32,
   full: 9999,
+  // Semantic aliases (SURF-03)
+  card: 20,     // Glass cards, streak cards
+  chip: 12,     // Tags, chips, small elements
+  button: 9999, // Pill-shaped CTA buttons
 } as const;
 
 export const iconSizes = {
