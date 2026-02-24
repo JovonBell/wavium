@@ -36,6 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 01-token-foundation P01 | 5 | 2 tasks | 1 files |
 | Phase 01-token-foundation P02 | 92s | 2 tasks | 3 files |
+| Phase 01-token-foundation P03 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -50,6 +51,8 @@ Recent decisions affecting current work:
 - [Phase 01-token-foundation]: goldScale placed before ThemeColors interface as shared constant
 - [Phase 01-token-foundation]: expo-font config plugin for build-time font embedding — no useFonts() runtime call needed
 - [Phase 01-token-foundation]: Six named fontFamily variants only, no fontWeight on new textStyles entries — prevents Android Roboto fallback
+- [Phase 01-token-foundation]: primaryGradient 3-stop tuple used as nebula cloud colors — eliminates per-time-of-day switch in NebulaRenderer
+- [Phase 01-token-foundation]: TimeShiftingBackground gradient uses background/backgroundAlt/surface tokens — dark-to-dark depth from theme, not hardcoded
 
 ### Pending Todos
 

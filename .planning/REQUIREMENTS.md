@@ -23,7 +23,7 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 - [x] **COLR-03**: Purple depth spectrum refined with richer gradient stops across all 4 time-of-day themes
 - [x] **COLR-04**: ThemeColors interface extended with `primaryGradient`, `glassOverlay`, `glassBorder` tokens
 - [x] **COLR-05**: All 4 time-of-day themes (morning/afternoon/evening/night) updated with gradient token values
-- [ ] **COLR-06**: Hardcoded hex colors in Skia components (NebulaRenderer, TimeShiftingBackground) replaced with theme tokens
+- [x] **COLR-06**: Hardcoded hex colors in Skia components (NebulaRenderer, TimeShiftingBackground) replaced with theme tokens
 
 ### Surface & Depth
 
@@ -118,7 +118,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COLR-03 | Phase 1 | Complete |
 | COLR-04 | Phase 1 | Complete |
 | COLR-05 | Phase 1 | Complete |
-| COLR-06 | Phase 1 | Pending |
+| COLR-06 | Phase 1 | Complete |
 | SURF-01 | Phase 2 | Pending |
 | SURF-02 | Phase 2 | Pending |
 | SURF-03 | Phase 2 | Pending |
