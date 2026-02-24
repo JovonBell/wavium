@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -56,6 +57,7 @@ export default function PlayerScreen() {
 
   useEffect(() => {
     setCurrentState('peaceful');
+    StatusBar.setHidden(true, 'fade');
 
     // Cycle through affirmations for display
     const interval = setInterval(() => {
@@ -67,6 +69,7 @@ export default function PlayerScreen() {
     return () => {
       clearInterval(interval);
       setCurrentState('idle');
+      StatusBar.setHidden(false, 'fade');
     };
   }, [displaySubliminal.affirmations.length]);
 

@@ -5,6 +5,7 @@
 
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Text, Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -156,19 +157,26 @@ export default function LoadingOverlay({
               { backgroundColor: `${colors.textMuted}40` },
             ]}
           >
-            <Animated.View
+            <View
               style={[
-                styles.progressFill,
+                styles.progressFillWrapper,
                 {
-                  backgroundColor: colors.primary,
                   width: `${Math.min(Math.max(progress, 0), 100)}%`,
+                  shadowColor: '#F7C873',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.6,
+                  shadowRadius: 4,
                 },
               ]}
-            />
+            >
+              <LinearGradient
+                colors={colors.primaryGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.progressFill}
+              />
+            </View>
           </View>
-          <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-            {Math.round(progress)}%
-          </Text>
         </View>
       )}
     </Animated.View>
@@ -206,16 +214,17 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     width: '100%',
-    height: 4,
-    borderRadius: 2,
+    height: 2,
+    borderRadius: 1,
+    overflow: 'hidden',
+  },
+  progressFillWrapper: {
+    height: '100%',
+    borderRadius: 1,
     overflow: 'hidden',
   },
   progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  progressText: {
-    ...typography.caption,
-    marginTop: 8,
+    flex: 1,
+    borderRadius: 1,
   },
 });

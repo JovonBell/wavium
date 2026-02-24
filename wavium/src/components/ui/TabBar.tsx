@@ -6,6 +6,7 @@
 import React, { useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -111,9 +112,31 @@ export default function TabBar({
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom || spacing.md }]}>
-      <BlurView intensity={30} tint="dark" style={styles.blur}>
-        {/* Gradient overlay */}
-        <View style={[styles.overlay, { backgroundColor: colors.surfaceGlow }]} />
+      <BlurView
+        intensity={30}
+        tint="dark"
+        style={[
+          styles.blur,
+          {
+            borderColor: colors.glassBorder,
+            shadowColor: colors.primaryGradient[0],
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 8,
+          },
+        ]}
+      >
+        {/* Tint overlay */}
+        <View style={[styles.overlay, { backgroundColor: colors.glassOverlay }]} />
+
+        {/* Top-edge highlight */}
+        <LinearGradient
+          colors={[colors.glassBorder, 'transparent']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.topHighlight}
+        />
 
         {/* Tab buttons */}
         <View style={styles.tabsContainer}>
@@ -153,17 +176,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
   blur: {
-    borderRadius: borderRadius.card,
+    borderRadius: borderRadius.full,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.5,
+  },
+  topHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
   },
   tabsContainer: {
     flexDirection: 'row',
