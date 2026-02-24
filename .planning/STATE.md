@@ -40,6 +40,7 @@ Progress: [█████░░░░░] 53%
 | Phase 02-core-ui-components P01 | 65s | 1 tasks | 1 files |
 | Phase 02-core-ui-components P02 | 70s | 1 tasks | 1 files |
 | Phase 02 P03 | 107 | 3 tasks | 5 files |
+| Phase 03-mindi-animation-system P01 | 193s | 3 tasks | 7 files |
 | Phase 03-mindi-animation-system P02 | 105s | 3 tasks | 2 files |
 
 ## Accumulated Context
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Sub-grid values (1-3px) and gap:6 left hardcoded to preserve visual intent
 - [Phase 03-mindi-animation-system]: breathScale as separate SharedValue for independent cancellation per state
 - [Phase 03-mindi-animation-system]: Audio scale 0.2 + opacity base shift 0.15 for perceptible glow intensification
+- [Phase 03-mindi-animation-system]: GlowCircle sub-component for per-layer useDerivedValue in MindiGlow
+- [Phase 03-mindi-animation-system]: NebulaCloud receives SharedValue and computes derived radius/opacity internally
 
 ### Pending Todos
 
@@ -82,5 +85,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 03-02-PLAN.md (Mindi Breathing + Glow Audio Sync)
+Stopped at: Completed 03-01-PLAN.md (useLoop Hook + audioLevel SharedValue Refactor)
 Resume file: None

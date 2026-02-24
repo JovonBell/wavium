@@ -47,8 +47,8 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 - [x] **MIND-02**: Mindi glow pulse synced to audio playback via SharedValue (not React state)
 - [ ] **MIND-03**: Mindi eye movement/tracking that reacts to touch position on screen
 - [ ] **MIND-04**: Mindi entrance animations per screen (translate + scale via Skia `matrix` prop)
-- [ ] **MIND-05**: VoidContainer `audioLevel` refactored from useState to useSharedValue (zero re-renders for audio reactivity)
-- [ ] **MIND-06**: `useLoop` hook created for all withRepeat animations with proper cancelAnimation cleanup
+- [x] **MIND-05**: VoidContainer `audioLevel` refactored from useState to useSharedValue (zero re-renders for audio reactivity)
+- [x] **MIND-06**: `useLoop` hook created for all withRepeat animations with proper cancelAnimation cleanup
 
 ### THE VOID Player
 
@@ -134,8 +134,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIND-02 | Phase 3 | Complete |
 | MIND-03 | Phase 3 | Pending |
 | MIND-04 | Phase 3 | Pending |
-| MIND-05 | Phase 3 | Pending |
-| MIND-06 | Phase 3 | Pending |
+| MIND-05 | Phase 3 | Complete |
+| MIND-06 | Phase 3 | Complete |
 | PERF-02 | Phase 3 | Complete |
 | VOID-01 | Phase 4 | Pending |
 | VOID-02 | Phase 4 | Pending |
