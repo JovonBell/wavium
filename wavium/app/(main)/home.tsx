@@ -6,14 +6,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  withDelay,
-  FadeIn,
-  FadeInDown,
-} from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -21,7 +14,7 @@ import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore, Subliminal } from '../../src/stores/useMindiStore';
 import { MindiRenderer, MindiSpeech } from '../../src/components/mindi';
 import { GlassmorphicCard, HapticButton, GlowText, StreakCard } from '../../src/components/ui';
-import { typography } from '../../src/theme/typography';
+import { typography, fontFamilies, textStyles } from '../../src/theme/typography';
 import { spacing } from '../../src/theme/spacing';
 import { mindiGreetings } from '../../src/theme/colors';
 
@@ -75,18 +68,10 @@ export default function HomeScreen() {
     }
   };
 
-  // Animation values
-  const headerOpacity = useSharedValue(0);
-  const contentOpacity = useSharedValue(0);
-
   useEffect(() => {
     // Check in for streak
     const result = checkInToday();
     setIsNewDay(result.isNewDay);
-
-    // Entrance animations
-    headerOpacity.value = withTiming(1, { duration: 600 });
-    contentOpacity.value = withDelay(300, withTiming(1, { duration: 600 }));
 
     // Show Mindi greeting (or streak message)
     showSpeechTimeoutRef.current = setTimeout(() => {
@@ -128,14 +113,6 @@ export default function HomeScreen() {
     router.push(`/player/${subliminal.id}`);
   };
 
-  const headerStyle = useAnimatedStyle(() => ({
-    opacity: headerOpacity.value,
-  }));
-
-  const contentStyle = useAnimatedStyle(() => ({
-    opacity: contentOpacity.value,
-  }));
-
   const getGreeting = () => {
     switch (timeOfDay) {
       case 'morning': return 'Good morning';
@@ -155,7 +132,7 @@ export default function HomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* Header - tap "Welcome back" 5 times quickly to reset app */}
-      <Animated.View style={[styles.header, headerStyle]}>
+      <Animated.View entering={FadeInDown.duration(500)} style={styles.header}>
         <Text style={[styles.greeting, { color: colors.textSecondary }]}>
           {getGreeting()}
         </Text>
@@ -167,7 +144,7 @@ export default function HomeScreen() {
       </Animated.View>
 
       {/* Mindi section */}
-      <Animated.View style={[styles.mindiSection, contentStyle]}>
+      <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.mindiSection}>
         <MindiSpeech message={speechMessage} visible={showSpeech} />
         <MindiRenderer size={160} showParticles={true} />
         <Text style={[styles.mindiName, { color: colors.textPrimary }]}>
@@ -176,7 +153,7 @@ export default function HomeScreen() {
       </Animated.View>
 
       {/* Create Button - The main CTA */}
-      <Animated.View style={[styles.createSection, contentStyle]}>
+      <Animated.View entering={FadeInDown.delay(300).duration(500)} style={styles.createSection}>
         <HapticButton
           onPress={handleCreateNew}
           variant="primary"
@@ -191,7 +168,7 @@ export default function HomeScreen() {
       </Animated.View>
 
       {/* Streak Card */}
-      <Animated.View style={[styles.streakSection, contentStyle]}>
+      <Animated.View entering={FadeInDown.delay(400).duration(500)} style={styles.streakSection}>
         <StreakCard
           currentStreak={streak.currentStreak}
           longestStreak={streak.longestStreak}
@@ -203,8 +180,7 @@ export default function HomeScreen() {
       {/* My Subliminals Library */}
       {subliminals.length > 0 && (
         <Animated.View
-          style={contentStyle}
-          entering={FadeInDown.delay(400).duration(500)}
+          entering={FadeInDown.delay(500).duration(500)}
         >
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
             My Subliminals
@@ -248,7 +224,7 @@ export default function HomeScreen() {
 
       {/* Empty state if no subliminals */}
       {subliminals.length === 0 && (
-        <Animated.View style={[styles.emptyState, contentStyle]}>
+        <Animated.View entering={FadeInDown.delay(500).duration(500)} style={styles.emptyState}>
           <GlassmorphicCard style={styles.emptyCard}>
             <Ionicons name="sparkles" size={40} color={colors.primary} />
             <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
@@ -278,7 +254,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   greeting: {
-    ...typography.bodySmall,
+    ...typography.label,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1.5,
     marginBottom: 4,
   },
   mindiSection: {
@@ -287,6 +265,7 @@ const styles = StyleSheet.create({
   },
   mindiName: {
     ...typography.h3,
+    fontFamily: fontFamilies.displayRegular,
     marginTop: spacing.sm,
   },
   createSection: {
@@ -305,7 +284,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   sectionTitle: {
-    ...typography.h3,
+    ...textStyles.displayHeading,
     marginBottom: spacing.md,
   },
   subliminalGrid: {
@@ -321,7 +300,7 @@ const styles = StyleSheet.create({
   },
   subliminalTitle: {
     ...typography.body,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bodyMedium,
     marginBottom: 4,
   },
   subliminalIntention: {
@@ -344,6 +323,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.h3,
+    fontFamily: fontFamilies.displayRegular,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
