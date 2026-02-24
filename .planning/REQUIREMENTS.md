@@ -18,11 +18,11 @@ Requirements for aesthetic overhaul release. Each maps to roadmap phases.
 
 ### Color System
 
-- [ ] **COLR-01**: Gold gradient palette (#F7C873 → #D4A017 → #A0720C) replaces flat orange on all primary accents
-- [ ] **COLR-02**: Near-black background with purple tint (#0A0A12 range) replaces current background
-- [ ] **COLR-03**: Purple depth spectrum refined with richer gradient stops across all 4 time-of-day themes
-- [ ] **COLR-04**: ThemeColors interface extended with `primaryGradient`, `glassOverlay`, `glassBorder` tokens
-- [ ] **COLR-05**: All 4 time-of-day themes (morning/afternoon/evening/night) updated with gradient token values
+- [x] **COLR-01**: Gold gradient palette (#F7C873 → #D4A017 → #A0720C) replaces flat orange on all primary accents
+- [x] **COLR-02**: Near-black background with purple tint (#0A0A12 range) replaces current background
+- [x] **COLR-03**: Purple depth spectrum refined with richer gradient stops across all 4 time-of-day themes
+- [x] **COLR-04**: ThemeColors interface extended with `primaryGradient`, `glassOverlay`, `glassBorder` tokens
+- [x] **COLR-05**: All 4 time-of-day themes (morning/afternoon/evening/night) updated with gradient token values
 - [ ] **COLR-06**: Hardcoded hex colors in Skia components (NebulaRenderer, TimeShiftingBackground) replaced with theme tokens
 
 ### Surface & Depth
@@ -113,11 +113,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TYPO-04 | Phase 1 | Pending |
 | TYPO-05 | Phase 1 | Pending |
 | TYPO-06 | Phase 1 | Pending |
-| COLR-01 | Phase 1 | Pending |
-| COLR-02 | Phase 1 | Pending |
-| COLR-03 | Phase 1 | Pending |
-| COLR-04 | Phase 1 | Pending |
-| COLR-05 | Phase 1 | Pending |
+| COLR-01 | Phase 1 | Complete |
+| COLR-02 | Phase 1 | Complete |
+| COLR-03 | Phase 1 | Complete |
+| COLR-04 | Phase 1 | Complete |
+| COLR-05 | Phase 1 | Complete |
 | COLR-06 | Phase 1 | Pending |
 | SURF-01 | Phase 2 | Pending |
 | SURF-02 | Phase 2 | Pending |

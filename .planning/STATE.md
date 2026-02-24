@@ -34,6 +34,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01-token-foundation P01 | 5 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -45,6 +46,7 @@ Recent decisions affecting current work:
 - [Roadmap]: 5-phase sequential structure — dependency chain prevents safe compression below 5 phases
 - [Roadmap]: PERF-02 (Skia interpolateColors) assigned to Phase 3 — critical constraint for Mindi color animation
 - [Roadmap]: PERF-03 (no blur intensity animation) assigned to Phase 2 — governs glassmorphism implementation pattern
+- [Phase 01-token-foundation]: goldScale placed before ThemeColors interface as shared constant
 
 ### Pending Todos
 
