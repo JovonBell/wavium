@@ -18,7 +18,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { useThemeStore } from '../../stores/useThemeStore';
 import { TimeOfDay } from '../../theme/colors';
@@ -29,22 +28,6 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface TimeShiftingBackgroundProps {
   children?: React.ReactNode;
 }
-
-// Gradient colors for each time of day
-const GRADIENTS: Record<TimeOfDay, [string, string, string]> = {
-  morning: ['#1a1520', '#2d1f35', '#3d2845'],
-  afternoon: ['#0f0f1a', '#151525', '#1a1a2e'],
-  evening: ['#1a1210', '#2a1a15', '#3a2520'],
-  night: ['#050510', '#0a0a1a', '#0f0f25'],
-};
-
-// Ambient orb colors
-const AMBIENT_ORBS: Record<TimeOfDay, { color: string; opacity: number }> = {
-  morning: { color: '#ffb366', opacity: 0.08 },
-  afternoon: { color: '#a78bfa', opacity: 0.06 },
-  evening: { color: '#f59e0b', opacity: 0.1 },
-  night: { color: '#6366f1', opacity: 0.05 },
-};
 
 // Generate stable star positions once
 const STARS = Array.from({ length: 30 }, (_, i) => ({
@@ -68,8 +51,9 @@ export default function TimeShiftingBackground({
     transitionProgress.value = withTiming(1, { duration: timing.themeShift });
   }, [timeOfDay]);
 
-  const gradient = GRADIENTS[timeOfDay];
-  const orb = AMBIENT_ORBS[timeOfDay];
+  const gradient: [string, string, string] = [colors.background, colors.backgroundAlt, colors.surface];
+  const orbColor = colors.primaryGradient[0];
+  const orbOpacity = 0.07;
 
   return (
     <>
@@ -88,12 +72,12 @@ export default function TimeShiftingBackground({
           cx={SCREEN_WIDTH * 0.2}
           cy={SCREEN_HEIGHT * 0.3}
           r={SCREEN_WIDTH * 0.4}
-          opacity={orb.opacity}
+          opacity={orbOpacity}
         >
           <RadialGradient
             c={vec(SCREEN_WIDTH * 0.2, SCREEN_HEIGHT * 0.3)}
             r={SCREEN_WIDTH * 0.4}
-            colors={[orb.color, 'transparent']}
+            colors={[orbColor, 'transparent']}
           />
           <BlurMask blur={60} style="normal" />
         </Circle>
@@ -102,12 +86,12 @@ export default function TimeShiftingBackground({
           cx={SCREEN_WIDTH * 0.8}
           cy={SCREEN_HEIGHT * 0.7}
           r={SCREEN_WIDTH * 0.35}
-          opacity={orb.opacity * 0.7}
+          opacity={orbOpacity * 0.7}
         >
           <RadialGradient
             c={vec(SCREEN_WIDTH * 0.8, SCREEN_HEIGHT * 0.7)}
             r={SCREEN_WIDTH * 0.35}
-            colors={[orb.color, 'transparent']}
+            colors={[orbColor, 'transparent']}
           />
           <BlurMask blur={50} style="normal" />
         </Circle>
