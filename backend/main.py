@@ -15,6 +15,14 @@ from services.tts_service import generate_audio, generate_subliminal, get_availa
 
 load_dotenv()
 
+# Patch httpx to accept deprecated `proxies` kwarg (groq SDK compat)
+import httpx as _httpx
+_orig_client_init = _httpx.Client.__init__
+def _patched_init(self, *args, **kwargs):
+    kwargs.pop('proxies', None)
+    _orig_client_init(self, *args, **kwargs)
+_httpx.Client.__init__ = _patched_init
+
 app = FastAPI(
     title="Wavium API",
     description="AI-powered subliminal audio generation",
