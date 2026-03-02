@@ -314,9 +314,10 @@ export const useMindiStore = create<MindiStoreState>()(
         return { isNewDay: true, streakBroken };
       },
 
-      // Reset onboarding state (for development/testing)
+      // Reset onboarding state (for development/testing and logout)
       resetOnboarding: () => set({
         userId: null,
+        userName: '',
         name: 'Mindi',
         subliminals: [],
         creation: { ...initialCreation },

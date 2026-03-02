@@ -24,6 +24,8 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore } from '../../src/stores/useMindiStore';
+import { useAuthStore } from '../../src/stores/useAuthStore';
+import { supabase } from '../../src/lib/supabase';
 import { MindiRenderer, MindiSpeech } from '../../src/components/mindi';
 import { HapticButton, SafeContainer } from '../../src/components/ui';
 import { typography } from '../../src/theme/typography';
@@ -32,7 +34,7 @@ import { springs } from '../../src/theme/animations';
 
 export default function NameMindiScreen() {
   const { colors } = useThemeStore();
-  const { setName, setUserId, setCurrentState } = useMindiStore();
+  const { setName, setUserId, setUserName, setCurrentState } = useMindiStore();
 
   const [name, setNameInput] = useState('Mindi');
   const [showSpeech, setShowSpeech] = useState(false);
@@ -60,24 +62,35 @@ export default function NameMindiScreen() {
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Save the name
-    setName(name.trim());
+    const trimmedName = name.trim();
+
+    // Save the Mindi companion name
+    setName(trimmedName);
+
+    // Store userName in Zustand (persisted locally)
+    setUserName(trimmedName);
+
+    // Store display name in Supabase user metadata (server-side, survives device changes)
+    supabase.auth.updateUser({ data: { display_name: trimmedName } }).catch((err) => {
+      console.warn('Failed to update user metadata:', err);
+    });
 
     // Show excited response
     setShowSpeech(false);
     setCurrentState('happy');
 
     setTimeout(() => {
-      setSpeechMessage(`I love it! I'm ${name.trim()}!`);
+      setSpeechMessage(`I love it! I'm ${trimmedName}!`);
       setShowSpeech(true);
     }, 300);
 
-    // Wait a moment for the animation, then set userId
+    // Wait a moment for the animation, then set userId with Supabase UUID
     // The route guard in _layout.tsx will handle navigation when userId changes
     setTimeout(() => {
-      // Generate a simple user ID (in production, use auth)
-      // This triggers the route guard to navigate to main
-      setUserId(`user_${Date.now()}`);
+      const supabaseUserId = useAuthStore.getState().user?.id;
+      if (supabaseUserId) {
+        setUserId(supabaseUserId);
+      }
     }, 1500);
   };
 

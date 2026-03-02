@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore, Subliminal } from '../../src/stores/useMindiStore';
+import { useAuthStore } from '../../src/stores/useAuthStore';
 import { MindiRenderer, MindiSpeech } from '../../src/components/mindi';
 import { GlassmorphicCard, HapticButton, GlowText, StreakCard } from '../../src/components/ui';
 import { typography, fontFamilies, textStyles } from '../../src/theme/typography';
@@ -103,6 +104,26 @@ export default function HomeScreen() {
     };
   }, [timeOfDay]);
 
+  const handleLogout = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      'Log Out?',
+      'You will need to sign in again to use Wavium.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            await useAuthStore.getState().signOut();
+            resetOnboarding();
+            // Auth state change listener triggers re-routing to (auth)
+          },
+        },
+      ]
+    );
+  };
+
   const handleCreateNew = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/(main)/create');
@@ -133,14 +154,25 @@ export default function HomeScreen() {
     >
       {/* Header - tap "Welcome back" 5 times quickly to reset app */}
       <Animated.View entering={FadeInDown.duration(500)} style={styles.header}>
-        <Text style={[styles.greeting, { color: colors.textSecondary }]}>
-          {getGreeting()}
-        </Text>
-        <TouchableOpacity onPress={handleSecretReset} activeOpacity={1}>
-          <GlowText variant="h2" glowIntensity={0.5}>
-            {userName ? `Welcome back, ${userName}` : 'Welcome back'}
-          </GlowText>
-        </TouchableOpacity>
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={[styles.greeting, { color: colors.textSecondary }]}>
+              {getGreeting()}
+            </Text>
+            <TouchableOpacity onPress={handleSecretReset} activeOpacity={1}>
+              <GlowText variant="h2" glowIntensity={0.5}>
+                {userName ? `Welcome back, ${userName}` : 'Welcome back'}
+              </GlowText>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={[styles.logoutButton, { backgroundColor: colors.surface }]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="log-out-outline" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* Mindi section */}
@@ -252,6 +284,22 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.lg,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  headerText: {
+    flex: 1,
+  },
+  logoutButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
   },
   greeting: {
     ...typography.label,
