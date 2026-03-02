@@ -11,10 +11,11 @@ import edge_tts
 
 # Available voices
 VOICES = {
-    "jenny": "en-US-JennyNeural",
-    "guy": "en-US-GuyNeural",
-    "aria": "en-US-AriaNeural",
-    "sonia": "en-GB-SoniaNeural",
+    "ava": "en-US-AvaNeural",       # Warm, smooth female (US) -- newest, most natural
+    "emma": "en-US-EmmaNeural",     # Gentle, soothing female (US)
+    "andrew": "en-US-AndrewNeural", # Calm, deep male (US)
+    "sonia": "en-GB-SoniaNeural",   # Warm, elegant female (UK)
+    "brian": "en-US-BrianNeural",   # Steady, reassuring male (US)
 }
 
 # Background ambient tracks are stored locally in the ambient/ directory
@@ -56,10 +57,10 @@ def _run_ffmpeg(args: list[str]) -> None:
 
 async def generate_audio(
     affirmations: list[str],
-    voice: str = "jenny",
+    voice: str = "ava",
 ) -> str:
     """Generate basic TTS audio from affirmations (no mixing)"""
-    voice_id = VOICES.get(voice.lower(), VOICES["jenny"])
+    voice_id = VOICES.get(voice.lower(), VOICES["ava"])
     full_text = "... ".join(affirmations) + "..."
 
     filename = f"tts_{uuid.uuid4().hex[:8]}.mp3"
@@ -72,7 +73,7 @@ async def generate_audio(
 
 async def generate_subliminal(
     affirmations: list[str],
-    voice: str = "jenny",
+    voice: str = "ava",
     track: str = "ocean-waves",
     voice_volume: float = 0.12,
     bg_volume: float = 0.85,
@@ -86,7 +87,7 @@ async def generate_subliminal(
 
     Returns path to the final mixed MP3.
     """
-    voice_id = VOICES.get(voice.lower(), VOICES["jenny"])
+    voice_id = VOICES.get(voice.lower(), VOICES["ava"])
     run_id = uuid.uuid4().hex[:8]
 
     # --- Step 1: Generate whisper TTS ---
@@ -143,8 +144,9 @@ async def generate_subliminal(
 async def get_available_voices() -> list[dict]:
     """Get list of available voices"""
     return [
-        {"id": "jenny", "name": "Jenny", "description": "Warm, female (US)"},
-        {"id": "guy", "name": "Guy", "description": "Calm, male (US)"},
-        {"id": "aria", "name": "Aria", "description": "Soft, female (US)"},
-        {"id": "sonia", "name": "Sonia", "description": "Warm, female (UK)"},
+        {"id": "ava", "name": "Ava", "gender": "female", "description": "Warm & smooth (US)"},
+        {"id": "emma", "name": "Emma", "gender": "female", "description": "Gentle & soothing (US)"},
+        {"id": "andrew", "name": "Andrew", "gender": "male", "description": "Calm & deep (US)"},
+        {"id": "sonia", "name": "Sonia", "gender": "female", "description": "Warm & elegant (UK)"},
+        {"id": "brian", "name": "Brian", "gender": "male", "description": "Steady & reassuring (US)"},
     ]

@@ -53,7 +53,7 @@ class GenerateAffirmationsResponse(BaseModel):
 
 class GenerateAudioRequest(BaseModel):
     affirmations: list[str]
-    voice: str = "jenny"
+    voice: str = "ava"
 
 
 class GenerateAudioResponse(BaseModel):
@@ -63,7 +63,7 @@ class GenerateAudioResponse(BaseModel):
 
 class GenerateSubliminalRequest(BaseModel):
     affirmations: list[str]
-    voice: str = "jenny"
+    voice: str = "ava"
     track: str = "ocean-waves"
     voice_volume: float = 0.12
     bg_volume: float = 0.85
@@ -80,6 +80,7 @@ class GenerateSubliminalResponse(BaseModel):
 class VoiceInfo(BaseModel):
     id: str
     name: str
+    gender: str
     description: str
 
 
@@ -171,7 +172,7 @@ async def api_get_ambient_tracks():
 async def api_get_voices():
     """Get available TTS voices"""
     voices = await get_available_voices()
-    return [VoiceInfo(id=v["id"], name=v["name"], description=v["description"]) for v in voices]
+    return [VoiceInfo(id=v["id"], name=v["name"], gender=v["gender"], description=v["description"]) for v in voices]
 
 
 if __name__ == "__main__":

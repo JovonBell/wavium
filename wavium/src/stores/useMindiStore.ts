@@ -24,37 +24,43 @@ export type SoundTrack =
   | 'cosmic-drift'
   | 'lofi-chill';
 
-export const SOUND_TRACKS: Record<SoundTrack, { name: string; description: string; frequency: string; voice: string }> = {
+export const SOUND_TRACKS: Record<SoundTrack, { name: string; description: string; frequency: string }> = {
   'ocean-waves': {
     name: 'Ocean Waves',
     description: 'Gentle waves with theta frequencies',
     frequency: 'Theta (4-8Hz)',
-    voice: 'jenny',
   },
   'rainfall': {
     name: 'Rainfall',
     description: 'Soft rain with alpha waves',
     frequency: 'Alpha (8-12Hz)',
-    voice: 'aria',
   },
   'deep-focus': {
     name: 'Deep Focus',
     description: 'Pure binaural beats',
     frequency: 'Gamma (40Hz)',
-    voice: 'guy',
   },
   'cosmic-drift': {
     name: 'Cosmic Drift',
     description: 'Ambient space sounds with delta waves',
     frequency: 'Delta (0.5-4Hz)',
-    voice: 'sonia',
   },
   'lofi-chill': {
     name: 'Lofi Chill',
     description: 'Warm lofi hip-hop vibes',
     frequency: '85 BPM',
-    voice: 'aria',
   },
+};
+
+// Voice options
+export type VoiceId = 'ava' | 'emma' | 'andrew' | 'sonia' | 'brian';
+
+export const VOICES: Record<VoiceId, { name: string; gender: 'male' | 'female'; description: string; icon: string }> = {
+  'ava': { name: 'Ava', gender: 'female', description: 'Warm & smooth', icon: 'person-circle' },
+  'emma': { name: 'Emma', gender: 'female', description: 'Gentle & soothing', icon: 'person-circle' },
+  'andrew': { name: 'Andrew', gender: 'male', description: 'Calm & deep', icon: 'person-circle' },
+  'sonia': { name: 'Sonia', gender: 'female', description: 'Warm & elegant', icon: 'person-circle' },
+  'brian': { name: 'Brian', gender: 'male', description: 'Steady & reassuring', icon: 'person-circle' },
 };
 
 // A saved subliminal
@@ -81,6 +87,7 @@ export interface CreationState {
   intention: string;
   affirmations: string[];
   selectedTrack: SoundTrack | null;
+  selectedVoice: VoiceId | null;
   audioUrl: string | null;
 }
 
@@ -110,6 +117,7 @@ interface MindiStoreState {
   setIntention: (intention: string) => void;
   setAffirmations: (affirmations: string[]) => void;
   setSelectedTrack: (track: SoundTrack) => void;
+  setSelectedVoice: (voice: VoiceId) => void;
   setAudioUrl: (audioUrl: string) => void;
   clearCreation: () => void;
 
@@ -129,6 +137,7 @@ const initialCreation: CreationState = {
   intention: '',
   affirmations: [],
   selectedTrack: null,
+  selectedVoice: null,
   audioUrl: null,
 };
 
@@ -179,6 +188,11 @@ export const useMindiStore = create<MindiStoreState>()(
       setSelectedTrack: (track) =>
         set((state) => ({
           creation: { ...state.creation, selectedTrack: track },
+        })),
+
+      setSelectedVoice: (voice) =>
+        set((state) => ({
+          creation: { ...state.creation, selectedVoice: voice },
         })),
 
       setAudioUrl: (audioUrl) =>
