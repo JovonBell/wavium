@@ -13,6 +13,14 @@ import logging
 from app.api.routes import account, affirmations, intentions, generation, library, sessions, evolution
 from app.core.config import settings
 
+# Patch httpx to accept deprecated `proxies` kwarg (groq SDK compat)
+import httpx
+_httpx_client_init = httpx.Client.__init__
+def _patched_client_init(self, *args, **kwargs):
+    kwargs.pop('proxies', None)
+    return _httpx_client_init(self, *args, **kwargs)
+httpx.Client.__init__ = _patched_client_init
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
