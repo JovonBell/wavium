@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 Phase: 5 of 5 (Screen Polish)
 Plan: 0 of TBD in current phase
 Status: In Progress
-Last activity: 2026-02-24 — Completed 04-03 Auto-hide Controls Polish + Sound Picker Mood
+Last activity: 2026-03-02 - Completed quick task 1: Add 5 selectable human-sounding voices instead of single default Mindi voice
 
 Progress: [████████░░] 80%
 
@@ -90,6 +90,12 @@ None yet.
 - [Phase 3 flag]: Merged Skia canvas (3 canvases → 1) needs a small spike to validate z-ordering before full implementation
 - [Phase 4 flag]: Skia arc path construction for ProgressRing replacement needs research during planning
 - [Phase 2 flag]: Android blur baseline must be tested on physical mid-range device before committing to final blur intensity values
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Add 5 selectable human-sounding voices instead of single default Mindi voice | 2026-03-02 | a3630d1 | [1-add-5-selectable-human-sounding-voices-i](./quick/1-add-5-selectable-human-sounding-voices-i/) |
 
 ## Session Continuity
 
