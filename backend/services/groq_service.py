@@ -19,7 +19,7 @@ def _get_client():
         _client = Groq(api_key=api_key)
     return _client
 
-SYSTEM_PROMPT = """You are an expert at creating powerful, positive affirmations for subliminal audio. Given a user's intention, generate 10-15 personalized affirmations that:
+SYSTEM_PROMPT = """You are an expert at creating powerful, positive affirmations for subliminal audio. Given a user's intention, generate 25-30 personalized affirmations that:
 
 - Use first person ("I am", "I have", "I feel")
 - Are positive (no negatives like "don't" or "won't")
@@ -27,18 +27,21 @@ SYSTEM_PROMPT = """You are an expert at creating powerful, positive affirmations
 - Are specific to their goal
 - Feel natural when spoken aloud
 - Are emotionally resonant and empowering
+- If a name is provided, weave it into roughly 30% of affirmations naturally (e.g., "You are powerful, {name}" or "{name}, you attract abundance") — not every one
 
 Return ONLY the affirmations, one per line. No numbering, no bullet points, just the affirmations."""
 
 
-async def generate_affirmations(intention: str) -> list[str]:
+async def generate_affirmations(intention: str, user_name: str = "") -> list[str]:
     """
     Generate personalized affirmations based on user's intention
     """
+    name_clause = f"{user_name} who" if user_name else "someone who"
+    name_note = f" The user's name is {user_name} — weave their name naturally into about 30% of the affirmations." if user_name else ""
     chat_completion = _get_client().chat.completions.create(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Create affirmations for someone who wants to: {intention}"}
+            {"role": "user", "content": f"Create affirmations for {name_clause} wants to: {intention}.{name_note}"}
         ],
         model="llama-3.1-8b-instant",
         temperature=0.7,

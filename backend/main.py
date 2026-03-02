@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from services.groq_service import generate_affirmations
-from services.tts_service import generate_audio, generate_subliminal, get_available_voices
+from services.tts_service import generate_audio, generate_subliminal, get_available_voices, generate_voice_preview
 
 load_dotenv()
 
@@ -44,6 +44,7 @@ app.mount("/ambient", StaticFiles(directory=AMBIENT_DIR), name="ambient")
 # Request/Response Models
 class GenerateAffirmationsRequest(BaseModel):
     intention: str
+    user_name: str = ""
 
 
 class GenerateAffirmationsResponse(BaseModel):
@@ -102,7 +103,7 @@ async def api_generate_affirmations(request: GenerateAffirmationsRequest):
         raise HTTPException(status_code=400, detail="Intention cannot be empty")
 
     try:
-        affirmations = await generate_affirmations(request.intention)
+        affirmations = await generate_affirmations(request.intention, user_name=request.user_name)
         return GenerateAffirmationsResponse(
             affirmations=affirmations,
             intention=request.intention
@@ -161,11 +162,22 @@ async def api_generate_subliminal(request: GenerateSubliminalRequest):
 async def api_get_ambient_tracks():
     """Get URLs for ambient background tracks served from this backend"""
     tracks = {}
-    for name in ["ocean-waves", "rainfall", "deep-focus", "cosmic-drift", "lofi-chill"]:
+    for name in ["ocean-waves", "rainfall", "deep-focus", "cosmic-drift", "lofi-chill", "lofi-dream", "lofi-jazz", "zen-garden", "night-drive", "forest-dawn"]:
         path = os.path.join(AMBIENT_DIR, f"{name}.mp3")
         if os.path.exists(path):
             tracks[name] = f"/ambient/{name}.mp3"
     return tracks
+
+
+@app.get("/api/voice-preview/{voice_id}")
+async def api_voice_preview(voice_id: str):
+    """Get a short preview clip of a voice. Cached after first generation."""
+    try:
+        audio_path = await generate_voice_preview(voice_id)
+        filename = os.path.basename(audio_path)
+        return {"audio_url": f"/audio/previews/{filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate preview: {str(e)}")
 
 
 @app.get("/api/voices", response_model=list[VoiceInfo])

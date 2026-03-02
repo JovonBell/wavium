@@ -7,6 +7,7 @@ import os
 import uuid
 import asyncio
 import subprocess
+import random
 import edge_tts
 
 # Available voices
@@ -91,8 +92,16 @@ async def generate_subliminal(
     run_id = uuid.uuid4().hex[:8]
 
     # --- Step 1: Generate whisper TTS ---
+    # Shuffle and repeat affirmations to reach ~30 items for variety
+    working_affirmations = list(affirmations)
+    if len(working_affirmations) < 25:
+        extra = list(affirmations)
+        random.shuffle(extra)
+        working_affirmations = working_affirmations + extra
+        working_affirmations = working_affirmations[:30]
+    random.shuffle(working_affirmations)
     # Join affirmations with long pauses for a breathing, natural feel
-    full_text = " ..... ".join(affirmations) + " ....."
+    full_text = " ..... ".join(working_affirmations) + " ....."
     voice_path = os.path.join(TEMP_DIR, f"voice_{run_id}.mp3")
 
     communicate = edge_tts.Communicate(
@@ -112,10 +121,12 @@ async def generate_subliminal(
 
     # voice loops infinitely under background; output trimmed to duration_secs
     # background also loops to fill the duration
+    fade_out_start = max(0, duration_secs - 2)
     filter_complex = (
         f"[0:a]volume={bg_volume},aloop=-1:size=2e+09[bg];"
-        f"[1:a]volume={voice_volume},aloop=-1:size=2e+09[voice];"
-        f"[bg][voice]amix=inputs=2:duration=first:normalize=0[out]"
+        f"[1:a]volume={voice_volume},aloop=-1:size=2e+09,afade=t=in:st=0:d=2[voice];"
+        f"[bg][voice]amix=inputs=2:duration=first:normalize=0,"
+        f"afade=t=in:st=0:d=2,afade=t=out:st={fade_out_start}:d=2[out]"
     )
 
     ffmpeg_args = [
@@ -139,6 +150,34 @@ async def generate_subliminal(
         pass
 
     return output_path
+
+
+PREVIEW_DIR = os.path.join(BASE_DIR, "audio_output", "previews")
+os.makedirs(PREVIEW_DIR, exist_ok=True)
+
+PREVIEW_PHRASES = {
+    "ava": "You are worthy of all the good things coming your way.",
+    "emma": "Every day you grow stronger, brighter, and more resilient.",
+    "andrew": "Trust the journey. You are exactly where you need to be.",
+    "sonia": "Breathe deeply. You are calm, centred, and at peace.",
+    "brian": "You have the power to create the life you desire.",
+}
+
+
+async def generate_voice_preview(voice: str = "ava") -> str:
+    """Generate (or return cached) a short voice preview clip."""
+    voice_key = voice.lower()
+    voice_id = VOICES.get(voice_key, VOICES["ava"])
+    preview_path = os.path.join(PREVIEW_DIR, f"preview_{voice_key}.mp3")
+
+    # Return cached preview if it exists
+    if os.path.exists(preview_path):
+        return preview_path
+
+    phrase = PREVIEW_PHRASES.get(voice_key, PREVIEW_PHRASES["ava"])
+    communicate = edge_tts.Communicate(phrase, voice_id)
+    await communicate.save(preview_path)
+    return preview_path
 
 
 async def get_available_voices() -> list[dict]:
