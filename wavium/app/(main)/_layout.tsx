@@ -6,7 +6,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Slot, router, usePathname } from 'expo-router';
-import { TabBar, DEFAULT_TABS, TimeShiftingBackground } from '../../src/components/ui';
+import { TabBar, DEFAULT_TABS, TimeShiftingBackground, HomeAmbientPlayer } from '../../src/components/ui';
 
 // Screens that should hide the tab bar (creation flow)
 const SCREENS_WITHOUT_TABS = ['/script', '/tracks'];
@@ -32,6 +32,7 @@ export default function MainLayout() {
   return (
     <View style={styles.container}>
       <TimeShiftingBackground />
+      <HomeAmbientPlayer isActive={!pathname.includes('/player')} />
       <View style={styles.content}>
         <Slot />
       </View>

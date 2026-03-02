@@ -11,3 +11,4 @@ export { default as TabBar, DEFAULT_TABS } from './TabBar';
 export { default as SafeContainer } from './SafeContainer';
 export { default as LoadingOverlay } from './LoadingOverlay';
 export { default as StreakCard } from './StreakCard';
+export { default as HomeAmbientPlayer } from './HomeAmbientPlayer';

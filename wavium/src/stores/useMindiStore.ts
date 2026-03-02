@@ -22,7 +22,12 @@ export type SoundTrack =
   | 'rainfall'
   | 'deep-focus'
   | 'cosmic-drift'
-  | 'lofi-chill';
+  | 'lofi-chill'
+  | 'lofi-dream'
+  | 'lofi-jazz'
+  | 'zen-garden'
+  | 'night-drive'
+  | 'forest-dawn';
 
 export const SOUND_TRACKS: Record<SoundTrack, { name: string; description: string; frequency: string }> = {
   'ocean-waves': {
@@ -49,6 +54,31 @@ export const SOUND_TRACKS: Record<SoundTrack, { name: string; description: strin
     name: 'Lofi Chill',
     description: 'Warm lofi hip-hop vibes',
     frequency: '85 BPM',
+  },
+  'lofi-dream': {
+    name: 'Lofi Dream',
+    description: 'Dreamy lofi with hazy pads',
+    frequency: '75 BPM',
+  },
+  'lofi-jazz': {
+    name: 'Lofi Jazz',
+    description: 'Jazz-inspired mellow beats',
+    frequency: '80 BPM',
+  },
+  'zen-garden': {
+    name: 'Zen Garden',
+    description: 'Singing bowls & meditation tones',
+    frequency: 'Solfeggio',
+  },
+  'night-drive': {
+    name: 'Night Drive',
+    description: 'Dark synth ambient atmosphere',
+    frequency: '65 Hz drone',
+  },
+  'forest-dawn': {
+    name: 'Forest Dawn',
+    description: 'Morning birdsong & gentle wind',
+    frequency: 'Natural',
   },
 };
 
@@ -95,9 +125,14 @@ interface MindiStoreState {
   // Identity
   name: string;
   userId: string | null;
+  userName: string;
 
   // Mindi state
   currentState: MindiState;
+
+  // Persisted player settings
+  voiceVolume: number;
+  backgroundVolume: number;
 
   // Library of saved subliminals
   subliminals: Subliminal[];
@@ -111,6 +146,9 @@ interface MindiStoreState {
   // Actions
   setName: (name: string) => void;
   setUserId: (id: string) => void;
+  setUserName: (name: string) => void;
+  setVoiceVolume: (v: number) => void;
+  setBackgroundVolume: (v: number) => void;
   setCurrentState: (state: MindiState) => void;
 
   // Creation flow actions
@@ -164,7 +202,10 @@ export const useMindiStore = create<MindiStoreState>()(
       // Initial state
       name: 'Mindi',
       userId: null,
+      userName: '',
       currentState: 'idle',
+      voiceVolume: 0.15,
+      backgroundVolume: 0.7,
       subliminals: [],
       creation: { ...initialCreation },
       streak: { ...initialStreak },
@@ -172,7 +213,10 @@ export const useMindiStore = create<MindiStoreState>()(
       // Actions
       setName: (name) => set({ name }),
       setUserId: (id) => set({ userId: id }),
+      setUserName: (name) => set({ userName: name }),
       setCurrentState: (state) => set({ currentState: state }),
+      setVoiceVolume: (v) => set({ voiceVolume: v }),
+      setBackgroundVolume: (v) => set({ backgroundVolume: v }),
 
       // Creation flow
       setIntention: (intention) =>

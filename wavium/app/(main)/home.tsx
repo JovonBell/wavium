@@ -21,7 +21,7 @@ import { mindiGreetings } from '../../src/theme/colors';
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { colors, timeOfDay } = useThemeStore();
-  const { name: mindiName, subliminals, streak, setCurrentState, checkInToday, resetOnboarding } = useMindiStore();
+  const { name: mindiName, userName, subliminals, streak, setCurrentState, checkInToday, resetOnboarding } = useMindiStore();
 
   const [showSpeech, setShowSpeech] = useState(false);
   const [speechMessage, setSpeechMessage] = useState('');
@@ -138,7 +138,7 @@ export default function HomeScreen() {
         </Text>
         <TouchableOpacity onPress={handleSecretReset} activeOpacity={1}>
           <GlowText variant="h2" glowIntensity={0.5}>
-            Welcome back
+            {userName ? `Welcome back, ${userName}` : 'Welcome back'}
           </GlowText>
         </TouchableOpacity>
       </Animated.View>

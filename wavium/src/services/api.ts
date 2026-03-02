@@ -28,7 +28,8 @@ export async function generateSubliminalAudio(
   affirmations: string[],
   voice: string = 'ava',
   track: string = 'ocean-waves',
-  durationSecs: number = 300
+  durationSecs: number = 1800,
+  userName?: string
 ): Promise<{ audioUrl: string; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-subliminal`, {
@@ -41,6 +42,7 @@ export async function generateSubliminalAudio(
         voice_volume: 0.12,
         bg_volume: 0.85,
         duration_secs: durationSecs,
+        ...(userName ? { user_name: userName } : {}),
       }),
     });
 
@@ -103,6 +105,20 @@ export async function generateVoiceAudio(
  */
 export function getAmbientTrackUrl(track: string): string {
   return `${API_BASE_URL}/ambient/${track}.mp3`;
+}
+
+/**
+ * Get a short voice preview audio URL (cached on backend after first call)
+ */
+export async function getVoicePreviewUrl(voiceId: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/voice-preview/${voiceId}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return `${API_BASE_URL}${data.audio_url}`;
+  } catch {
+    return null;
+  }
 }
 
 /**

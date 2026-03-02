@@ -19,6 +19,7 @@ import { useThemeStore } from '../../stores/useThemeStore';
 import { useMindiStore } from '../../stores/useMindiStore';
 import { speakAffirmations, stopSpeaking, VOICE_PRESETS } from '../../services/speech';
 import { getAmbientTrackUrl } from '../../services/api';
+import CrossfadeAudioPair from '../../systems/CrossfadeAudioPair';
 import StarField from './StarField';
 import NebulaRenderer from './NebulaRenderer';
 import ParallaxLayer from './ParallaxLayer';
@@ -52,20 +53,29 @@ export default function VoidContainer({
 }: VoidContainerProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useThemeStore();
-  const { setCurrentState } = useMindiStore();
+  const {
+    setCurrentState,
+    voiceVolume: storedVoiceVolume,
+    backgroundVolume: storedBgVolume,
+    setVoiceVolume: persistVoiceVolume,
+    setBackgroundVolume: persistBgVolume,
+  } = useMindiStore();
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const audioLevel = useSharedValue(0);
-  const [voiceVolume, setVoiceVolume] = useState(0.15); // Subliminal = low voice
-  const [backgroundVolume, setBackgroundVolume] = useState(0.7);
+  const [voiceVolume, setVoiceVolume] = useState(storedVoiceVolume);
+  const [backgroundVolume, setBackgroundVolume] = useState(storedBgVolume);
   const [currentAffirmationIndex, setCurrentAffirmationIndex] = useState(0);
   const [isLooping, setIsLooping] = useState(true);
   const [audioError, setAudioError] = useState(false);
   const actualDuration = duration;
 
-  // Two separate audio streams
+  // Two crossfade audio pairs for seamless looping
+  const bgCrossfade = useRef<CrossfadeAudioPair>(new CrossfadeAudioPair());
+  const voiceCrossfade = useRef<CrossfadeAudioPair>(new CrossfadeAudioPair());
+  // Keep legacy refs for backward-compat code paths that call .getStatusAsync
   const bgSoundRef = useRef<Audio.Sound | null>(null);
   const voiceSoundRef = useRef<Audio.Sound | null>(null);
 
@@ -159,7 +169,7 @@ export default function VoidContainer({
       // Poll real audio position from background sound (most reliable)
       positionInterval = setInterval(async () => {
         try {
-          const status = await bgSoundRef.current?.getStatusAsync();
+          const status = await bgCrossfade.current.getStatusAsync();
           if (status?.isLoaded && status.positionMillis != null) {
             setCurrentTime(Math.floor(status.positionMillis / 1000));
           }
@@ -206,8 +216,8 @@ export default function VoidContainer({
   useEffect(() => {
     return () => {
       stopSpeaking();
-      bgSoundRef.current?.unloadAsync().catch(() => {});
-      voiceSoundRef.current?.unloadAsync().catch(() => {});
+      bgCrossfade.current.unload().catch(() => {});
+      voiceCrossfade.current.unload().catch(() => {});
       if (tapHideTimeoutRef.current) clearTimeout(tapHideTimeoutRef.current);
       if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
       if (affirmationCycleRef.current) clearInterval(affirmationCycleRef.current);
@@ -218,25 +228,17 @@ export default function VoidContainer({
   const stopAllAudio = useCallback(async () => {
     usingPreRecordedVoice.current = false;
     await stopSpeaking();
-    try { await bgSoundRef.current?.stopAsync(); } catch {}
-    try { await voiceSoundRef.current?.stopAsync(); } catch {}
+    await bgCrossfade.current.stop();
+    await voiceCrossfade.current.stop();
   }, []);
 
-  // Play with two independent streams (voice + background)
+  // Play with two independent streams (voice + background) using crossfade pairs
   const playTwoStreams = useCallback(async () => {
-    // --- Background ambient stream ---
+    // --- Background ambient stream (seamless crossfade looping) ---
     const bgUrl = getAmbientTrackUrl(track);
     try {
       setAudioError(false);
-      // Unload previous background if exists
-      if (bgSoundRef.current) {
-        await bgSoundRef.current.unloadAsync().catch(() => {});
-      }
-      const { sound: bgSound } = await Audio.Sound.createAsync(
-        { uri: bgUrl },
-        { shouldPlay: true, volume: backgroundVolume, isLooping: true }
-      );
-      bgSoundRef.current = bgSound;
+      await bgCrossfade.current.load(bgUrl, backgroundVolume);
     } catch (error) {
       console.warn('Background audio unavailable:', error);
       setAudioError(true);
@@ -246,14 +248,7 @@ export default function VoidContainer({
     if (audioUrl) {
       // We have a pre-generated voice TTS file from the backend
       try {
-        if (voiceSoundRef.current) {
-          await voiceSoundRef.current.unloadAsync().catch(() => {});
-        }
-        const { sound: voiceSound } = await Audio.Sound.createAsync(
-          { uri: audioUrl },
-          { shouldPlay: true, volume: voiceVolume, isLooping: isLooping }
-        );
-        voiceSoundRef.current = voiceSound;
+        await voiceCrossfade.current.load(audioUrl, voiceVolume);
         usingPreRecordedVoice.current = true;
       } catch (error) {
         console.warn('Voice audio failed, falling back to live TTS:', error);
@@ -297,37 +292,32 @@ export default function VoidContainer({
   const handleSeek = useCallback(async (time: number) => {
     setCurrentTime(time);
     try {
-      await bgSoundRef.current?.setPositionAsync(time * 1000);
-      await voiceSoundRef.current?.setPositionAsync(time * 1000);
+      await bgCrossfade.current.setPosition(time * 1000);
+      await voiceCrossfade.current.setPosition(time * 1000);
     } catch (error) {
       console.warn('Could not seek audio:', error);
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  // Voice volume slider — controls voice stream in real time
+  // Voice volume slider — controls voice stream in real time and persists
   const handleVoiceVolumeChange = useCallback(async (value: number) => {
     setVoiceVolume(value);
-    try {
-      await voiceSoundRef.current?.setVolumeAsync(value);
-    } catch {}
-  }, []);
+    persistVoiceVolume(value);
+    await voiceCrossfade.current.setVolume(value);
+  }, [persistVoiceVolume]);
 
-  // Background volume slider — controls background stream in real time
+  // Background volume slider — controls background stream in real time and persists
   const handleBackgroundVolumeChange = useCallback(async (value: number) => {
     setBackgroundVolume(value);
-    try {
-      await bgSoundRef.current?.setVolumeAsync(value);
-    } catch {}
-  }, []);
+    persistBgVolume(value);
+    await bgCrossfade.current.setVolume(value);
+  }, [persistBgVolume]);
 
   const handleToggleLoop = useCallback(async () => {
     const newLoopState = !isLooping;
     setIsLooping(newLoopState);
-    try {
-      await bgSoundRef.current?.setIsLoopingAsync(newLoopState);
-      await voiceSoundRef.current?.setIsLoopingAsync(newLoopState);
-    } catch {}
+    // CrossfadeAudioPair handles its own looping via crossfade; state tracked for UI
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [isLooping]);
 
