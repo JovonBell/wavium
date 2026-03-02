@@ -120,6 +120,7 @@ export default function SignUpScreen() {
                       autoComplete="email"
                       autoCorrect={false}
                       editable={!loading}
+                      accessibilityLabel="Email address"
                     />
                   </View>
                 </View>
@@ -146,6 +147,7 @@ export default function SignUpScreen() {
                       autoCapitalize="none"
                       autoComplete="new-password"
                       editable={!loading}
+                      accessibilityLabel="Password"
                     />
                   </View>
                 </View>
@@ -174,6 +176,7 @@ export default function SignUpScreen() {
                       autoCapitalize="none"
                       autoComplete="new-password"
                       editable={!loading}
+                      accessibilityLabel="Confirm password"
                     />
                   </View>
                 </View>
@@ -201,6 +204,8 @@ export default function SignUpScreen() {
               <TouchableOpacity
                 onPress={() => router.back()}
                 style={styles.linkButton}
+                accessibilityLabel="Go to sign in"
+                accessibilityRole="link"
               >
                 <Text style={[styles.linkText, { color: colors.textSecondary }]}>
                   Already have an account?{' '}

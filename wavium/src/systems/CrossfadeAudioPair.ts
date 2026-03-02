@@ -66,6 +66,23 @@ export class CrossfadeAudioPair {
     return active?.getStatusAsync() ?? null;
   }
 
+  /** Pause the active sound (keeps position, can resume) */
+  async pause(): Promise<void> {
+    const active = this.activeIsA ? this.soundA : this.soundB;
+    try { await active?.pauseAsync(); } catch {}
+  }
+
+  /** Resume the active sound from where it was paused */
+  async resume(): Promise<void> {
+    const active = this.activeIsA ? this.soundA : this.soundB;
+    try { await active?.playAsync(); } catch {}
+  }
+
+  /** Check if audio has been loaded */
+  isLoaded(): boolean {
+    return !!(this.activeIsA ? this.soundA : this.soundB);
+  }
+
   /** Stop both sounds */
   async stop(): Promise<void> {
     this._clearCrossfadeInterval();

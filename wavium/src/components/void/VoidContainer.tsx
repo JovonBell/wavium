@@ -28,7 +28,6 @@ import ParallaxLayer from './ParallaxLayer';
 import AffirmationSpirals from './AffirmationSpirals';
 import PlayerControls from './PlayerControls';
 import { MindiRenderer } from '../mindi';
-import { springs, hapticPatterns } from '../../theme/animations';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -78,10 +77,6 @@ export default function VoidContainer({
   // Two crossfade audio pairs for seamless looping
   const bgCrossfade = useRef<CrossfadeAudioPair>(new CrossfadeAudioPair());
   const voiceCrossfade = useRef<CrossfadeAudioPair>(new CrossfadeAudioPair());
-  // Keep legacy refs for backward-compat code paths that call .getStatusAsync
-  const bgSoundRef = useRef<Audio.Sound | null>(null);
-  const voiceSoundRef = useRef<Audio.Sound | null>(null);
-
   // Animation values
   const voidOpacity = useSharedValue(0);
   const controlsOpacity = useSharedValue(1);
@@ -94,6 +89,8 @@ export default function VoidContainer({
   // Whether we're using pre-recorded audio (vs live TTS) for affirmation cycling
   const usingPreRecordedVoice = useRef(false);
   const affirmationCycleRef = useRef<NodeJS.Timeout | null>(null);
+  // Track whether audio has been loaded (so we can pause/resume instead of reload)
+  const audioLoadedRef = useRef(false);
 
   // Refs for timeout cleanup
   const tapHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -201,15 +198,41 @@ export default function VoidContainer({
     };
   }, [isPlaying, actualDuration]);
 
-  // Cycle through affirmations when using pre-recorded audio (spirals need index changes)
+  // Track voice audio duration once loaded, then cycle affirmations in sync
+  const voiceDurationRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (isPlaying && usingPreRecordedVoice.current && affirmations.length > 0) {
-      // Estimate time per affirmation based on total count
-      const msPerAffirmation = Math.max(4000, 20000 / affirmations.length);
-      affirmationCycleRef.current = setInterval(() => {
-        setCurrentAffirmationIndex((prev) => (prev + 1) % affirmations.length);
-      }, msPerAffirmation);
+    if (!isPlaying || !usingPreRecordedVoice.current || affirmations.length === 0) {
+      return () => {
+        if (affirmationCycleRef.current) {
+          clearInterval(affirmationCycleRef.current);
+          affirmationCycleRef.current = null;
+        }
+      };
     }
+
+    // Poll voice audio position to determine which affirmation we're on
+    affirmationCycleRef.current = setInterval(async () => {
+      try {
+        const status = await voiceCrossfade.current.getStatusAsync();
+        if (!status?.isLoaded) return;
+
+        const pos = status.positionMillis ?? 0;
+        const dur = status.durationMillis ?? 0;
+        if (dur > 0) {
+          voiceDurationRef.current = dur;
+          // Divide the voice track evenly among affirmations
+          const msPerAffirmation = dur / affirmations.length;
+          const newIndex = Math.min(
+            Math.floor(pos / msPerAffirmation),
+            affirmations.length - 1
+          );
+          setCurrentAffirmationIndex(newIndex);
+        }
+      } catch {
+        // Fallback: just cycle at a fixed rate if polling fails
+      }
+    }, 500);
 
     return () => {
       if (affirmationCycleRef.current) {
@@ -223,6 +246,7 @@ export default function VoidContainer({
   useEffect(() => {
     return () => {
       stopSpeaking();
+      audioLoadedRef.current = false;
       bgCrossfade.current.unload().catch(() => {});
       voiceCrossfade.current.unload().catch(() => {});
       if (tapHideTimeoutRef.current) clearTimeout(tapHideTimeoutRef.current);
@@ -231,16 +255,38 @@ export default function VoidContainer({
     };
   }, []);
 
-  // Stop both audio streams
-  const stopAllAudio = useCallback(async () => {
-    usingPreRecordedVoice.current = false;
-    await stopSpeaking();
-    await bgCrossfade.current.stop();
-    await voiceCrossfade.current.stop();
+  // Pause both audio streams (keeps position for smooth resume)
+  const pauseAllAudio = useCallback(async () => {
+    if (usingPreRecordedVoice.current) {
+      await bgCrossfade.current.pause();
+      await voiceCrossfade.current.pause();
+    } else {
+      await stopSpeaking();
+      await bgCrossfade.current.pause();
+    }
   }, []);
 
-  // Play with two independent streams (voice + background) using crossfade pairs
-  const playTwoStreams = useCallback(async () => {
+  // Resume both streams from paused state
+  const resumeAllAudio = useCallback(async () => {
+    if (usingPreRecordedVoice.current) {
+      await bgCrossfade.current.resume();
+      await voiceCrossfade.current.resume();
+    } else {
+      await bgCrossfade.current.resume();
+      // Re-start live TTS from current index on resume
+      const voicePreset = (track in VOICE_PRESETS ? track : 'ocean-waves') as keyof typeof VOICE_PRESETS;
+      speakAffirmations(
+        affirmations,
+        voicePreset,
+        () => { /* TTS cycle complete */ },
+        (index) => setCurrentAffirmationIndex(index),
+        voiceVolume
+      );
+    }
+  }, [affirmations, track, voiceVolume]);
+
+  // Load and start both streams for the first time
+  const loadAndPlayStreams = useCallback(async () => {
     // --- Background ambient stream (seamless crossfade looping) ---
     const bgUrl = getAmbientTrackUrl(track);
     try {
@@ -260,7 +306,6 @@ export default function VoidContainer({
       } catch (error) {
         console.warn('Voice audio failed, falling back to live TTS:', error);
         usingPreRecordedVoice.current = false;
-        // Fall back to live TTS
         const voicePreset = (track in VOICE_PRESETS ? track : 'ocean-waves') as keyof typeof VOICE_PRESETS;
         speakAffirmations(
           affirmations,
@@ -282,19 +327,27 @@ export default function VoidContainer({
         voiceVolume
       );
     }
-  }, [audioUrl, affirmations, track, voiceVolume, backgroundVolume, isLooping]);
 
-  // Handle play/pause
+    audioLoadedRef.current = true;
+  }, [audioUrl, affirmations, track, voiceVolume, backgroundVolume]);
+
+  // Handle play/pause — uses pause/resume to avoid audio resetting
   const handlePlayPause = useCallback(async () => {
     if (isPlaying) {
-      await stopAllAudio();
+      await pauseAllAudio();
       setIsPlaying(false);
     } else {
       setIsPlaying(true);
-      await playTwoStreams();
+      if (audioLoadedRef.current) {
+        // Resume from where we left off
+        await resumeAllAudio();
+      } else {
+        // First play — load everything fresh
+        await loadAndPlayStreams();
+      }
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [isPlaying, stopAllAudio, playTwoStreams]);
+  }, [isPlaying, pauseAllAudio, resumeAllAudio, loadAndPlayStreams]);
 
   const handleSeek = useCallback(async (time: number) => {
     setCurrentTime(time);

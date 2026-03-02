@@ -99,6 +99,7 @@ export default function SignInScreen() {
                       autoComplete="email"
                       autoCorrect={false}
                       editable={!loading}
+                      accessibilityLabel="Email address"
                     />
                   </View>
                 </View>
@@ -125,6 +126,7 @@ export default function SignInScreen() {
                       autoCapitalize="none"
                       autoComplete="password"
                       editable={!loading}
+                      accessibilityLabel="Password"
                     />
                   </View>
                 </View>
@@ -152,6 +154,8 @@ export default function SignInScreen() {
               <TouchableOpacity
                 onPress={() => router.push('/(auth)/sign-up')}
                 style={styles.linkButton}
+                accessibilityLabel="Go to sign up"
+                accessibilityRole="link"
               >
                 <Text style={[styles.linkText, { color: colors.textSecondary }]}>
                   Don't have an account?{' '}
@@ -164,6 +168,8 @@ export default function SignInScreen() {
               <TouchableOpacity
                 onPress={() => router.push('/(auth)/forgot-password')}
                 style={styles.linkButton}
+                accessibilityLabel="Forgot password"
+                accessibilityRole="link"
               >
                 <Text style={[styles.linkText, { color: colors.textMuted }]}>
                   Forgot password?

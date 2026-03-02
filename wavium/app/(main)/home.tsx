@@ -117,7 +117,43 @@ export default function HomeScreen() {
           onPress: async () => {
             await useAuthStore.getState().signOut();
             resetOnboarding();
-            // Auth state change listener triggers re-routing to (auth)
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      'Delete Account?',
+      'This will permanently delete your account and all your data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            // Double confirmation
+            Alert.alert(
+              'Are you sure?',
+              'All your subliminals, streaks, and account data will be permanently deleted.',
+              [
+                { text: 'Keep Account', style: 'cancel' },
+                {
+                  text: 'Delete Forever',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const { error } = await useAuthStore.getState().deleteAccount();
+                    if (error) {
+                      Alert.alert('Error', error);
+                    } else {
+                      resetOnboarding();
+                    }
+                  },
+                },
+              ]
+            );
           },
         },
       ]
@@ -165,13 +201,26 @@ export default function HomeScreen() {
               </GlowText>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={[styles.logoutButton, { backgroundColor: colors.surface }]}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="log-out-outline" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={handleDeleteAccount}
+              style={[styles.headerButton, { backgroundColor: colors.surface }]}
+              activeOpacity={0.7}
+              accessibilityLabel="Delete account"
+              accessibilityRole="button"
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.error || '#ff4444'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={[styles.headerButton, { backgroundColor: colors.surface }]}
+              activeOpacity={0.7}
+              accessibilityLabel="Log out"
+              accessibilityRole="button"
+            >
+              <Ionicons name="log-out-outline" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
         </View>
       </Animated.View>
 
@@ -227,6 +276,8 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   onPress={() => handlePlaySubliminal(subliminal)}
                   activeOpacity={0.8}
+                  accessibilityLabel={`Play ${subliminal.title}`}
+                  accessibilityRole="button"
                 >
                   <GlassmorphicCard style={styles.subliminalCard}>
                     <View style={styles.subliminalContent}>
@@ -293,13 +344,17 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
   },
-  logoutButton: {
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  headerButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
   },
   greeting: {
     ...typography.label,

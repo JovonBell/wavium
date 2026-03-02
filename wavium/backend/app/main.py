@@ -5,10 +5,12 @@ FastAPI application for AI-powered subliminal audio generation
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
+from pathlib import Path
 import logging
 
-from app.api.routes import intentions, generation, library, sessions, evolution
+from app.api.routes import account, affirmations, intentions, generation, library, sessions, evolution
 from app.core.config import settings
 
 # Configure logging
@@ -37,10 +39,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# CORS middleware — restrict in production
+_cors_origins = (
+    settings.CORS_ORIGINS
+    if settings.ENVIRONMENT != "development"
+    else ["*"]
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,7 +65,27 @@ async def health_check():
     }
 
 
+# Privacy policy (served as static HTML)
+@app.get("/privacy")
+async def privacy_policy():
+    """Serve privacy policy page"""
+    policy_path = Path(__file__).parent / "static" / "privacy-policy.html"
+    return FileResponse(policy_path, media_type="text/html")
+
+
 # Include routers
+app.include_router(
+    account.router,
+    prefix="/api/account",
+    tags=["Account"]
+)
+
+app.include_router(
+    affirmations.router,
+    prefix="/api/affirmations",
+    tags=["Affirmations"]
+)
+
 app.include_router(
     intentions.router,
     prefix="/api/intention",

@@ -12,6 +12,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useThemeStore } from '../src/stores/useThemeStore';
 import { useMindiStore } from '../src/stores/useMindiStore';
 import { useAuthStore } from '../src/stores/useAuthStore';
+import { ErrorBoundary } from '../src/components/ui';
 
 // Keep splash screen visible while loading
 SplashScreen.preventAutoHideAsync();
@@ -92,29 +93,31 @@ export default function RootLayout() {
   const initialRoute = !session ? '(auth)' : !userId ? '(onboarding)' : '(main)';
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <StatusBar style="light" />
-        <Stack
-          initialRouteName={initialRoute}
-          screenOptions={{
-            headerShown: false,
-            animation: 'fade',
-            contentStyle: { backgroundColor: 'transparent' },
-          }}
-        >
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(main)" />
-          <Stack.Screen
-            name="player/[id]"
-            options={{
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <StatusBar style="light" />
+          <Stack
+            initialRouteName={initialRoute}
+            screenOptions={{
+              headerShown: false,
               animation: 'fade',
-              presentation: 'fullScreenModal',
+              contentStyle: { backgroundColor: 'transparent' },
             }}
-          />
-        </Stack>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+          >
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(main)" />
+            <Stack.Screen
+              name="player/[id]"
+              options={{
+                animation: 'fade',
+                presentation: 'fullScreenModal',
+              }}
+            />
+          </Stack>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }

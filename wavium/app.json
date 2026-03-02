@@ -13,7 +13,13 @@
       "backgroundColor": "#0a0a1a"
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.jovonbell.wavium",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMotionUsageDescription": "Wavium uses motion sensors to create immersive parallax effects during your listening experience.",
+        "UIBackgroundModes": ["audio"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +27,8 @@
         "backgroundColor": "#0a0a1a"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.jovonbell.wavium"
     },
     "web": {
       "favicon": "./assets/favicon.png"

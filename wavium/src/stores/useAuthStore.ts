@@ -7,6 +7,9 @@ import { create } from 'zustand';
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+
 interface AuthState {
   session: Session | null;
   user: User | null;
@@ -19,6 +22,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  deleteAccount: () => Promise<{ error: string | null }>;
 }
 
 /**
@@ -152,6 +156,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err: any) {
       set({ loading: false });
       return { error: friendlyError(err.message || 'An unexpected error occurred.') };
+    }
+  },
+
+  deleteAccount: async () => {
+    const { session, user } = get();
+    if (!session || !user) {
+      return { error: 'Not authenticated' };
+    }
+
+    set({ loading: true });
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/account/`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ user_id: user.id }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        set({ loading: false });
+        return { error: data.detail || 'Failed to delete account' };
+      }
+
+      // Sign out locally after successful deletion
+      await supabase.auth.signOut();
+      set({ loading: false });
+      return { error: null };
+    } catch (err: any) {
+      set({ loading: false });
+      return { error: friendlyError(err.message || 'Failed to delete account.') };
     }
   },
 }));

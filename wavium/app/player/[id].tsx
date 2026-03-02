@@ -33,7 +33,6 @@ export default function PlayerScreen() {
   const { getSubliminal, setCurrentState } = useMindiStore();
 
   const [showScript, setShowScript] = useState(false);
-  const [currentAffirmationIndex, setCurrentAffirmationIndex] = useState(0);
 
   // Get the subliminal from store
   const subliminal = useMemo(() => getSubliminal(id || ''), [id, getSubliminal]);
@@ -59,19 +58,11 @@ export default function PlayerScreen() {
     setCurrentState('peaceful');
     StatusBar.setHidden(true, 'fade');
 
-    // Cycle through affirmations for display
-    const interval = setInterval(() => {
-      setCurrentAffirmationIndex((prev) =>
-        (prev + 1) % displaySubliminal.affirmations.length
-      );
-    }, 8000);
-
     return () => {
-      clearInterval(interval);
       setCurrentState('idle');
       StatusBar.setHidden(false, 'fade');
     };
-  }, [displaySubliminal.affirmations.length]);
+  }, []);
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -110,7 +101,11 @@ export default function PlayerScreen() {
               {/* Header */}
               <View style={styles.scriptHeader}>
                 <Text style={styles.scriptTitle}>Your Affirmations</Text>
-                <TouchableOpacity onPress={handleToggleScript}>
+                <TouchableOpacity
+                  onPress={handleToggleScript}
+                  accessibilityLabel="Close affirmations"
+                  accessibilityRole="button"
+                >
                   <Ionicons name="close-circle" size={32} color="rgba(255,255,255,0.8)" />
                 </TouchableOpacity>
               </View>
@@ -130,10 +125,7 @@ export default function PlayerScreen() {
                   <Animated.View
                     key={index}
                     entering={FadeInUp.delay(index * 50).duration(300)}
-                    style={[
-                      styles.scriptItem,
-                      currentAffirmationIndex === index && styles.scriptItemActive,
-                    ]}
+                    style={styles.scriptItem}
                   >
                     <Text style={styles.scriptNumber}>{index + 1}</Text>
                     <Text style={styles.scriptText}>{affirmation}</Text>
@@ -203,9 +195,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     marginBottom: spacing.xs,
     borderRadius: borderRadius.sm,
-  },
-  scriptItemActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   scriptNumber: {
     ...typography.bodySmall,

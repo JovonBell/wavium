@@ -16,8 +16,11 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "development"
 
-    # CORS
-    CORS_ORIGINS: List[str] = ["*"]
+    # CORS — restrict in production, allow all in development
+    CORS_ORIGINS: List[str] = Field(
+        default=["*"],
+        description="Set to specific origins in production (e.g. ['https://wavium.app'])"
+    )
 
     # Groq (LLM) - Required, app fails at startup if missing
     GROQ_API_KEY: str = Field(min_length=1, description="Groq API key for LLM")

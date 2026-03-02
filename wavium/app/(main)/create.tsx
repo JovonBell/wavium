@@ -45,8 +45,8 @@ const EXAMPLE_INTENTIONS = [
 ];
 
 // Real AI affirmation generation using Groq (direct API call)
-const generateAffirmations = async (intention: string): Promise<string[]> => {
-  const response = await groqGenerateAffirmations(intention);
+const generateAffirmations = async (intention: string, userName?: string): Promise<string[]> => {
+  const response = await groqGenerateAffirmations(intention, userName);
 
   if (response.error) {
     console.error('Groq Error:', response.error);
@@ -58,7 +58,7 @@ const generateAffirmations = async (intention: string): Promise<string[]> => {
 export default function CreateScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useThemeStore();
-  const { setCurrentState, setIntention, setAffirmations, name: mindiName } = useMindiStore();
+  const { setCurrentState, setIntention, setAffirmations, name: mindiName, userName } = useMindiStore();
 
   const [inputText, setInputText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -99,8 +99,8 @@ export default function CreateScreen() {
       // Save intention to store
       setIntention(inputText.trim());
 
-      // Generate affirmations
-      const affirmations = await generateAffirmations(inputText.trim());
+      // Generate affirmations (pass userName for personalization)
+      const affirmations = await generateAffirmations(inputText.trim(), userName || undefined);
 
       // Save affirmations to store
       setAffirmations(affirmations);
@@ -183,6 +183,7 @@ export default function CreateScreen() {
               multiline
               maxLength={300}
               textAlignVertical="top"
+              accessibilityLabel="Enter your intention"
             />
             <View style={styles.inputFooter}>
               <Text style={[styles.charCount, { color: colors.textMuted }]}>

@@ -12,14 +12,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
   withDelay,
-  withSpring,
-  FadeIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '../../src/stores/useThemeStore';
@@ -30,13 +27,15 @@ import { MindiRenderer, MindiSpeech } from '../../src/components/mindi';
 import { HapticButton, SafeContainer } from '../../src/components/ui';
 import { typography } from '../../src/theme/typography';
 import { spacing } from '../../src/theme/spacing';
-import { springs } from '../../src/theme/animations';
 
 export default function NameMindiScreen() {
   const { colors } = useThemeStore();
   const { setName, setUserId, setUserName, setCurrentState } = useMindiStore();
 
-  const [name, setNameInput] = useState('Mindi');
+  // Two-step flow: first ask user's name, then companion's name
+  const [step, setStep] = useState<'user' | 'companion'>('user');
+  const [userNameInput, setUserNameInput] = useState('');
+  const [companionNameInput, setCompanionNameInput] = useState('Mindi');
   const [showSpeech, setShowSpeech] = useState(false);
   const [speechMessage, setSpeechMessage] = useState('');
 
@@ -49,31 +48,52 @@ export default function NameMindiScreen() {
     contentOpacity.value = withDelay(300, withTiming(1, { duration: 600 }));
     inputOpacity.value = withDelay(800, withTiming(1, { duration: 600 }));
 
-    // Show Mindi's greeting
+    // Show Mindi's greeting — ask for user's name first
     setTimeout(() => {
-      setSpeechMessage("What would you like to call me?");
+      setSpeechMessage("Hi! What's your name?");
       setShowSpeech(true);
       setCurrentState('listening');
     }, 1000);
   }, []);
 
   const handleContinue = async () => {
-    if (name.trim().length === 0) return;
+    if (step === 'user') {
+      // Step 1: Save user's name, then ask for companion name
+      const trimmedUserName = userNameInput.trim();
+      if (trimmedUserName.length === 0) return;
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // Store the user's own name
+      setUserName(trimmedUserName);
+      supabase.auth.updateUser({ data: { display_name: trimmedUserName } }).catch((err) => {
+        console.warn('Failed to update user metadata:', err);
+      });
+
+      // Transition to companion naming step
+      setShowSpeech(false);
+      setCurrentState('happy');
+
+      setTimeout(() => {
+        setSpeechMessage(`Nice to meet you, ${trimmedUserName}! What would you like to call me?`);
+        setShowSpeech(true);
+        setCurrentState('listening');
+        setStep('companion');
+        // Reset input animation for second step
+        inputOpacity.value = 0;
+        inputOpacity.value = withDelay(200, withTiming(1, { duration: 400 }));
+      }, 400);
+      return;
+    }
+
+    // Step 2: Save companion name and finish onboarding
+    const trimmedName = companionNameInput.trim();
+    if (trimmedName.length === 0) return;
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    const trimmedName = name.trim();
-
     // Save the Mindi companion name
     setName(trimmedName);
-
-    // Store userName in Zustand (persisted locally)
-    setUserName(trimmedName);
-
-    // Store display name in Supabase user metadata (server-side, survives device changes)
-    supabase.auth.updateUser({ data: { display_name: trimmedName } }).catch((err) => {
-      console.warn('Failed to update user metadata:', err);
-    });
 
     // Show excited response
     setShowSpeech(false);
@@ -117,10 +137,10 @@ export default function NameMindiScreen() {
           <MindiRenderer size={150} showParticles={true} />
         </Animated.View>
 
-        {/* Name input */}
+        {/* Name input — changes based on step */}
         <Animated.View style={[styles.inputContainer, inputStyle]}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Give me a name
+            {step === 'user' ? "What's your name?" : 'Give me a name'}
           </Text>
 
           <View
@@ -131,18 +151,19 @@ export default function NameMindiScreen() {
           >
             <TextInput
               style={[styles.input, { color: colors.textPrimary }]}
-              value={name}
-              onChangeText={setNameInput}
-              placeholder="Mindi"
+              value={step === 'user' ? userNameInput : companionNameInput}
+              onChangeText={step === 'user' ? setUserNameInput : setCompanionNameInput}
+              placeholder={step === 'user' ? 'Your name' : 'Mindi'}
               placeholderTextColor={colors.textMuted}
               maxLength={20}
               autoCorrect={false}
               textAlign="center"
+              accessibilityLabel={step === 'user' ? 'Your name' : 'Companion name'}
             />
           </View>
 
           <Text style={[styles.hint, { color: colors.textMuted }]}>
-            You can always change this later
+            {step === 'user' ? 'For your personalized experience' : 'You can always change this later'}
           </Text>
         </Animated.View>
 
@@ -153,7 +174,7 @@ export default function NameMindiScreen() {
             variant="primary"
             size="large"
             fullWidth
-            disabled={name.trim().length === 0}
+            disabled={step === 'user' ? userNameInput.trim().length === 0 : companionNameInput.trim().length === 0}
           >
             Continue
           </HapticButton>
