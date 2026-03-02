@@ -5,12 +5,14 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, StyleSheet, Dimensions, StatusBar } from 'react-native';
+import { View, StyleSheet, Dimensions, StatusBar, Text } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  FadeIn,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Canvas, Path, Skia } from '@shopify/react-native-skia';
 import { Audio } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -70,6 +72,7 @@ export default function VoidContainer({
   const [currentAffirmationIndex, setCurrentAffirmationIndex] = useState(0);
   const [isLooping, setIsLooping] = useState(true);
   const [audioError, setAudioError] = useState(false);
+  const [sessionComplete, setSessionComplete] = useState(false);
   const actualDuration = duration;
 
   // Two crossfade audio pairs for seamless looping
@@ -176,9 +179,13 @@ export default function VoidContainer({
         } catch {
           // Fallback: increment manually if polling fails
           setCurrentTime((prev) => {
-            if (prev >= actualDuration) {
+            if (prev >= actualDuration && !sessionComplete) {
               setIsPlaying(false);
-              return 0;
+              setSessionComplete(true);
+              setCurrentState('happy');
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setTimeout(() => onComplete?.(), 2000);
+              return prev;
             }
             return prev + 1;
           });
@@ -352,43 +359,63 @@ export default function VoidContainer({
       {/* Parallax container - handles gyroscope */}
       <ParallaxLayer onGyroUpdate={handleGyroUpdate}>
         {/* Layer 1: Deep star field (slowest) */}
-        <View style={styles.layer}>
+        <Animated.View style={styles.layer} entering={FadeIn.delay(0).duration(800)}>
           <StarField layer="deep" gyroX={gyroX} gyroY={gyroY} audioLevel={audioLevel} />
-        </View>
+        </Animated.View>
 
         {/* Layer 2: Nebula (audio-reactive) */}
-        <View style={styles.layer}>
+        <Animated.View style={styles.layer} entering={FadeIn.delay(200).duration(800)}>
           <NebulaRenderer audioLevel={audioLevel} gyroX={gyroX} gyroY={gyroY} />
-        </View>
+        </Animated.View>
 
         {/* Layer 3: Medium star field */}
-        <View style={styles.layer}>
+        <Animated.View style={styles.layer} entering={FadeIn.delay(400).duration(800)}>
           <StarField layer="medium" gyroX={gyroX} gyroY={gyroY} audioLevel={audioLevel} />
-        </View>
+        </Animated.View>
 
-        {/* Layer 4: Affirmation spirals */}
-        <View style={styles.layer}>
+        {/* Layer 4: Mindi — upper third, translucent */}
+        <Animated.View style={styles.mindiContainer} entering={FadeIn.delay(600).duration(800)}>
+          <MindiRenderer size={180} showParticles={true} audioLevel={audioLevel} opacity={0.7} />
+          <View style={styles.progressRing}>
+            <SkiaProgressRing progress={progress} size={220} strokeWidth={3} color={colors.primaryGradient[1]} />
+          </View>
+        </Animated.View>
+
+        {/* Layer 5: Affirmation display — lower half */}
+        <Animated.View style={styles.layer} entering={FadeIn.delay(800).duration(800)}>
           <AffirmationSpirals
             affirmations={affirmations}
             isPlaying={isPlaying}
             audioLevel={audioLevel}
             currentIndex={currentAffirmationIndex}
           />
-        </View>
+        </Animated.View>
 
-        {/* Layer 5: Mindi (center) */}
-        <View style={styles.mindiContainer}>
-          <MindiRenderer size={180} showParticles={true} audioLevel={audioLevel} />
-          <View style={styles.progressRing}>
-            <SkiaProgressRing progress={progress} size={220} strokeWidth={3} color={colors.primaryGradient[1]} />
-          </View>
-        </View>
-
-        {/* Layer 6: Near star field (fastest) */}
-        <View style={styles.layer}>
+        {/* Layer 6: Near star field (fastest) with shooting stars */}
+        <Animated.View style={styles.layer} entering={FadeIn.delay(200).duration(800)}>
           <StarField layer="near" gyroX={gyroX} gyroY={gyroY} audioLevel={audioLevel} />
-        </View>
+        </Animated.View>
+
+        {/* Vignette overlay — darkens bottom for text readability */}
+        <LinearGradient
+          colors={['transparent', 'transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
+          locations={[0, 0.4, 0.75, 1.0]}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
       </ParallaxLayer>
+
+      {/* Session complete overlay */}
+      {sessionComplete && (
+        <Animated.View
+          style={styles.sessionCompleteOverlay}
+          entering={FadeIn.duration(800)}
+        >
+          <Text style={[styles.sessionCompleteText, { color: colors.textPrimary }]}>
+            Session Complete
+          </Text>
+        </Animated.View>
+      )}
 
       {/* Tap area for showing controls */}
       <Animated.View style={[StyleSheet.absoluteFill]} onTouchEnd={handleScreenTap} />
@@ -489,14 +516,29 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   mindiContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
+    position: 'absolute',
+    top: SCREEN_HEIGHT * 0.18,
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   progressRing: {
     position: 'absolute',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sessionCompleteOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sessionCompleteText: {
+    fontSize: 28,
+    fontFamily: 'EditorialNew-Regular',
+    letterSpacing: 2,
+    textShadowColor: 'rgba(255,255,255,0.4)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   controlsContainer: {
     ...StyleSheet.absoluteFillObject,

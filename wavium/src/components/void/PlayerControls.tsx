@@ -128,7 +128,15 @@ export default function PlayerControls({
         <View style={styles.placeholder} />
       </View>
 
-      {/* Bottom controls */}
+      {/* Bottom controls — glassmorphic card */}
+      <View style={styles.bottomBarWrapper}>
+        <BlurView intensity={25} style={styles.bottomBarBlur}>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
       <View style={styles.bottomBar}>
         {/* Progress bar — minimal 2px gold gradient (VOID-04) */}
         <View style={styles.progressContainer}>
@@ -292,7 +300,6 @@ export default function PlayerControls({
             style={[styles.extraButton, { opacity: 0.5 }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              // TODO: Implement download functionality
             }}
           >
             <Ionicons name="download-outline" size={22} color={colors.textMuted} />
@@ -301,6 +308,8 @@ export default function PlayerControls({
             </Text>
           </TouchableOpacity>
         </View>
+      </View>
+        </BlurView>
       </View>
     </View>
   );
@@ -346,9 +355,22 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 44,
   },
+  bottomBarWrapper: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.10)',
+  },
+  bottomBarBlur: {
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
   bottomBar: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 4,
   },
   progressContainer: {
     marginBottom: 24,

@@ -36,6 +36,7 @@ interface MindiRendererProps {
   showParticles?: boolean;
   audioLevel?: SharedValue<number>;
   entrance?: 'fadeScale' | 'none';
+  opacity?: number;
 }
 
 export default function MindiRenderer({
@@ -43,6 +44,7 @@ export default function MindiRenderer({
   showParticles = true,
   audioLevel,
   entrance = 'fadeScale',
+  opacity = 1,
 }: MindiRendererProps) {
   const { currentState } = useMindiStore();
   const { colors } = useThemeStore();
@@ -189,14 +191,14 @@ export default function MindiRenderer({
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: floatY.value },
-      { scale: scale.value * breathScale.value * (1 + (audioLevel?.value ?? 0) * 0.05) },
+      { scale: scale.value * breathScale.value * (1 + (audioLevel?.value ?? 0) * 0.12) },
       { rotate: `${headTilt.value}deg` },
     ],
   }));
 
   // Entrance animation style (wraps entire Mindi)
   const entranceStyle = useAnimatedStyle(() => ({
-    opacity: entranceOpacity.value,
+    opacity: entranceOpacity.value * opacity,
     transform: [
       { translateY: entranceTranslateY.value },
       { scale: entranceScale.value },

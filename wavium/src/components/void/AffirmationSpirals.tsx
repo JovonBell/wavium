@@ -1,27 +1,25 @@
 /**
- * WAVIUM - Affirmation Ceremony + Highlighting
- * Vertical list of affirmations with staggered reveal and current-item glow.
- * VOID-02: one-by-one reveal with staggered fade/translate animation
- * VOID-03: current affirmation highlighted with glow pulse, others dimmed
+ * WAVIUM - Affirmation Display (One-at-a-time crossfade)
+ * Shows a single affirmation at a time in the lower half of the screen.
+ * Crossfades between affirmations: out fades -20px up, in fades +20px up.
+ * A subtle "breath" scale (1.0→1.02) gives a living feel.
  */
 
-import React, { useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  withSpring,
-  withDelay,
   withRepeat,
   Easing,
-  interpolate,
   cancelAnimation,
 } from 'react-native-reanimated';
 import { useThemeStore } from '../../stores/useThemeStore';
-import { springs, timing } from '../../theme/animations';
-import { textStyles, fontFamilies } from '../../theme/typography';
+import { fontFamilies } from '../../theme/typography';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -29,125 +27,19 @@ interface AffirmationSpiralsProps {
   affirmations: string[];
   isPlaying: boolean;
   audioLevel?: SharedValue<number>;
-  currentIndex?: number; // Current affirmation being spoken by TTS
-}
-
-interface AffirmationItemProps {
-  text: string;
-  index: number;
-  isCurrent: boolean;
-  isRevealed: boolean;
-  glowColor: string;
-  textColor: string;
+  currentIndex?: number;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────
 
-const STAGGER_DELAY = 250; // ms between each item reveal
-const REVEAL_FADE_DURATION = 500;
-const TRANSLATE_Y_START = 20;
-const DIM_OPACITY = 0.4;
-const FULL_OPACITY = 1.0;
-const HIGHLIGHT_TRANSITION_MS = 300;
+const FADE_DURATION_MS = 600;
+const TRANSLATE_OFFSET = 20;
+const OVERLAP_MS = 200;
 const GLOW_PULSE_MIN = 10;
 const GLOW_PULSE_MAX = 25;
-const GLOW_PULSE_DURATION = timing.glowPulse; // 2000ms
+const GLOW_PULSE_DURATION = 2000;
 
-// ─── AffirmationItem ─────────────────────────────────────────────────
-
-const AffirmationItem = React.memo(function AffirmationItem({
-  text,
-  index,
-  isCurrent,
-  isRevealed,
-  glowColor,
-  textColor,
-}: AffirmationItemProps) {
-  // Reveal animation values
-  const revealOpacity = useSharedValue(0);
-  const revealTranslateY = useSharedValue(TRANSLATE_Y_START);
-
-  // Highlight animation values
-  const highlightOpacity = useSharedValue(DIM_OPACITY);
-  const glowRadius = useSharedValue(GLOW_PULSE_MIN);
-
-  // Staggered reveal on mount
-  useEffect(() => {
-    if (isRevealed) {
-      revealOpacity.value = withDelay(
-        index * STAGGER_DELAY,
-        withTiming(1, { duration: REVEAL_FADE_DURATION })
-      );
-      revealTranslateY.value = withDelay(
-        index * STAGGER_DELAY,
-        withSpring(0, springs.gentle)
-      );
-    }
-  }, [isRevealed]);
-
-  // Highlight/dim transition when currentIndex changes
-  useEffect(() => {
-    if (!isRevealed) return;
-
-    if (isCurrent) {
-      highlightOpacity.value = withTiming(FULL_OPACITY, {
-        duration: HIGHLIGHT_TRANSITION_MS,
-      });
-      // Pulsing glow on current item
-      glowRadius.value = withRepeat(
-        withTiming(GLOW_PULSE_MAX, {
-          duration: GLOW_PULSE_DURATION,
-          easing: Easing.inOut(Easing.sin),
-        }),
-        -1,
-        true
-      );
-    } else {
-      highlightOpacity.value = withTiming(DIM_OPACITY, {
-        duration: HIGHLIGHT_TRANSITION_MS,
-      });
-      cancelAnimation(glowRadius);
-      glowRadius.value = withTiming(GLOW_PULSE_MIN, { duration: 200 });
-    }
-  }, [isCurrent, isRevealed]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      cancelAnimation(revealOpacity);
-      cancelAnimation(revealTranslateY);
-      cancelAnimation(highlightOpacity);
-      cancelAnimation(glowRadius);
-    };
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    const combinedOpacity = revealOpacity.value * highlightOpacity.value;
-
-    return {
-      opacity: combinedOpacity,
-      transform: [{ translateY: revealTranslateY.value }],
-      textShadowRadius: glowRadius.value,
-    };
-  });
-
-  return (
-    <Animated.Text
-      style={[
-        styles.affirmationText,
-        {
-          color: textColor,
-          textShadowColor: glowColor,
-        },
-        animatedStyle,
-      ]}
-    >
-      {text}
-    </Animated.Text>
-  );
-});
-
-// ─── AffirmationSpirals (main) ───────────────────────────────────────
+// ─── AffirmationSpirals ──────────────────────────────────────────────
 
 export default function AffirmationSpirals({
   affirmations,
@@ -156,59 +48,165 @@ export default function AffirmationSpirals({
   currentIndex = 0,
 }: AffirmationSpiralsProps) {
   const { colors } = useThemeStore();
-
   const glowColor = colors.primaryGradient[0];
-  const textColor = colors.textPrimary;
 
-  // Memoize item data to avoid re-renders
-  const items = useMemo(
-    () => affirmations.map((text, i) => ({ text, key: `aff-${i}` })),
-    [affirmations]
-  );
+  // We maintain two "slots": current (visible) and next (fading in)
+  // Each slot has its own text, opacity, translateY, and glow
+  const slotAText = useRef(affirmations[currentIndex] ?? '');
+  const slotBText = useRef('');
+  const activeSlot = useRef<'A' | 'B'>('A');
+
+  const opacityA = useSharedValue(isPlaying ? 1 : 0);
+  const translateYA = useSharedValue(0);
+  const opacityB = useSharedValue(0);
+  const translateYB = useSharedValue(TRANSLATE_OFFSET);
+
+  // Breath scale on active slot
+  const breathScale = useSharedValue(1);
+  // Glow radius on active slot
+  const glowRadius = useSharedValue(GLOW_PULSE_MIN);
+
+  // Track displayed text in state so React re-renders
+  const [displayA, setDisplayA] = React.useState(affirmations[currentIndex] ?? '');
+  const [displayB, setDisplayB] = React.useState('');
+
+  // Start breath + glow on mount when playing
+  useEffect(() => {
+    if (!isPlaying) return;
+    breathScale.value = withRepeat(
+      withTiming(1.02, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true
+    );
+    glowRadius.value = withRepeat(
+      withTiming(GLOW_PULSE_MAX, { duration: GLOW_PULSE_DURATION, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true
+    );
+    return () => {
+      cancelAnimation(breathScale);
+      cancelAnimation(glowRadius);
+    };
+  }, [isPlaying]);
+
+  // Trigger crossfade when currentIndex changes
+  const prevIndex = useRef(currentIndex);
+  useEffect(() => {
+    if (!isPlaying || affirmations.length === 0) return;
+    if (currentIndex === prevIndex.current) return;
+    prevIndex.current = currentIndex;
+
+    const newText = affirmations[currentIndex] ?? '';
+
+    if (activeSlot.current === 'A') {
+      // A is active -> B fades in, A fades out
+      slotBText.current = newText;
+      setDisplayB(newText);
+      opacityB.value = 0;
+      translateYB.value = TRANSLATE_OFFSET;
+
+      // After overlap ms, start incoming
+      setTimeout(() => {
+        opacityB.value = withTiming(1, { duration: FADE_DURATION_MS });
+        translateYB.value = withTiming(0, { duration: FADE_DURATION_MS });
+      }, OVERLAP_MS);
+
+      // Outgoing fade starts now
+      opacityA.value = withTiming(0, { duration: FADE_DURATION_MS });
+      translateYA.value = withTiming(-TRANSLATE_OFFSET, { duration: FADE_DURATION_MS });
+
+      activeSlot.current = 'B';
+    } else {
+      // B is active -> A fades in, B fades out
+      slotAText.current = newText;
+      setDisplayA(newText);
+      opacityA.value = 0;
+      translateYA.value = TRANSLATE_OFFSET;
+
+      setTimeout(() => {
+        opacityA.value = withTiming(1, { duration: FADE_DURATION_MS });
+        translateYA.value = withTiming(0, { duration: FADE_DURATION_MS });
+      }, OVERLAP_MS);
+
+      opacityB.value = withTiming(0, { duration: FADE_DURATION_MS });
+      translateYB.value = withTiming(-TRANSLATE_OFFSET, { duration: FADE_DURATION_MS });
+
+      activeSlot.current = 'A';
+    }
+  }, [currentIndex, isPlaying, affirmations]);
+
+  // Initial show when playback starts
+  useEffect(() => {
+    if (isPlaying && affirmations.length > 0) {
+      setDisplayA(affirmations[0]);
+      opacityA.value = withTiming(1, { duration: FADE_DURATION_MS });
+      translateYA.value = withTiming(0, { duration: FADE_DURATION_MS });
+    }
+  }, [isPlaying]);
+
+  const styleA = useAnimatedStyle(() => ({
+    opacity: opacityA.value,
+    transform: [
+      { translateY: translateYA.value },
+      { scale: breathScale.value },
+    ],
+    textShadowRadius: glowRadius.value,
+  }));
+
+  const styleB = useAnimatedStyle(() => ({
+    opacity: opacityB.value,
+    transform: [
+      { translateY: translateYB.value },
+      { scale: breathScale.value },
+    ],
+    textShadowRadius: glowRadius.value,
+  }));
 
   if (!isPlaying || affirmations.length === 0) return null;
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-      pointerEvents="none"
-    >
-      {items.map((item, index) => (
-        <AffirmationItem
-          key={item.key}
-          text={item.text}
-          index={index}
-          isCurrent={index === currentIndex}
-          isRevealed={isPlaying}
-          glowColor={glowColor}
-          textColor={textColor}
-        />
-      ))}
-    </ScrollView>
+    <>
+      <Animated.Text
+        style={[
+          styles.affirmationText,
+          { color: colors.textPrimary, textShadowColor: glowColor },
+          styleA,
+        ]}
+        numberOfLines={3}
+        ellipsizeMode="tail"
+        pointerEvents="none"
+      >
+        {displayA}
+      </Animated.Text>
+      <Animated.Text
+        style={[
+          styles.affirmationText,
+          { color: colors.textPrimary, textShadowColor: glowColor },
+          styleB,
+        ]}
+        numberOfLines={3}
+        ellipsizeMode="tail"
+        pointerEvents="none"
+      >
+        {displayB}
+      </Animated.Text>
+    </>
   );
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  contentContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 80,
-  },
   affirmationText: {
-    ...textStyles.affirmation,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: SCREEN_HEIGHT * 0.60,
+    paddingHorizontal: 40,
     fontFamily: fontFamilies.editorialRegular,
+    fontSize: 22,
     textAlign: 'center',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
-    marginVertical: 12,
   },
 });
