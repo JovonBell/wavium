@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 Phase: 5 of 5 (Screen Polish)
 Plan: 0 of TBD in current phase
 Status: In Progress
-Last activity: 2026-03-02 - Completed quick task 1: Add 5 selectable human-sounding voices instead of single default Mindi voice
+Last activity: 2026-03-02 - Completed quick task 3: Full Supabase auth integration
 
 Progress: [████████░░] 80%
 
@@ -80,6 +80,9 @@ Recent decisions affecting current work:
 - [Phase 04]: SkiaProgressRing uses useMemo paths with primaryGradient[1] gold color
 - [Phase 04]: VOID-01 auto-hide verified correct -- no changes needed, timings already optimal
 - [Phase 04]: VOID-06 mood tint uses Animated.View overlay with per-track rgba colors and 800ms fade
+- [Quick-3]: Supabase credentials read from env vars (EXPO_PUBLIC_*) not hardcoded
+- [Quick-3]: Auth store is runtime-only (Supabase handles session persistence internally via AsyncStorage)
+- [Quick-3]: Three-state route guard: no session -> auth, session no userId -> onboarding, both -> main
 
 ### Pending Todos
 
@@ -97,9 +100,10 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 1 | Add 5 selectable human-sounding voices instead of single default Mindi voice | 2026-03-02 | a3630d1 | [1-add-5-selectable-human-sounding-voices-i](./quick/1-add-5-selectable-human-sounding-voices-i/) |
 | 2 | Player UX overhaul: crossfade audio, one-at-a-time affirmations, Mindi upper third, shooting stars, glassmorphic controls, vignette, home ambient | 2026-03-02 | b8dcd24 | [2-player-ux-overhaul](./quick/2-player-ux-overhaul/) |
+| 3 | Full Supabase auth integration: sign-up, sign-in, forgot password, session persistence, route protection, logout | 2026-03-02 | 1b1e4ad | [3-build-full-supabase-auth-integration](./quick/3-build-full-supabase-auth-integration/) |
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed quick task 2: Player UX Overhaul (crossfade audio, affirmations, visual polish)
+Stopped at: Completed quick task 3: Full Supabase Auth Integration
 Resume file: None
