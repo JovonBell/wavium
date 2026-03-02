@@ -96,9 +96,10 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Add 5 selectable human-sounding voices instead of single default Mindi voice | 2026-03-02 | a3630d1 | [1-add-5-selectable-human-sounding-voices-i](./quick/1-add-5-selectable-human-sounding-voices-i/) |
+| 2 | Player UX overhaul: crossfade audio, one-at-a-time affirmations, Mindi upper third, shooting stars, glassmorphic controls, vignette, home ambient | 2026-03-02 | b8dcd24 | [2-player-ux-overhaul](./quick/2-player-ux-overhaul/) |
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Completed 04-03-PLAN.md (Auto-hide Controls Polish + Sound Picker Mood)
+Last session: 2026-03-02
+Stopped at: Completed quick task 2: Player UX Overhaul (crossfade audio, affirmations, visual polish)
 Resume file: None
