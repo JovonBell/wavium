@@ -31,15 +31,20 @@ import { GlassmorphicCard, HapticButton, GlowText, LoadingOverlay } from '../../
 import { typography } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { audio } from '../../src/systems/AudioSystem';
-import { generateVoiceAudio, getAmbientTrackUrl } from '../../src/services/api';
+import { generateVoiceAudio, getAmbientTrackUrl, getVoicePreviewUrl } from '../../src/services/api';
 
 // Mood color tints per track — subtle background shift on selection (VOID-06)
 const MOOD_COLORS: Record<string, string> = {
-  'ocean-waves': 'rgba(30, 60, 120, 0.15)',    // cool blue tint
-  'rainfall': 'rgba(60, 80, 110, 0.12)',         // grey-blue tint
-  'deep-focus': 'rgba(80, 40, 120, 0.15)',       // purple tint
-  'cosmic-drift': 'rgba(40, 30, 100, 0.18)',     // deep indigo tint
-  'lofi-chill': 'rgba(120, 80, 30, 0.12)',       // warm amber tint
+  'ocean-waves': 'rgba(30, 60, 120, 0.15)',
+  'rainfall': 'rgba(60, 80, 110, 0.12)',
+  'deep-focus': 'rgba(80, 40, 120, 0.15)',
+  'cosmic-drift': 'rgba(40, 30, 100, 0.18)',
+  'lofi-chill': 'rgba(120, 80, 30, 0.12)',
+  'lofi-dream': 'rgba(100, 60, 120, 0.14)',
+  'lofi-jazz': 'rgba(140, 100, 40, 0.12)',
+  'zen-garden': 'rgba(60, 100, 60, 0.14)',
+  'night-drive': 'rgba(30, 20, 60, 0.18)',
+  'forest-dawn': 'rgba(50, 100, 50, 0.14)',
 };
 
 // Audio URLs for track previews - served from our backend
@@ -49,6 +54,11 @@ const BEAT_AUDIO_URLS: Record<string, string> = {
   'deep-focus': getAmbientTrackUrl('deep-focus'),
   'cosmic-drift': getAmbientTrackUrl('cosmic-drift'),
   'lofi-chill': getAmbientTrackUrl('lofi-chill'),
+  'lofi-dream': getAmbientTrackUrl('lofi-dream'),
+  'lofi-jazz': getAmbientTrackUrl('lofi-jazz'),
+  'zen-garden': getAmbientTrackUrl('zen-garden'),
+  'night-drive': getAmbientTrackUrl('night-drive'),
+  'forest-dawn': getAmbientTrackUrl('forest-dawn'),
 };
 
 // Track icons
@@ -58,6 +68,11 @@ const TRACK_ICONS: Record<SoundTrack, string> = {
   'deep-focus': 'pulse',
   'cosmic-drift': 'planet',
   'lofi-chill': 'musical-note',
+  'lofi-dream': 'cloud',
+  'lofi-jazz': 'musical-notes',
+  'zen-garden': 'leaf',
+  'night-drive': 'moon',
+  'forest-dawn': 'sunny',
 };
 
 export default function TracksScreen() {
@@ -122,7 +137,7 @@ export default function TracksScreen() {
         isLoadingPreview.current = false;
         return;
       }
-      await audio.setVolume(0.5);
+      await audio.setVolume(0.85);
       await audio.play();
 
       // Stop preview after 5 seconds
@@ -136,10 +151,45 @@ export default function TracksScreen() {
     }
   };
 
-  const handleSelectVoice = (voiceId: VoiceId) => {
+  const isLoadingVoicePreview = useRef(false);
+
+  const handleSelectVoice = async (voiceId: VoiceId) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedVoiceIdLocal(voiceId);
     setSelectedVoice(voiceId);
+
+    // Clear any existing preview timeout
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+    }
+
+    if (isLoadingVoicePreview.current) return;
+    isLoadingVoicePreview.current = true;
+
+    try {
+      const previewUrl = await getVoicePreviewUrl(voiceId);
+      if (!previewUrl) {
+        isLoadingVoicePreview.current = false;
+        return;
+      }
+      try { await audio.stop(); } catch {}
+      const loaded = await audio.load(previewUrl);
+      if (!loaded) {
+        isLoadingVoicePreview.current = false;
+        return;
+      }
+      await audio.setVolume(0.8);
+      await audio.play();
+
+      // Stop preview after 6 seconds
+      previewTimeoutRef.current = setTimeout(() => {
+        audio.stop().catch(() => {});
+      }, 6000);
+    } catch (error) {
+      console.warn('Could not play voice preview:', error);
+    } finally {
+      isLoadingVoicePreview.current = false;
+    }
   };
 
   const handleBack = () => {

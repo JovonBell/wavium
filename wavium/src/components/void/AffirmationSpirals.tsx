@@ -35,9 +35,7 @@ interface AffirmationSpiralsProps {
 const FADE_DURATION_MS = 600;
 const TRANSLATE_OFFSET = 20;
 const OVERLAP_MS = 200;
-const GLOW_PULSE_MIN = 10;
-const GLOW_PULSE_MAX = 25;
-const GLOW_PULSE_DURATION = 2000;
+const GLOW_PULSE_MAX = 25; // Static glow radius applied via stylesheet
 
 // ─── AffirmationSpirals ──────────────────────────────────────────────
 
@@ -63,8 +61,6 @@ export default function AffirmationSpirals({
 
   // Breath scale on active slot
   const breathScale = useSharedValue(1);
-  // Glow radius on active slot
-  const glowRadius = useSharedValue(GLOW_PULSE_MIN);
 
   // Track displayed text in state so React re-renders
   const [displayA, setDisplayA] = React.useState(affirmations[currentIndex] ?? '');
@@ -78,14 +74,8 @@ export default function AffirmationSpirals({
       -1,
       true
     );
-    glowRadius.value = withRepeat(
-      withTiming(GLOW_PULSE_MAX, { duration: GLOW_PULSE_DURATION, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true
-    );
     return () => {
       cancelAnimation(breathScale);
-      cancelAnimation(glowRadius);
     };
   }, [isPlaying]);
 
@@ -150,7 +140,6 @@ export default function AffirmationSpirals({
       { translateY: translateYA.value },
       { scale: breathScale.value },
     ],
-    textShadowRadius: glowRadius.value,
   }));
 
   const styleB = useAnimatedStyle(() => ({
@@ -159,7 +148,6 @@ export default function AffirmationSpirals({
       { translateY: translateYB.value },
       { scale: breathScale.value },
     ],
-    textShadowRadius: glowRadius.value,
   }));
 
   if (!isPlaying || affirmations.length === 0) return null;
@@ -207,6 +195,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     textAlign: 'center',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    // textShadowRadius is kept as a static value here rather than animated
+    // because Reanimated's useAnimatedStyle does not support textShadowRadius
+    // as an animatable property on the new architecture (Fabric).
+    textShadowRadius: GLOW_PULSE_MAX,
   },
 });

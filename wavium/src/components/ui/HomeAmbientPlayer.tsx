@@ -45,17 +45,18 @@ export default function HomeAmbientPlayer({ isActive }: HomeAmbientPlayerProps) 
     }, FADE_STEP_MS);
   };
 
-  // Mount: load and fade in
+  // Mount: load and fade in.
+  // IMPORTANT: Do NOT call Audio.setAudioModeAsync here. HomeAmbientPlayer is
+  // always mounted in _layout.tsx, so calling setAudioModeAsync with
+  // staysActiveInBackground: false would stomp the global audio session config
+  // set by VoidContainer (staysActiveInBackground: true) whenever the player is
+  // active, killing background playback on iOS. Audio mode is managed globally
+  // by VoidContainer; we just create sounds within whatever session is active.
   useEffect(() => {
     let mounted = true;
 
     const loadAndPlay = async () => {
       try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-        });
-
         const url = getAmbientTrackUrl('ocean-waves');
         const { sound } = await Audio.Sound.createAsync(
           { uri: url },
@@ -66,7 +67,11 @@ export default function HomeAmbientPlayer({ isActive }: HomeAmbientPlayerProps) 
           return;
         }
         soundRef.current = sound;
-        fadeVolume(0, AMBIENT_VOLUME, FADE_IN_MS);
+        // Respect isActive at the moment the sound finishes loading.
+        // If the player was already opened before load completed, don't fade in.
+        if (isActive) {
+          fadeVolume(0, AMBIENT_VOLUME, FADE_IN_MS);
+        }
       } catch (e) {
         // Ambient audio is best-effort; silently fail
       }

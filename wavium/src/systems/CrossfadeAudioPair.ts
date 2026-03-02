@@ -87,16 +87,34 @@ export class CrossfadeAudioPair {
   private _attachStatusUpdate(sound: Audio.Sound, isA: boolean): void {
     sound.setOnPlaybackStatusUpdate((status) => {
       if (!status.isLoaded) return;
-      const { durationMillis, positionMillis, isPlaying } = status;
+
+      // Only act on the currently active sound
+      const amActive = isA ? this.activeIsA : !this.activeIsA;
+      if (!amActive) return;
+
+      if (this.crossfading) return;
+
+      const { durationMillis, positionMillis, isPlaying, didJustFinish } = status;
+
+      // Case 1: Audio finished before the crossfade window caught it (short audio,
+      // or status polling missed the window). Restart immediately as a hard loop.
+      if (didJustFinish) {
+        this._startCrossfade();
+        return;
+      }
+
       if (!durationMillis || !isPlaying) return;
 
+      // Case 2: Near the end — trigger crossfade for a seamless overlap.
+      // Use a dynamic trigger: at least 10% of the track duration but no more
+      // than CROSSFADE_TRIGGER_MS, so short clips still get a crossfade window.
+      const dynamicTrigger = Math.min(
+        CROSSFADE_TRIGGER_MS,
+        Math.max(500, durationMillis * 0.10)
+      );
       const remaining = durationMillis - positionMillis;
-      if (remaining <= CROSSFADE_TRIGGER_MS && !this.crossfading) {
-        // Only trigger if this is the active sound
-        const amActive = isA ? this.activeIsA : !this.activeIsA;
-        if (amActive) {
-          this._startCrossfade();
-        }
+      if (remaining <= dynamicTrigger) {
+        this._startCrossfade();
       }
     });
   }
@@ -107,11 +125,18 @@ export class CrossfadeAudioPair {
 
     const inactiveRef = this.activeIsA ? 'B' : 'A';
 
+    // Capture the currently active sound BEFORE we reassign any slots.
+    // This is critical: we must hold a direct reference to the outgoing sound
+    // instance so the crossfade interval can fade it out even after the slot
+    // (this.soundA / this.soundB) is overwritten with the incoming sound.
+    const outgoingSound = this.activeIsA ? this.soundA : this.soundB;
+
     // Load inactive sound (same URI, fresh start)
     try {
-      const inactiveSound = this.activeIsA ? this.soundB : this.soundA;
-      if (inactiveSound) {
-        await inactiveSound.unloadAsync().catch(() => {});
+      // Unload the slot we're about to reuse (which is the INACTIVE slot, not outgoing)
+      const slotToReplace = inactiveRef === 'B' ? this.soundB : this.soundA;
+      if (slotToReplace) {
+        await slotToReplace.unloadAsync().catch(() => {});
       }
 
       const { sound: newSound } = await Audio.Sound.createAsync(
@@ -127,12 +152,15 @@ export class CrossfadeAudioPair {
         this._attachStatusUpdate(newSound, true);
       }
 
-      // Crossfade: active fades out, inactive fades in
+      // Crossfade: outgoing fades out, incoming (newSound) fades in.
+      // We use the captured outgoingSound reference (pre-slot-reassignment) and
+      // the freshly created newSound. This avoids the stale-reference bug where
+      // both variables pointed to the same instance after slot reassignment.
       const steps = CROSSFADE_DURATION_MS / CROSSFADE_STEP_MS;
       let step = 0;
 
-      const activeSound = this.activeIsA ? this.soundA : this.soundB;
-      const incomingSound = inactiveRef === 'B' ? this.soundB : this.soundA;
+      const activeSound = outgoingSound;    // outgoing — captured before reassignment
+      const incomingSound = newSound;        // incoming — the brand-new sound instance
 
       this._clearCrossfadeInterval();
       this.crossfadeInterval = setInterval(async () => {

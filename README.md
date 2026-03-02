@@ -37,7 +37,7 @@
 - **Groq (Llama 3.1 70B)** — AI affirmation generation
 - **edge-tts** — Free text-to-speech (300+ voices)
 - **FFmpeg** — Audio mixing and ambient track generation
-- **Supabase** — Database + Auth (planned)
+- **Supabase** — Authentication (email/password, session persistence)
 - **Cloudflare R2** — Audio file storage (planned)
 
 ## Project Structure
@@ -54,6 +54,7 @@ wavium/
 │   └── requirements.txt
 ├── wavium/                     # Expo React Native app
 │   ├── app/
+│   │   ├── (auth)/             # Auth screens (sign-in, sign-up, forgot-password)
 │   │   ├── (onboarding)/       # Ceremonial flow (breath, intention, mindi-birth)
 │   │   ├── (main)/             # Main tabs (home, tracks, create, script)
 │   │   └── player/             # THE VOID player
@@ -63,8 +64,9 @@ wavium/
 │       │   ├── void/           # Player experience (nebula, star field, parallax, controls, affirmation spirals)
 │       │   ├── ui/             # Shared UI (glassmorphic cards, streak card, time-shifting background, haptic buttons)
 │       │   └── ceremony/       # Onboarding ceremony components
+│       ├── lib/                # Supabase client config
 │       ├── services/           # API client + speech service
-│       ├── stores/             # Zustand stores (mindi state, theme)
+│       ├── stores/             # Zustand stores (auth, mindi state, theme)
 │       ├── systems/            # Audio, haptic, and offline systems
 │       └── theme/              # Design system (typography, spacing)
 ├── WAVIUM-PRD.md               # Product requirements document
@@ -109,7 +111,7 @@ npx expo start
 
 ## Ambient Tracks
 
-Five generated ambient tracks served from the backend:
+Ten ambient tracks served from the backend (all 5min/128kbps):
 
 | Track | Vibe |
 |-------|------|
@@ -118,6 +120,11 @@ Five generated ambient tracks served from the backend:
 | Deep Focus | Binaural, concentration |
 | Cosmic Drift | Spacey, meditative |
 | Lofi Chill | Lo-fi hip-hop, relaxed |
+| Lofi Dream | Dreamy lo-fi, soft |
+| Lofi Jazz | Jazz-infused lo-fi |
+| Forest Dawn | Birds, morning forest |
+| Night Drive | Synthwave, nocturnal |
+| Zen Garden | Peaceful, eastern |
 
 ## Environment Variables
 
@@ -127,15 +134,12 @@ ENVIRONMENT=development
 GROQ_API_KEY=your_groq_key
 ```
 
-Future (when Supabase + R2 are wired up):
+### Mobile App (`wavium/.env`)
 ```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
-R2_ENDPOINT=your_r2_endpoint
-R2_ACCESS_KEY=your_r2_access_key
-R2_SECRET_KEY=your_r2_secret_key
-R2_BUCKET=wavium-audio
-R2_PUBLIC_URL=your_r2_public_url
+EXPO_PUBLIC_GROQ_API_KEY=your_groq_key
+EXPO_PUBLIC_API_URL=http://localhost:8000
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ## Mindi Evolution Paths
@@ -167,7 +171,10 @@ R2_PUBLIC_URL=your_r2_public_url
 - [x] Text-to-speech via edge-tts (300+ voices)
 - [x] FFmpeg subliminal mixing (voice under ambient)
 - [x] Two-stream architecture (independent background + voice with real-time volume)
-- [x] 5 ambient background tracks
+- [x] CrossfadeAudioPair — seamless looping with 3s crossfade
+- [x] 5 selectable TTS voices (Ava, Emma, Andrew, Sonia, Brian)
+- [x] 10 ambient background tracks (3 lofi, 4 ambient, 3 nature)
+- [x] Home ambient music player
 - [x] Frontend API service wired to backend
 - [ ] User audio uploads
 - [ ] Offline downloads
@@ -175,7 +182,10 @@ R2_PUBLIC_URL=your_r2_public_url
 ### Mindi
 - [x] Skia-rendered character (renderer, eyes, glow, particles)
 - [x] Speech bubble system
-- [ ] Full 6 animation states
+- [x] Idle breathing animation
+- [x] Audio-reactive glow pulsing
+- [x] Eye touch tracking
+- [x] Per-screen entrance animations
 - [ ] 5 evolution stages
 - [ ] 10 transformation paths
 
@@ -183,10 +193,31 @@ R2_PUBLIC_URL=your_r2_public_url
 - [x] Nebula renderer
 - [x] Star field (memoized, no flickering)
 - [x] Gyroscope parallax layers
-- [x] Player controls
-- [x] Affirmation spiral cycling
-- [x] Progress bar with proper clamping
+- [x] Auto-hide controls (tap to reveal)
+- [x] One-at-a-time affirmation display with glow
+- [x] Glassmorphic player controls
+- [x] Minimal gold gradient progress bar
+- [x] Mood tint per ambient track
+- [x] Shooting stars + vignette
+- [x] Session celebration on completion
 - [x] Audio position sync
+
+### Authentication
+- [x] Supabase email/password auth (sign up, sign in, forgot password)
+- [x] Session persistence across app restarts (AsyncStorage)
+- [x] Three-state route guard (auth -> onboarding -> main)
+- [x] Logout with confirmation
+- [x] userName stored in Supabase user_metadata
+
+### UI/UX Polish
+- [x] Gold gradient palette (replaces flat orange)
+- [x] Custom typography (Cinzel, Cormorant Garamond, Raleway)
+- [x] Real glassmorphism (backdrop blur + layered depth)
+- [x] Breathing/glowing CTA buttons
+- [x] Staggered entrance animations on all screens
+- [x] Floating glass tab bar
+- [x] Micro-interactions on all touch targets
+- [x] Consistent spacing system
 
 ### Engagement
 - [x] Daily streak system with tier badges
