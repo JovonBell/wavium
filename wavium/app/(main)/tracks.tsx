@@ -26,7 +26,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '../../src/stores/useThemeStore';
-import { useMindiStore, SoundTrack, SOUND_TRACKS } from '../../src/stores/useMindiStore';
+import { useMindiStore, SoundTrack, SOUND_TRACKS, VoiceId, VOICES } from '../../src/stores/useMindiStore';
 import { GlassmorphicCard, HapticButton, GlowText, LoadingOverlay } from '../../src/components/ui';
 import { typography } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
@@ -63,11 +63,12 @@ const TRACK_ICONS: Record<SoundTrack, string> = {
 export default function TracksScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useThemeStore();
-  const { creation, setSelectedTrack, saveSubliminal } = useMindiStore();
+  const { creation, setSelectedTrack, setSelectedVoice, saveSubliminal } = useMindiStore();
 
   const [selectedTrackId, setSelectedTrackId] = useState<SoundTrack | null>(
     creation.selectedTrack
   );
+  const [selectedVoiceId, setSelectedVoiceIdLocal] = useState<VoiceId | null>(creation.selectedVoice);
   const [isCreating, setIsCreating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState('');
@@ -135,13 +136,19 @@ export default function TracksScreen() {
     }
   };
 
+  const handleSelectVoice = (voiceId: VoiceId) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedVoiceIdLocal(voiceId);
+    setSelectedVoice(voiceId);
+  };
+
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
   };
 
   const handleCreateSubliminal = async () => {
-    if (!selectedTrackId) return;
+    if (!selectedTrackId || !selectedVoiceId) return;
     if (!creation.intention || !creation.affirmations?.length) {
       router.replace('/(main)/create');
       return;
@@ -152,9 +159,8 @@ export default function TracksScreen() {
     setGenerationProgress(10);
     setGenerationMessage('Generating your subliminal audio...');
 
-    // Get the voice for the selected track
-    const trackConfig = SOUND_TRACKS[selectedTrackId];
-    const voice = trackConfig.voice || 'jenny';
+    // Use the independently selected voice
+    const voice = selectedVoiceId || 'ava';
 
     try {
       setGenerationProgress(30);
@@ -234,10 +240,107 @@ export default function TracksScreen() {
         {/* Header */}
         <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.header}>
           <GlowText variant="h2" glowIntensity={0.4}>
-            Choose Your Sound
+            Personalize Your Experience
           </GlowText>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Select the backdrop for your subliminal experience
+            Choose your voice and soundtrack
+          </Text>
+        </Animated.View>
+
+        {/* Voice picker section */}
+        <Animated.View entering={FadeInDown.delay(150).duration(500)} style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            Choose Your Voice
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+            Who whispers your affirmations?
+          </Text>
+        </Animated.View>
+
+        <View style={styles.voicesSection}>
+          {(Object.keys(VOICES) as VoiceId[]).map((voiceId, index) => {
+            const voice = VOICES[voiceId];
+            const isSelected = selectedVoiceId === voiceId;
+            const iconName = (voice.gender === 'female' ? 'woman' : 'man') as keyof typeof Ionicons.glyphMap;
+
+            return (
+              <Animated.View
+                key={voiceId}
+                entering={FadeInDown.delay(200 + index * 80).duration(400)}
+              >
+                <TouchableOpacity
+                  onPress={() => handleSelectVoice(voiceId)}
+                  activeOpacity={0.8}
+                >
+                  <GlassmorphicCard
+                    style={StyleSheet.flatten([
+                      styles.voiceCard,
+                      isSelected && {
+                        borderWidth: 2,
+                        borderColor: colors.primary,
+                      },
+                    ])}
+                  >
+                    <View style={styles.voiceContent}>
+                      <View
+                        style={[
+                          styles.voiceIcon,
+                          {
+                            backgroundColor: isSelected
+                              ? colors.primary + '30'
+                              : colors.surface,
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={iconName}
+                          size={22}
+                          color={isSelected ? colors.primary : colors.textSecondary}
+                        />
+                      </View>
+                      <View style={styles.voiceInfo}>
+                        <Text
+                          style={[
+                            styles.voiceName,
+                            { color: colors.textPrimary },
+                            isSelected && { color: colors.primary },
+                          ]}
+                        >
+                          {voice.name}
+                        </Text>
+                        <Text style={[styles.voiceDescription, { color: colors.textSecondary }]}>
+                          {voice.description}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.radioOuter,
+                          {
+                            borderColor: isSelected ? colors.primary : colors.textMuted,
+                          },
+                        ]}
+                      >
+                        {isSelected && (
+                          <View
+                            style={[styles.radioInner, { backgroundColor: colors.primary }]}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  </GlassmorphicCard>
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
+        </View>
+
+        {/* Track section header */}
+        <Animated.View entering={FadeInDown.delay(600).duration(500)} style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            Choose Your Sound
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+            Select the backdrop for your subliminal
           </Text>
         </Animated.View>
 
@@ -345,7 +448,7 @@ export default function TracksScreen() {
             variant="primary"
             size="large"
             fullWidth
-            disabled={!selectedTrackId || isCreating}
+            disabled={!selectedTrackId || !selectedVoiceId || isCreating}
           >
             <View style={styles.buttonContent}>
               <Ionicons name="sparkles" size={20} color="#fff" />
@@ -397,6 +500,48 @@ const styles = StyleSheet.create({
     ...typography.body,
     textAlign: 'center',
     marginTop: spacing.xs,
+  },
+  sectionHeader: {
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    marginBottom: 2,
+  },
+  sectionSubtitle: {
+    ...typography.bodySmall,
+  },
+  voicesSection: {
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  voiceCard: {
+    padding: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  voiceContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 56,
+  },
+  voiceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  voiceInfo: {
+    flex: 1,
+  },
+  voiceName: {
+    ...typography.body,
+    fontWeight: '600',
+    marginBottom: 1,
+  },
+  voiceDescription: {
+    ...typography.bodySmall,
   },
   tracksSection: {
     gap: spacing.md,

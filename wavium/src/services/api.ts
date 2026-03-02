@@ -17,6 +17,7 @@ export interface SubliminalAudioResponse {
 export interface VoiceInfo {
   id: string;
   name: string;
+  gender: string;
   description: string;
 }
 
@@ -25,7 +26,7 @@ export interface VoiceInfo {
  */
 export async function generateSubliminalAudio(
   affirmations: string[],
-  voice: string = 'jenny',
+  voice: string = 'ava',
   track: string = 'ocean-waves',
   durationSecs: number = 300
 ): Promise<{ audioUrl: string; error?: string }> {
@@ -69,7 +70,7 @@ export async function generateSubliminalAudio(
  */
 export async function generateVoiceAudio(
   affirmations: string[],
-  voice: string = 'jenny'
+  voice: string = 'ava'
 ): Promise<{ audioUrl: string; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-audio`, {
