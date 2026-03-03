@@ -184,29 +184,27 @@ export default function IntentionAbsorber({
 
   // Handle word absorption complete
   const handleWordComplete = useCallback(() => {
-    setWordsComplete(prev => {
-      const newCount = prev + 1;
+    setWordsComplete(prev => prev + 1);
+  }, []);
 
-      if (newCount === words.length) {
-        // All words absorbed
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setCurrentState('happy');
+  // React to all words being absorbed — outside of setState updater
+  useEffect(() => {
+    if (wordsComplete > 0 && wordsComplete === words.length) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setCurrentState('happy');
 
-        // Show completion message
+      // Show completion message
+      setTimeout(() => {
+        setSpeechMessage("I love this intention!");
+        setShowSpeech(true);
+
+        // Complete after showing message
         setTimeout(() => {
-          setSpeechMessage("I love this intention!");
-          setShowSpeech(true);
-
-          // Complete after showing message
-          setTimeout(() => {
-            onComplete?.(intention);
-          }, 2000);
-        }, 500);
-      }
-
-      return newCount;
-    });
-  }, [words.length, intention, onComplete]);
+          onComplete?.(intention);
+        }, 2000);
+      }, 500);
+    }
+  }, [wordsComplete, words.length, intention, onComplete]);
 
   const inputContainerStyle = useAnimatedStyle(() => ({
     opacity: inputOpacity.value,
