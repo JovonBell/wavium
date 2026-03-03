@@ -27,25 +27,26 @@ async def delete_account(request: DeleteAccountRequest, authorization: str = Hea
     try:
         token = authorization.replace("Bearer ", "")
 
-        # Use service role key to delete the user from Supabase Auth
-        if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
+        if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
             raise HTTPException(
                 status_code=503,
-                detail="Account deletion service not configured",
+                detail="Account deletion service not configured. Please contact support.",
             )
 
-        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-
-        # Verify the token belongs to the user requesting deletion
-        user_response = supabase.auth.get_user(token)
+        # Verify the token with anon key (read-only)
+        anon_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+        user_response = anon_client.auth.get_user(token)
         if not user_response or user_response.user.id != request.user_id:
             raise HTTPException(status_code=403, detail="Unauthorized")
+
+        # Delete using service_role key (admin privileges)
+        admin_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
         # Delete user data from any custom tables first
         # (Add table-specific deletions here as the schema grows)
 
-        # Delete the auth user (requires service_role key in SUPABASE_KEY)
-        supabase.auth.admin.delete_user(request.user_id)
+        # Delete the auth user
+        admin_client.auth.admin.delete_user(request.user_id)
 
         logger.info(f"Account deleted: {request.user_id}")
         return {"status": "deleted"}

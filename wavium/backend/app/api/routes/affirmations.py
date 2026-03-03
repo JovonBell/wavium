@@ -3,10 +3,15 @@ WAVIUM API - Affirmations Route
 Generate personalized affirmations from user intentions via Groq LLM
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import logging
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 from groq import Groq
 from app.core.config import settings
@@ -50,7 +55,8 @@ class AffirmationsResponse(BaseModel):
 
 
 @router.post("/", response_model=AffirmationsResponse)
-async def generate_affirmations(request: AffirmationsRequest):
+@limiter.limit("10/minute")
+async def generate_affirmations(http_request: Request, request: AffirmationsRequest):
     """Generate personalized affirmations from a user intention"""
     try:
         client = Groq(api_key=settings.GROQ_API_KEY)

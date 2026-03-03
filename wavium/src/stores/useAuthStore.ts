@@ -8,7 +8,7 @@ import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+  process.env.EXPO_PUBLIC_API_URL || 'https://wavium-production.up.railway.app';
 
 interface AuthState {
   session: Session | null;

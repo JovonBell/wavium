@@ -4,15 +4,18 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeStore } from '../src/stores/useThemeStore';
 import { useMindiStore } from '../src/stores/useMindiStore';
 import { useAuthStore } from '../src/stores/useAuthStore';
 import { ErrorBoundary } from '../src/components/ui';
+import { AIConsentModal } from '../src/components/AIConsentModal';
 
 // Keep splash screen visible while loading
 SplashScreen.preventAutoHideAsync();
@@ -20,6 +23,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [appReady, setAppReady] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [aiConsentGiven, setAiConsentGiven] = useState<boolean | null>(null);
   const updateTimeOfDay = useThemeStore((state) => state.updateTimeOfDay);
   const userId = useMindiStore((state) => state.userId);
   const session = useAuthStore((state) => state.session);
@@ -68,6 +72,13 @@ export default function RootLayout() {
     prepare();
   }, []);
 
+  // Check AI consent status on mount
+  useEffect(() => {
+    AsyncStorage.getItem('wavium-ai-consent').then((value) => {
+      setAiConsentGiven(value === 'true');
+    });
+  }, []);
+
   // Route guard: Three-state routing based on auth + onboarding status
   useEffect(() => {
     if (!isHydrated || !appReady || !initialized) return;
@@ -94,6 +105,20 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
+      <AIConsentModal
+        visible={aiConsentGiven === false && initialized && appReady}
+        onAccept={() => {
+          AsyncStorage.setItem('wavium-ai-consent', 'true');
+          setAiConsentGiven(true);
+        }}
+        onDecline={() => {
+          Alert.alert(
+            'AI Consent Required',
+            'Wavium uses AI to generate personalized affirmations. The app cannot function without processing your data through AI services. Please accept to continue.',
+            [{ text: 'OK' }]
+          );
+        }}
+      />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <StatusBar style="light" />

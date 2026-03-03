@@ -3,10 +3,12 @@ WAVIUM API - Mindi Evolution Route
 Track Mindi's growth and transformation
 """
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional, Dict
 from datetime import datetime
+
+from app.api.auth import get_authenticated_user
 
 router = APIRouter()
 
@@ -25,7 +27,7 @@ class MindiState(BaseModel):
 
 @router.get("/state", response_model=MindiState)
 async def get_mindi_state(
-    user_id: str = Header(..., alias="X-User-ID")
+    user_id: str = Depends(get_authenticated_user)
 ):
     """Get current Mindi state"""
     # TODO: Implement with Supabase
@@ -51,7 +53,7 @@ class EvolutionEvent(BaseModel):
 
 @router.get("/history")
 async def get_evolution_history(
-    user_id: str = Header(..., alias="X-User-ID"),
+    user_id: str = Depends(get_authenticated_user),
     limit: int = 10
 ):
     """Get Mindi's evolution history"""

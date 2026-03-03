@@ -14,6 +14,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -196,6 +197,24 @@ export default function SignUpScreen() {
                 >
                   {loading ? 'Creating account...' : 'Create Account'}
                 </HapticButton>
+
+                <Text style={[styles.legalText, { color: colors.textMuted }]}>
+                  By creating an account, you agree to our{' '}
+                  <Text
+                    style={{ color: colors.primary }}
+                    onPress={() => Linking.openURL('https://wavium-production.up.railway.app/terms')}
+                  >
+                    Terms of Service
+                  </Text>{' '}
+                  and{' '}
+                  <Text
+                    style={{ color: colors.primary }}
+                    onPress={() => Linking.openURL('https://wavium-production.up.railway.app/privacy')}
+                  >
+                    Privacy Policy
+                  </Text>
+                  .
+                </Text>
               </GlassmorphicCard>
             </Animated.View>
 
@@ -280,5 +299,10 @@ const styles = StyleSheet.create({
   linkText: {
     ...typography.body,
     textAlign: 'center',
+  },
+  legalText: {
+    ...typography.caption,
+    textAlign: 'center' as const,
+    lineHeight: 20,
   },
 });

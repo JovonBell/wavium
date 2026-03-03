@@ -3,17 +3,11 @@
  * Backend communication layer
  */
 
-import { Platform } from 'react-native';
+// API Configuration — single source of truth for backend URL
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'https://wavium-production.up.railway.app';
 
-// API Configuration
-// Use your machine's IP for physical devices to connect
-const DEV_MACHINE_IP = '172.16.225.29';
-
-const API_BASE_URL = __DEV__
-  ? `http://${DEV_MACHINE_IP}:8000`
-  : 'https://api.wavium.app'; // Production URL
-
-const WS_BASE_URL = API_BASE_URL?.replace('http', 'ws');
+const WS_BASE_URL = API_BASE_URL.replace('http', 'ws');
 
 // Request timeout
 const TIMEOUT = 30000;
@@ -40,8 +34,8 @@ class WaviumApiClient {
   private userId: string | null = null;
 
   constructor() {
-    this.baseUrl = API_BASE_URL || 'http://localhost:8000';
-    this.wsUrl = WS_BASE_URL || 'ws://localhost:8000';
+    this.baseUrl = API_BASE_URL;
+    this.wsUrl = WS_BASE_URL;
   }
 
   setUserId(userId: string) {

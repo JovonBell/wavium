@@ -18,8 +18,8 @@ class Settings(BaseSettings):
 
     # CORS — restrict in production, allow all in development
     CORS_ORIGINS: List[str] = Field(
-        default=["*"],
-        description="Set to specific origins in production (e.g. ['https://wavium.app'])"
+        default=["https://wavium-production.up.railway.app"],
+        description="Allowed origins for CORS in production"
     )
 
     # Groq (LLM) - Required, app fails at startup if missing
@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Optional for Phase 1 - Required in Phase 2
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
 
     # Cloudflare R2 (S3-compatible)
     R2_ENDPOINT: str = ""

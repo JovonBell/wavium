@@ -4,7 +4,7 @@
  */
 
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+  process.env.EXPO_PUBLIC_API_URL || 'https://wavium-production.up.railway.app';
 
 export interface GroqResponse {
   affirmations: string[];

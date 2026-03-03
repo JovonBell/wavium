@@ -10,6 +10,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import logging
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 from app.api.routes import account, affirmations, intentions, generation, library, sessions, evolution
 from app.core.config import settings
 
@@ -47,19 +51,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware — restrict in production
-_cors_origins = (
-    settings.CORS_ORIGINS
-    if settings.ENVIRONMENT != "development"
-    else ["*"]
-)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS middleware — restrict in production, permissive in development
+if settings.ENVIRONMENT == "development":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-User-ID"],
+    )
 
 
 # Health check
@@ -79,6 +92,14 @@ async def privacy_policy():
     """Serve privacy policy page"""
     policy_path = Path(__file__).parent / "static" / "privacy-policy.html"
     return FileResponse(policy_path, media_type="text/html")
+
+
+# Terms of service (served as static HTML)
+@app.get("/terms")
+async def terms_of_service():
+    """Serve terms of service page"""
+    terms_path = Path(__file__).parent / "static" / "terms-of-service.html"
+    return FileResponse(terms_path, media_type="text/html")
 
 
 # Include routers
