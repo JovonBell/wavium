@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { VoidContainer } from '../../src/components/void';
-import { useMindiStore, Subliminal } from '../../src/stores/useMindiStore';
+import { useMindiStore } from '../../src/stores/useMindiStore';
 import { typography } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 
@@ -37,24 +37,15 @@ export default function PlayerScreen() {
   // Get the subliminal from store
   const subliminal = useMemo(() => getSubliminal(id || ''), [id, getSubliminal]);
 
-  // Fallback for demo
-  const displaySubliminal: Subliminal = subliminal || {
-    id: id || '1',
-    title: 'Your Subliminal',
-    intention: 'Transform your mind',
-    affirmations: [
-      'I am confident and capable',
-      'I believe in myself completely',
-      'I radiate self-assurance',
-      'My confidence grows stronger every day',
-      'I am worthy of success and happiness',
-    ],
-    track: 'ocean-waves',
-    audioUrl: '',
-    createdAt: new Date().toISOString(),
-  };
+  // Redirect to home if subliminal not found (invalid deep link or deleted item)
+  useEffect(() => {
+    if (!subliminal) {
+      router.replace('/(main)/home');
+    }
+  }, [subliminal]);
 
   useEffect(() => {
+    if (!subliminal) return;
     setCurrentState('peaceful');
     StatusBar.setHidden(true, 'fade');
 
@@ -62,7 +53,7 @@ export default function PlayerScreen() {
       setCurrentState('idle');
       StatusBar.setHidden(false, 'fade');
     };
-  }, []);
+  }, [subliminal]);
 
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -74,15 +65,19 @@ export default function PlayerScreen() {
     setShowScript(!showScript);
   };
 
+  if (!subliminal) {
+    return <View style={styles.container} />;
+  }
+
   return (
     <View style={styles.container}>
       {/* The Void - Immersive player */}
       <VoidContainer
-        audioUrl={displaySubliminal.audioUrl}
-        affirmations={displaySubliminal.affirmations}
-        title={displaySubliminal.title}
+        audioUrl={subliminal.audioUrl}
+        affirmations={subliminal.affirmations}
+        title={subliminal.title}
         duration={1800} // 30 minutes default
-        track={displaySubliminal.track}
+        track={subliminal.track}
         onClose={handleClose}
         onComplete={handleClose}
         onToggleScript={handleToggleScript}
@@ -113,7 +108,7 @@ export default function PlayerScreen() {
               {/* Intention */}
               <View style={styles.intentionSection}>
                 <Text style={styles.intentionLabel}>Your intention</Text>
-                <Text style={styles.intentionText}>"{displaySubliminal.intention}"</Text>
+                <Text style={styles.intentionText}>"{subliminal.intention}"</Text>
               </View>
 
               {/* Affirmations list */}
@@ -121,7 +116,7 @@ export default function PlayerScreen() {
                 style={styles.scriptScroll}
                 showsVerticalScrollIndicator={false}
               >
-                {displaySubliminal.affirmations.map((affirmation, index) => (
+                {subliminal.affirmations.map((affirmation, index) => (
                   <Animated.View
                     key={index}
                     entering={FadeInUp.delay(index * 50).duration(300)}
