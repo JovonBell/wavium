@@ -3,6 +3,7 @@ Groq AI Service for generating affirmations
 """
 
 import os
+import re
 from groq import Groq
 from dotenv import load_dotenv
 
@@ -60,8 +61,6 @@ async def generate_affirmations(intention: str, user_name: str = "") -> list[str
     # Clean up any numbering that might have snuck in
     cleaned = []
     for aff in affirmations:
-        # Remove leading numbers like "1.", "1)", etc.
-        import re
         cleaned_aff = re.sub(r'^\d+[\.\)]\s*', '', aff)
         if cleaned_aff:
             cleaned.append(cleaned_aff)

@@ -168,29 +168,28 @@ export default function CreateScreen() {
         </Animated.View>
 
         {/* Input */}
-        <Animated.View
-          entering={FadeInDown.delay(400).duration(500)}
-          style={[styles.inputSection, inputAnimatedStyle]}
-        >
-          <GlassmorphicCard style={styles.inputCard}>
-            <TextInput
-              ref={inputRef}
-              style={[styles.input, { color: colors.textPrimary }]}
-              placeholder="e.g., I want to improve my jump shot..."
-              placeholderTextColor={colors.textMuted}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={300}
-              textAlignVertical="top"
-              accessibilityLabel="Enter your intention"
-            />
-            <View style={styles.inputFooter}>
-              <Text style={[styles.charCount, { color: colors.textMuted }]}>
-                {inputText.length}/300
-              </Text>
-            </View>
-          </GlassmorphicCard>
+        <Animated.View entering={FadeInDown.delay(400).duration(500)}>
+          <Animated.View style={[styles.inputSection, inputAnimatedStyle]}>
+            <GlassmorphicCard style={styles.inputCard}>
+              <TextInput
+                ref={inputRef}
+                style={[styles.input, { color: colors.textPrimary }]}
+                placeholder="e.g., I want to improve my jump shot..."
+                placeholderTextColor={colors.textMuted}
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={300}
+                textAlignVertical="top"
+                accessibilityLabel="Enter your intention"
+              />
+              <View style={styles.inputFooter}>
+                <Text style={[styles.charCount, { color: colors.textMuted }]}>
+                  {inputText.length}/300
+                </Text>
+              </View>
+            </GlassmorphicCard>
+          </Animated.View>
         </Animated.View>
 
         {/* Example intentions */}

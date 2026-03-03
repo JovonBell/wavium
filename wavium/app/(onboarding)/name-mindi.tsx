@@ -3,7 +3,7 @@
  * User names their companion
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -19,6 +19,7 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore } from '../../src/stores/useMindiStore';
 import { useAuthStore } from '../../src/stores/useAuthStore';
@@ -38,6 +39,11 @@ export default function NameMindiScreen() {
   const [companionNameInput, setCompanionNameInput] = useState('Mindi');
   const [showSpeech, setShowSpeech] = useState(false);
   const [speechMessage, setSpeechMessage] = useState('');
+
+  // Prevent double-submit
+  const isCompletingRef = useRef(false);
+  // Store the user's display name to update Supabase after navigation
+  const savedUserNameRef = useRef('');
 
   // Animation values
   const contentOpacity = useSharedValue(0);
@@ -64,11 +70,17 @@ export default function NameMindiScreen() {
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Store the user's own name
+      // Store the user's own name in Zustand (local only)
       setUserName(trimmedUserName);
-      supabase.auth.updateUser({ data: { display_name: trimmedUserName } }).catch((err) => {
-        console.warn('Failed to update user metadata:', err);
-      });
+      // Save for deferred Supabase update (after onboarding completes)
+      savedUserNameRef.current = trimmedUserName;
+
+      // NOTE: We do NOT call supabase.auth.updateUser() here because it
+      // triggers onAuthStateChange, which creates a new session object
+      // reference, which would re-trigger the route guard in _layout.tsx.
+      // Since userId is still null at this point, the route guard would
+      // redirect back to /(onboarding), creating an infinite loop.
+      // The Supabase metadata update is deferred to after setUserId().
 
       // Transition to companion naming step
       setShowSpeech(false);
@@ -87,8 +99,14 @@ export default function NameMindiScreen() {
     }
 
     // Step 2: Save companion name and finish onboarding
+    if (isCompletingRef.current) return;
+    isCompletingRef.current = true;
+
     const trimmedName = companionNameInput.trim();
-    if (trimmedName.length === 0) return;
+    if (trimmedName.length === 0) {
+      isCompletingRef.current = false;
+      return;
+    }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -104,12 +122,25 @@ export default function NameMindiScreen() {
       setShowSpeech(true);
     }, 300);
 
-    // Wait a moment for the animation, then set userId with Supabase UUID
-    // The route guard in _layout.tsx will handle navigation when userId changes
+    // Complete onboarding: set userId FIRST (marks onboarding as done),
+    // then navigate directly, then update Supabase metadata in the background.
     setTimeout(() => {
-      const supabaseUserId = useAuthStore.getState().user?.id;
+      const authState = useAuthStore.getState();
+      const supabaseUserId = authState.session?.user?.id ?? authState.user?.id;
       if (supabaseUserId) {
+        // 1. Set userId synchronously in Zustand — this marks onboarding complete
         setUserId(supabaseUserId);
+
+        // 2. Navigate directly to home — don't rely on the route guard
+        router.replace('/(main)/home');
+
+        // 3. Now it's safe to update Supabase metadata (even if onAuthStateChange
+        //    fires, the route guard will see userId is set and won't redirect)
+        if (savedUserNameRef.current) {
+          supabase.auth.updateUser({ data: { display_name: savedUserNameRef.current } }).catch((err) => {
+            console.warn('Failed to update user metadata:', err);
+          });
+        }
       }
     }, 1500);
   };

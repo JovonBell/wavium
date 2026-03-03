@@ -13,7 +13,7 @@ export interface GroqResponse {
 
 export async function generateAffirmations(intention: string, userName?: string): Promise<GroqResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/affirmations/`, {
+    const response = await fetch(`${API_BASE_URL}/api/generate-affirmations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

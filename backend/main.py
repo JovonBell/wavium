@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+import httpx
 
 from services.groq_service import generate_affirmations
 from services.tts_service import generate_audio, generate_subliminal, get_available_voices, generate_voice_preview
@@ -25,10 +26,15 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 # Patch httpx to accept deprecated `proxies` kwarg (groq SDK compat)
 import httpx as _httpx
 _orig_client_init = _httpx.Client.__init__
+_orig_async_init = _httpx.AsyncClient.__init__
 def _patched_init(self, *args, **kwargs):
     kwargs.pop('proxies', None)
     _orig_client_init(self, *args, **kwargs)
+def _patched_async_init(self, *args, **kwargs):
+    kwargs.pop('proxies', None)
+    _orig_async_init(self, *args, **kwargs)
 _httpx.Client.__init__ = _patched_init
+_httpx.AsyncClient.__init__ = _patched_async_init
 
 app = FastAPI(
     title="Wavium API",
@@ -143,16 +149,16 @@ async def terms_of_service():
 
 @app.post("/api/generate-affirmations", response_model=GenerateAffirmationsResponse)
 @limiter.limit("10/minute")
-async def api_generate_affirmations(http_request: Request, request: GenerateAffirmationsRequest):
+async def api_generate_affirmations(request: Request, body: GenerateAffirmationsRequest):
     """Generate personalized affirmations based on user's intention"""
-    if not request.intention.strip():
+    if not body.intention.strip():
         raise HTTPException(status_code=400, detail="Intention cannot be empty")
 
     try:
-        affirmations = await generate_affirmations(request.intention, user_name=request.user_name)
+        affirmations = await generate_affirmations(body.intention, user_name=body.user_name)
         return GenerateAffirmationsResponse(
             affirmations=affirmations,
-            intention=request.intention
+            intention=body.intention
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate affirmations: {str(e)}")
@@ -231,6 +237,67 @@ async def api_get_voices():
     """Get available TTS voices"""
     voices = await get_available_voices()
     return [VoiceInfo(id=v["id"], name=v["name"], gender=v["gender"], description=v["description"]) for v in voices]
+
+
+class DeleteAccountRequest(BaseModel):
+    user_id: str
+
+
+@app.delete("/api/account/")
+async def api_delete_account(request: Request, body: DeleteAccountRequest):
+    """
+    Delete the authenticated user's account via Supabase Admin API.
+    Requires a valid Supabase access token in the Authorization header.
+    """
+    # Extract bearer token from Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+    access_token = auth_header[len("Bearer "):]
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    if not supabase_url or not service_role_key:
+        raise HTTPException(status_code=500, detail="Server configuration error: Supabase credentials not set")
+
+    # Verify the access token by fetching the user from Supabase
+    async with httpx.AsyncClient() as client:
+        verify_resp = await client.get(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "apikey": service_role_key,
+            },
+        )
+
+    if verify_resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired access token")
+
+    verified_user = verify_resp.json()
+    if verified_user.get("id") != body.user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: user_id does not match authenticated user")
+
+    # Delete the user via Supabase Admin API
+    async with httpx.AsyncClient() as client:
+        delete_resp = await client.delete(
+            f"{supabase_url}/auth/v1/admin/users/{body.user_id}",
+            headers={
+                "Authorization": f"Bearer {service_role_key}",
+                "apikey": service_role_key,
+            },
+        )
+
+    if delete_resp.status_code not in (200, 204):
+        detail = "Failed to delete account"
+        try:
+            error_body = delete_resp.json()
+            detail = error_body.get("msg") or error_body.get("message") or detail
+        except Exception:
+            pass
+        raise HTTPException(status_code=delete_resp.status_code, detail=detail)
+
+    return {"detail": "Account deleted successfully"}
 
 
 if __name__ == "__main__":

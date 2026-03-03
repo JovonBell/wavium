@@ -3,7 +3,7 @@
  * App-wide providers and navigation setup with Supabase auth
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, router } from 'expo-router';
@@ -28,6 +28,14 @@ export default function RootLayout() {
   const userId = useMindiStore((state) => state.userId);
   const session = useAuthStore((state) => state.session);
   const initialized = useAuthStore((state) => state.initialized);
+
+  // Track whether session exists as a boolean to avoid re-triggering the route
+  // guard on every session object reference change (e.g. from token refresh or
+  // supabase.auth.updateUser calls during onboarding).
+  const hasSession = !!session;
+  // Track whether the initial route has been set to prevent subsequent session
+  // reference changes from re-firing the guard and causing navigation loops.
+  const initialRouteSet = useRef(false);
 
   // Wait for Zustand store to hydrate from AsyncStorage
   useEffect(() => {
@@ -79,21 +87,47 @@ export default function RootLayout() {
     });
   }, []);
 
-  // Route guard: Three-state routing based on auth + onboarding status
+  // Route guard: Three-state routing based on auth + onboarding status.
+  //
+  // IMPORTANT: We depend on `hasSession` (boolean) instead of the `session`
+  // object itself. Supabase fires onAuthStateChange for token refreshes,
+  // updateUser() calls, etc., each producing a NEW session object reference.
+  // If we depended on the session object, every such event would re-trigger
+  // this effect and redirect away from onboarding (since userId is still null
+  // mid-onboarding), causing an infinite onboarding loop.
+  //
+  // The `onboardingRedirectDone` ref prevents repeated "go to onboarding"
+  // redirects while the user is mid-flow. It's reset on sign-out so a fresh
+  // sign-in correctly evaluates whether onboarding is needed.
   useEffect(() => {
     if (!isHydrated || !appReady || !initialized) return;
 
-    if (!session) {
-      // Not authenticated -> auth screens
+    const currentSession = useAuthStore.getState().session;
+
+    if (!currentSession) {
+      // Not authenticated -> auth screens.
+      // Reset the onboarding redirect flag so a fresh sign-in re-evaluates.
+      initialRouteSet.current = false;
       router.replace('/(auth)/sign-in');
     } else if (!userId) {
-      // Authenticated but hasn't completed onboarding -> onboarding
+      // Authenticated but hasn't completed onboarding -> onboarding.
+      // Only redirect ONCE. This prevents session reference changes (from
+      // updateUser, token refresh, etc.) from bouncing the user back to the
+      // start of onboarding mid-flow.
+      if (!initialRouteSet.current) {
+        initialRouteSet.current = true;
+        router.replace('/(onboarding)');
+      }
+    } else if (userId !== currentSession.user.id) {
+      // Different user signed in — clear old onboarding data and re-onboard
+      initialRouteSet.current = true;
+      useMindiStore.getState().resetOnboarding();
       router.replace('/(onboarding)');
     } else {
       // Fully set up -> main app
       router.replace('/(main)/home');
     }
-  }, [session, userId, isHydrated, appReady, initialized]);
+  }, [hasSession, userId, isHydrated, appReady, initialized]);
 
   // Wait for app ready, store hydration, AND auth initialization before rendering
   if (!appReady || !isHydrated || !initialized) {

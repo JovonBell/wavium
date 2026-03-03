@@ -116,7 +116,6 @@ export default function HomeScreen() {
           style: 'destructive',
           onPress: async () => {
             await useAuthStore.getState().signOut();
-            resetOnboarding();
           },
         },
       ]
