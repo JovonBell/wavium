@@ -4,16 +4,23 @@ FastAPI server for AI affirmation generation and subliminal audio mixing
 """
 
 import os
-from fastapi import FastAPI, HTTPException
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from services.groq_service import generate_affirmations
 from services.tts_service import generate_audio, generate_subliminal, get_available_voices, generate_voice_preview
 
 load_dotenv()
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # Patch httpx to accept deprecated `proxies` kwarg (groq SDK compat)
 import httpx as _httpx
@@ -29,14 +36,28 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS for React Native
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS — restrict in production, permissive in development
+if ENVIRONMENT == "development":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["https://wavium-production.up.railway.app"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-User-ID"],
+    )
 
 # Serve audio files
 AUDIO_DIR = os.path.join(os.path.dirname(__file__), "audio_output")
@@ -104,8 +125,25 @@ async def health_check():
     return {"status": "healthy"}
 
 
+# Privacy policy (served as static HTML)
+@app.get("/privacy")
+async def privacy_policy():
+    """Serve privacy policy page"""
+    policy_path = Path(__file__).parent / "static" / "privacy-policy.html"
+    return FileResponse(policy_path, media_type="text/html")
+
+
+# Terms of service (served as static HTML)
+@app.get("/terms")
+async def terms_of_service():
+    """Serve terms of service page"""
+    terms_path = Path(__file__).parent / "static" / "terms-of-service.html"
+    return FileResponse(terms_path, media_type="text/html")
+
+
 @app.post("/api/generate-affirmations", response_model=GenerateAffirmationsResponse)
-async def api_generate_affirmations(request: GenerateAffirmationsRequest):
+@limiter.limit("10/minute")
+async def api_generate_affirmations(http_request: Request, request: GenerateAffirmationsRequest):
     """Generate personalized affirmations based on user's intention"""
     if not request.intention.strip():
         raise HTTPException(status_code=400, detail="Intention cannot be empty")
