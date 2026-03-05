@@ -14,11 +14,15 @@
     },
     "ios": {
       "bundleIdentifier": "com.jovonbell.wavium",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": false,
       "infoPlist": {
         "NSMotionUsageDescription": "Wavium uses motion sensors to create immersive parallax effects during your listening experience.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio",
+          "audio"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -60,33 +64,50 @@
                   "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
                   "NSPrivacyCollectedDataTypeLinked": true,
                   "NSPrivacyCollectedDataTypeTracking": false,
-                  "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+                  "NSPrivacyCollectedDataTypePurposes": [
+                    "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+                  ]
                 },
                 {
                   "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
                   "NSPrivacyCollectedDataTypeLinked": true,
                   "NSPrivacyCollectedDataTypeTracking": false,
-                  "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+                  "NSPrivacyCollectedDataTypePurposes": [
+                    "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+                  ]
                 }
               ],
               "NSPrivacyAccessedAPITypes": [
                 {
                   "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
-                  "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+                  "NSPrivacyAccessedAPITypeReasons": [
+                    "C617.1"
+                  ]
                 },
                 {
                   "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
-                  "NSPrivacyAccessedAPITypeReasons": ["E174.1"]
+                  "NSPrivacyAccessedAPITypeReasons": [
+                    "E174.1"
+                  ]
                 },
                 {
                   "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-                  "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+                  "NSPrivacyAccessedAPITypeReasons": [
+                    "CA92.1"
+                  ]
                 }
               ]
             }
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f0c72ed2-f6fa-4be7-abc9-48296efcffcb"
+      }
+    },
+    "owner": "jovonbell"
   }
 }
