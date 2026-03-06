@@ -52,26 +52,14 @@ class VoiceSynthesizer:
         from TTS.api import TTS
         self.tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=True)
 
-    @modal.method()
-    def synthesize(self, text: str, reference_audio: bytes) -> bytes:
-        """
-        Synthesize text in a cloned voice.
-
-        Args:
-            text: The text to speak
-            reference_audio: WAV bytes of the user's voice sample
-
-        Returns:
-            WAV bytes of the synthesized speech
-        """
+    def _synthesize_internal(self, text: str, reference_audio: bytes) -> bytes:
+        """Internal synthesis — no Modal decorator so it's always a local call."""
         import os
 
-        # Write reference audio to temp file (XTTS needs a file path)
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as ref_file:
             ref_file.write(reference_audio)
             ref_path = ref_file.name
 
-        # Write output to temp file
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as out_file:
             out_path = out_file.name
 
@@ -86,7 +74,6 @@ class VoiceSynthesizer:
             with open(out_path, "rb") as f:
                 return f.read()
         finally:
-            # Clean up temp files
             try:
                 os.remove(ref_path)
             except OSError:
@@ -96,8 +83,7 @@ class VoiceSynthesizer:
             except OSError:
                 pass
 
-    @modal.method()
-    def synthesize_lines(self, lines: list[str], reference_audio: bytes) -> bytes:
+    def _synthesize_lines_internal(self, lines: list[str], reference_audio: bytes) -> bytes:
         """
         Synthesize multiple lines individually then concatenate.
         Much faster than one giant text block — each line is ~1-2 sec GPU.
@@ -224,10 +210,10 @@ class VoiceSynthesizer:
             ref_audio = base64.b64decode(request["reference_audio_b64"])
 
             if "lines" in request and request["lines"]:
-                # Call directly (same container — self.tts is loaded)
-                audio_bytes = self.synthesize_lines(request["lines"], ref_audio)
+                # Call internal methods directly (no @modal.method decorator to interfere)
+                audio_bytes = self._synthesize_lines_internal(request["lines"], ref_audio)
             else:
-                audio_bytes = self.synthesize(request["text"], ref_audio)
+                audio_bytes = self._synthesize_internal(request["text"], ref_audio)
 
             return {"audio_b64": base64.b64encode(audio_bytes).decode()}
         except Exception as e:

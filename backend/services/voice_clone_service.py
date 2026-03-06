@@ -161,7 +161,16 @@ async def synthesize_cloned_voice(
     try:
         async with httpx.AsyncClient(timeout=180.0) as client:
             response = await client.post(modal_url, json=payload)
-            response.raise_for_status()
+            if response.status_code != 200:
+                # Read the actual error from Modal instead of generic raise_for_status
+                try:
+                    error_body = response.json()
+                    error_msg = error_body.get("error", response.text[:500])
+                except Exception:
+                    error_msg = response.text[:500]
+                raise RuntimeError(
+                    f"Modal synthesis failed (HTTP {response.status_code}): {error_msg}"
+                )
             result = response.json()
     except httpx.ConnectError as e:
         raise RuntimeError(
@@ -212,7 +221,15 @@ async def synthesize_cloned_voice_lines(
     try:
         async with httpx.AsyncClient(timeout=300.0) as client:
             response = await client.post(modal_url, json=payload)
-            response.raise_for_status()
+            if response.status_code != 200:
+                try:
+                    error_body = response.json()
+                    error_msg = error_body.get("error", response.text[:500])
+                except Exception:
+                    error_msg = response.text[:500]
+                raise RuntimeError(
+                    f"Modal synthesis failed (HTTP {response.status_code}): {error_msg}"
+                )
             result = response.json()
     except httpx.ConnectError as e:
         raise RuntimeError(
