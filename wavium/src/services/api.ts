@@ -29,7 +29,6 @@ export async function generateSubliminalAudio(
   voice: string = 'ava',
   track: string = 'ocean-waves',
   durationSecs: number = 1800,
-  userName?: string,
   cloneVoiceId?: string | null,
   userId?: string | null
 ): Promise<{ audioUrl: string; error?: string }> {
@@ -44,7 +43,6 @@ export async function generateSubliminalAudio(
         voice_volume: 0.12,
         bg_volume: 0.85,
         duration_secs: durationSecs,
-        ...(userName ? { user_name: userName } : {}),
         ...(cloneVoiceId ? { clone_voice_id: cloneVoiceId } : {}),
         ...(userId ? { user_id: userId } : {}),
       }),
@@ -158,11 +156,16 @@ export async function uploadVoiceRecording(
   name: string = 'My Voice'
 ): Promise<{ voiceId: string; error?: string }> {
   try {
+    // Detect format from URI — iOS records WAV (lossless), Android records M4A
+    const isWav = audioUri.toLowerCase().endsWith('.wav');
+    const mimeType = isWav ? 'audio/wav' : 'audio/m4a';
+    const fileName = isWav ? 'voice_sample.wav' : 'voice_sample.m4a';
+
     const formData = new FormData();
     formData.append('audio', {
       uri: audioUri,
-      type: 'audio/m4a',
-      name: 'voice_sample.m4a',
+      type: mimeType,
+      name: fileName,
     } as any);
     formData.append('name', name);
     formData.append('user_id', userId);

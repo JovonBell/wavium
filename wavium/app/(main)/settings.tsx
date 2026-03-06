@@ -112,7 +112,9 @@ export default function SettingsScreen() {
 
   const openLink = (path: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Linking.openURL(`${API_BASE_URL}${path}`);
+    Linking.openURL(`${API_BASE_URL}${path}`).catch(() => {
+      Alert.alert('Error', 'Could not open link.');
+    });
   };
 
   return (
@@ -183,7 +185,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="mail-outline"
             label="Contact Support"
-            onPress={() => Linking.openURL('mailto:support@wavium.app')}
+            onPress={() => Linking.openURL('mailto:support@wavium.app').catch(() => {})}
           />
         </GlassmorphicCard>
       </Animated.View>

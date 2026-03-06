@@ -11,17 +11,14 @@ export interface GroqResponse {
   error?: string;
 }
 
-export async function generateAffirmations(intention: string, userName?: string): Promise<GroqResponse> {
+export async function generateAffirmations(intention: string): Promise<GroqResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-affirmations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        intention,
-        ...(userName ? { user_name: userName } : {}),
-      }),
+      body: JSON.stringify({ intention }),
     });
 
     if (!response.ok) {

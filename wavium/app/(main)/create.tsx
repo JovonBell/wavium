@@ -45,8 +45,8 @@ const EXAMPLE_INTENTIONS = [
 ];
 
 // Real AI affirmation generation using Groq (direct API call)
-const generateAffirmations = async (intention: string, userName?: string): Promise<string[]> => {
-  const response = await groqGenerateAffirmations(intention, userName);
+const generateAffirmations = async (intention: string): Promise<string[]> => {
+  const response = await groqGenerateAffirmations(intention);
 
   if (response.error) {
     console.error('Groq Error:', response.error);
@@ -58,7 +58,7 @@ const generateAffirmations = async (intention: string, userName?: string): Promi
 export default function CreateScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useThemeStore();
-  const { setCurrentState, setIntention, setAffirmations, name: mindiName, userName } = useMindiStore();
+  const { setCurrentState, setIntention, setAffirmations, name: mindiName } = useMindiStore();
 
   const [inputText, setInputText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -99,8 +99,8 @@ export default function CreateScreen() {
       // Save intention to store
       setIntention(inputText.trim());
 
-      // Generate affirmations (pass userName for personalization)
-      const affirmations = await generateAffirmations(inputText.trim(), userName || undefined);
+      // Generate affirmations
+      const affirmations = await generateAffirmations(inputText.trim());
 
       // Save affirmations to store
       setAffirmations(affirmations);

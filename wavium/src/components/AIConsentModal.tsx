@@ -74,7 +74,7 @@ export function AIConsentModal({ visible, onAccept, onDecline }: AIConsentModalP
             </View>
 
             <TouchableOpacity
-              onPress={() => Linking.openURL('https://wavium-production.up.railway.app/privacy')}
+              onPress={() => Linking.openURL('https://wavium-production.up.railway.app/privacy').catch(() => {})}
             >
               <Text style={styles.link}>View our Privacy Policy</Text>
             </TouchableOpacity>

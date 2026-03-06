@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   Alert,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import Animated, {
@@ -34,6 +35,36 @@ import { useAuthStore } from '../../src/stores/useAuthStore';
 
 const MIN_DURATION_MS = 30_000; // 30 seconds minimum for voice cloning
 const MAX_DURATION_MS = 90_000; // 90 seconds max
+
+// High-quality recording options optimized for voice cloning:
+// - iOS: Lossless WAV (LinearPCM) for cleanest reference signal
+// - Android: High-bitrate AAC (MediaRecorder doesn't support WAV)
+// - Mono: Single channel reduces noise, matches XTTS v2 input
+const VOICE_CLONE_RECORDING_OPTIONS: Audio.RecordingOptions = {
+  android: {
+    extension: '.m4a',
+    outputFormat: 2, // MPEG_4
+    audioEncoder: 3, // AAC
+    sampleRate: 44100,
+    numberOfChannels: 1,
+    bitRate: 256000,
+  },
+  ios: {
+    extension: '.wav',
+    outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+    audioQuality: Audio.IOSAudioQuality.MAX,
+    sampleRate: 44100,
+    numberOfChannels: 1,
+    bitRate: 705600,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+  web: {
+    mimeType: 'audio/wav',
+    bitsPerSecond: 705600,
+  },
+};
 
 export default function RecordVoiceScreen() {
   const { colors } = useThemeStore();
@@ -146,7 +177,7 @@ export default function RecordVoiceScreen() {
       });
 
       const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.prepareToRecordAsync(VOICE_CLONE_RECORDING_OPTIONS);
       await recording.startAsync();
 
       recordingRef.current = recording;
@@ -215,9 +246,9 @@ export default function RecordVoiceScreen() {
       return;
     }
 
-    console.log('[VoiceClone] Uploading recording...', { uri: recordingUri, userId });
+    if (__DEV__) console.log('[VoiceClone] Uploading recording...');
     const result = await uploadVoiceRecording(recordingUri, userId, userName || 'My Voice');
-    console.log('[VoiceClone] Upload result:', result);
+    if (__DEV__) console.log('[VoiceClone] Upload result:', result?.voiceId ? 'success' : 'failed');
 
     if (result.voiceId) {
       setCustomVoice(result.voiceId, recordingUri);
@@ -277,13 +308,14 @@ export default function RecordVoiceScreen() {
                 Read this aloud in your natural voice:
               </Text>
               <Text style={[styles.sampleText, { color: colors.textPrimary }]}>
-                "I am becoming the best version of myself. Every day I grow stronger, more confident, and more aligned with my true purpose. I release all doubt and step into my power. My mind is clear, my heart is open, and I attract abundance in every area of my life. I am worthy of love, success, and everything I desire. The universe supports me in all that I do. I trust the process, and I know that everything is unfolding perfectly for me. Who am I? I am unstoppable."
+                "Every morning I choose to show up fully alive. My voice carries strength and quiet confidence that opens new doors ahead. I breathe deeply, finding peace within the joy of each moment that passes. The path before me is bright, and I walk it with great purpose. Nothing can shake the foundation I have built through patience and steady growth. When challenges arise, I face them with courage and unwavering grace. I trust myself to handle whatever journey comes my way. Each thought I think shapes my future, and I choose thoughts of abundance, love, and vibrant health."
               </Text>
               <View style={styles.tipsContainer}>
                 <Text style={[styles.tipText, { color: colors.textMuted }]}>
-                  Find a quiet spot with no background noise.{'\n'}
-                  Speak naturally — like you're talking to a friend.{'\n'}
-                  Vary your tone — don't read it flat or robotic.
+                  Find a quiet spot — no fans, music, or background noise.{'\n'}
+                  Hold your phone 6-8 inches from your mouth.{'\n'}
+                  Speak naturally — like you're talking to a close friend.{'\n'}
+                  45-60 seconds is the sweet spot for best results.
                 </Text>
               </View>
 

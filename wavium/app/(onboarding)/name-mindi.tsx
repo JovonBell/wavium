@@ -45,17 +45,24 @@ export default function NameMindiScreen() {
   const contentOpacity = useSharedValue(0);
   const inputOpacity = useSharedValue(0);
 
+  // Track all timeouts for cleanup on unmount
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   useEffect(() => {
     // Entrance animations
     contentOpacity.value = withDelay(300, withTiming(1, { duration: 600 }));
     inputOpacity.value = withDelay(800, withTiming(1, { duration: 600 }));
 
     // Show Mindi's greeting — ask for user's name first
-    setTimeout(() => {
+    timeoutsRef.current.push(setTimeout(() => {
       setSpeechMessage("Hi! What's your name?");
       setShowSpeech(true);
       setCurrentState('listening');
-    }, 1000);
+    }, 1000));
+
+    return () => {
+      timeoutsRef.current.forEach(t => clearTimeout(t));
+    };
   }, []);
 
   const handleContinue = async () => {
@@ -80,7 +87,7 @@ export default function NameMindiScreen() {
       setShowSpeech(false);
       setCurrentState('happy');
 
-      setTimeout(() => {
+      timeoutsRef.current.push(setTimeout(() => {
         setSpeechMessage(`Nice to meet you, ${trimmedUserName}! What would you like to call me?`);
         setShowSpeech(true);
         setCurrentState('listening');
@@ -88,7 +95,7 @@ export default function NameMindiScreen() {
         // Reset input animation for second step
         inputOpacity.value = 0;
         inputOpacity.value = withDelay(200, withTiming(1, { duration: 400 }));
-      }, 400);
+      }, 400));
       return;
     }
 
@@ -111,15 +118,15 @@ export default function NameMindiScreen() {
     setShowSpeech(false);
     setCurrentState('happy');
 
-    setTimeout(() => {
+    timeoutsRef.current.push(setTimeout(() => {
       setSpeechMessage(`I love it! I'm ${trimmedName}!`);
       setShowSpeech(true);
-    }, 300);
+    }, 300));
 
     // Continue to voice recording screen (onboarding completion deferred to paywall)
-    setTimeout(() => {
+    timeoutsRef.current.push(setTimeout(() => {
       router.push('/(onboarding)/record-voice');
-    }, 1500);
+    }, 1500));
   };
 
   const contentStyle = useAnimatedStyle(() => ({

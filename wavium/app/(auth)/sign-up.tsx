@@ -202,14 +202,14 @@ export default function SignUpScreen() {
                   By creating an account, you agree to our{' '}
                   <Text
                     style={{ color: colors.primary }}
-                    onPress={() => Linking.openURL('https://wavium-production.up.railway.app/terms')}
+                    onPress={() => Linking.openURL('https://wavium-production.up.railway.app/terms').catch(() => {})}
                   >
                     Terms of Service
                   </Text>{' '}
                   and{' '}
                   <Text
                     style={{ color: colors.primary }}
-                    onPress={() => Linking.openURL('https://wavium-production.up.railway.app/privacy')}
+                    onPress={() => Linking.openURL('https://wavium-production.up.railway.app/privacy').catch(() => {})}
                   >
                     Privacy Policy
                   </Text>

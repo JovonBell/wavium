@@ -28,7 +28,7 @@ SYSTEM_PROMPT = """You are an expert at creating powerful, positive affirmations
 - Are specific to their goal
 - Feel natural when spoken aloud
 - Are emotionally resonant and empowering
-- If a name is provided, weave it into roughly 30% of affirmations naturally (e.g., "You are powerful, {name}" or "{name}, you attract abundance") — not every one
+- NEVER include any names or proper nouns — always use "I" instead
 
 Return ONLY the affirmations, one per line. No numbering, no bullet points, just the affirmations."""
 
@@ -37,12 +37,10 @@ async def generate_affirmations(intention: str, user_name: str = "") -> list[str
     """
     Generate personalized affirmations based on user's intention
     """
-    name_clause = f"{user_name} who" if user_name else "someone who"
-    name_note = f" The user's name is {user_name} — weave their name naturally into about 30% of the affirmations." if user_name else ""
     chat_completion = _get_client().chat.completions.create(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Create affirmations for {name_clause} wants to: {intention}.{name_note}"}
+            {"role": "user", "content": f"Create affirmations for someone who wants to: {intention}."}
         ],
         model="llama-3.1-8b-instant",
         temperature=0.7,

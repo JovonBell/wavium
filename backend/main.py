@@ -406,7 +406,10 @@ async def api_clone_voice(
 @app.get("/api/voice/status/{user_id}")
 async def api_voice_status(user_id: str):
     """Check if a user has a cloned voice available."""
-    voice_id = get_user_voice_id(user_id)
+    try:
+        voice_id = get_user_voice_id(user_id)
+    except Exception:
+        voice_id = None  # Graceful fallback if Supabase is unreachable
     return {"has_voice": voice_id is not None, "voice_id": voice_id}
 
 

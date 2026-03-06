@@ -44,94 +44,177 @@ app = modal.App("wavium-voice-clone", image=image)
 )
 @modal.concurrent(max_inputs=4)  # Handle up to 4 concurrent requests per container
 class VoiceSynthesizer:
-    """XTTS v2 voice synthesizer running on T4 GPU."""
+    """XTTS v2 voice synthesizer running on T4 GPU with tuned voice cloning parameters."""
 
     @modal.enter()
     def load_model(self):
         """Load model once when container starts — cached across requests."""
         from TTS.api import TTS
         self.tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=True)
+        # Direct access to XTTS v2 model for lower-level API with full parameter control
+        self.model = self.tts.synthesizer.tts_model
+
+    def _preprocess_reference(self, input_path: str, output_path: str):
+        """
+        Preprocess reference audio for maximum voice cloning quality:
+        1. High-pass filter to remove low-frequency rumble (AC, traffic, etc.)
+        2. FFT-based noise reduction to clean background noise
+        3. EBU R128 loudness normalization for consistent signal level
+        4. Resample to 22050 Hz mono 16-bit (XTTS v2 requirement)
+        """
+        result = subprocess.run(
+            [
+                "ffmpeg", "-y", "-i", input_path,
+                "-af", ",".join([
+                    "highpass=f=80",           # Remove sub-80Hz rumble
+                    "afftdn=nf=-20",           # Moderate FFT noise reduction
+                    "loudnorm=I=-16:TP=-1.5:LRA=11",  # EBU R128 normalization
+                ]),
+                "-ar", "22050", "-ac", "1", "-sample_fmt", "s16",
+                output_path,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            print(f"[XTTS] Preprocessing warning, falling back to simple conversion: {result.stderr[-300:]}")
+            # Fallback: simple conversion without preprocessing filters
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", input_path,
+                 "-ar", "22050", "-ac", "1", "-sample_fmt", "s16", output_path],
+                capture_output=True,
+            )
+
+    def _extract_conditioning(self, ref_path: str):
+        """
+        Extract voice conditioning latents from preprocessed reference audio.
+        Computed ONCE and reused for all synthesis calls — ensures consistent
+        voice across all lines and avoids redundant computation.
+
+        Key parameters:
+        - gpt_cond_len=30: Use 30s of reference for GPT conditioning (default is 6!)
+        - gpt_cond_chunk_len=4: Process in 4s chunks for better averaging
+        - max_ref_length=60: Use up to 60s for decoder conditioning
+        """
+        gpt_cond_latent, speaker_embedding = self.model.get_conditioning_latents(
+            audio_path=[ref_path],
+            gpt_cond_len=30,
+            gpt_cond_chunk_len=4,
+            max_ref_length=60,
+        )
+        return gpt_cond_latent, speaker_embedding
+
+    def _synthesize_single(self, text: str, gpt_cond_latent, speaker_embedding) -> "numpy.ndarray":
+        """
+        Synthesize a single text string with tuned parameters for maximum voice fidelity.
+
+        Parameters tuned for voice cloning accuracy:
+        - temperature=0.3:  Low randomness → stays faithful to reference voice
+        - top_k=20:         Narrow token selection → less variation
+        - top_p=0.5:        Tight nucleus sampling → focused output
+        - repetition_penalty=5.0: Reduce repetitive artifacts
+        - speed=1.0:        Natural speaking pace
+
+        Returns: 1D numpy array of audio samples at 24000 Hz
+        """
+        out = self.model.inference(
+            text,
+            "en",
+            gpt_cond_latent,
+            speaker_embedding,
+            temperature=0.3,
+            top_k=20,
+            top_p=0.5,
+            repetition_penalty=5.0,
+            speed=1.0,
+        )
+        return out["wav"]
+
+    def _save_wav(self, wav_data, out_path: str):
+        """Save numpy audio array as 24kHz 16-bit mono WAV."""
+        import wave
+        import numpy as np
+
+        pcm = (wav_data * 32767).astype(np.int16)
+        with wave.open(out_path, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)  # 16-bit
+            wf.setframerate(24000)
+            wf.writeframes(pcm.tobytes())
 
     def _synthesize_internal(self, text: str, reference_audio: bytes) -> bytes:
-        """Internal synthesis — no Modal decorator so it's always a local call."""
+        """Synthesize single text block with full voice cloning pipeline."""
         import os
 
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as ref_file:
-            ref_file.write(reference_audio)
-            ref_path = ref_file.name
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as ref_raw:
+            ref_raw.write(reference_audio)
+            ref_raw_path = ref_raw.name
 
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as out_file:
-            out_path = out_file.name
+        ref_path = ref_raw_path + "_processed.wav"
+        out_path = f"/tmp/single_{uuid.uuid4().hex[:8]}.wav"
 
         try:
-            self.tts.tts_to_file(
-                text=text,
-                speaker_wav=ref_path,
-                language="en",
-                file_path=out_path,
-            )
+            self._preprocess_reference(ref_raw_path, ref_path)
+            gpt_cond_latent, speaker_embedding = self._extract_conditioning(ref_path)
+            wav = self._synthesize_single(text, gpt_cond_latent, speaker_embedding)
+            self._save_wav(wav, out_path)
 
             with open(out_path, "rb") as f:
                 return f.read()
         finally:
-            try:
-                os.remove(ref_path)
-            except OSError:
-                pass
-            try:
-                os.remove(out_path)
-            except OSError:
-                pass
+            for p in [ref_raw_path, ref_path, out_path]:
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
 
     def _synthesize_lines_internal(self, lines: list[str], reference_audio: bytes) -> bytes:
         """
-        Synthesize multiple lines individually then concatenate.
-        Much faster than one giant text block — each line is ~1-2 sec GPU.
-
-        Args:
-            lines: List of affirmation lines
-            reference_audio: WAV bytes of the user's voice sample
-
-        Returns:
-            WAV bytes of all lines concatenated with natural pauses
+        Synthesize multiple lines with voice conditioning computed ONCE.
+        Each line is synthesized individually with the same voice fingerprint,
+        then concatenated with natural pauses.
         """
         import os
 
-        # UUID-based run_id prevents temp file collisions under concurrent requests
         run_id = uuid.uuid4().hex[:8]
 
-        # Write reference audio to temp file
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as ref_file:
-            ref_file.write(reference_audio)
-            ref_path = ref_file.name
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as ref_raw:
+            ref_raw.write(reference_audio)
+            ref_raw_path = ref_raw.name
 
+        ref_path = ref_raw_path + "_processed.wav"
         wav_parts = []
-        try:
-            for i, line in enumerate(lines):
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as out_file:
-                    out_path = out_file.name
 
-                self.tts.tts_to_file(
-                    text=line,
-                    speaker_wav=ref_path,
-                    language="en",
-                    file_path=out_path,
-                )
+        try:
+            # Step 1: Preprocess reference audio (noise reduction + normalization)
+            print(f"[XTTS] Preprocessing reference audio...")
+            self._preprocess_reference(ref_raw_path, ref_path)
+
+            # Step 2: Extract voice conditioning ONCE — reuse for ALL lines
+            print(f"[XTTS] Extracting voice conditioning (gpt_cond_len=30, max_ref=60s)...")
+            gpt_cond_latent, speaker_embedding = self._extract_conditioning(ref_path)
+            print(f"[XTTS] Voice conditioning extracted. Synthesizing {len(lines)} lines...")
+
+            # Step 3: Synthesize each line with consistent voice
+            for i, line in enumerate(lines):
+                out_path = f"/tmp/line_{run_id}_{i}.wav"
+                wav = self._synthesize_single(line, gpt_cond_latent, speaker_embedding)
+                self._save_wav(wav, out_path)
                 wav_parts.append(out_path)
 
-            # Concatenate all parts with 0.8s silence between each line
-            # Generate a short silence file using UUID-based path
+            # Step 4: Concatenate all parts with 0.8s silence between lines
+            # Silence at 24000 Hz to match XTTS v2 output sample rate
             silence_path = f"/tmp/silence_{run_id}.wav"
             subprocess.run(
                 [
                     "ffmpeg", "-y", "-f", "lavfi", "-i",
-                    "anullsrc=r=22050:cl=mono", "-t", "0.8",
+                    "anullsrc=r=24000:cl=mono", "-t", "0.8",
                     "-sample_fmt", "s16", silence_path,
                 ],
                 capture_output=True,
             )
 
-            # Build ffmpeg concat list using UUID-based path
+            # Build ffmpeg concat list
             concat_list = f"/tmp/concat_{run_id}.txt"
             with open(concat_list, "w") as f:
                 for j, part in enumerate(wav_parts):
@@ -161,27 +244,21 @@ class VoiceSynthesizer:
             return result
         finally:
             # Clean up all temp files
-            try:
-                os.remove(ref_path)
-            except OSError:
-                pass
+            for p in [ref_raw_path, ref_path]:
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
             for part in wav_parts:
                 try:
                     os.remove(part)
                 except OSError:
                     pass
-            try:
-                os.remove(silence_path)
-            except (OSError, UnboundLocalError):
-                pass
-            try:
-                os.remove(concat_list)
-            except (OSError, UnboundLocalError):
-                pass
-            try:
-                os.remove(final_path)
-            except (OSError, UnboundLocalError):
-                pass
+            for name in [f"silence_{run_id}.wav", f"concat_{run_id}.txt", f"output_{run_id}.wav"]:
+                try:
+                    os.remove(f"/tmp/{name}")
+                except (OSError, UnboundLocalError):
+                    pass
 
     @modal.fastapi_endpoint(method="POST")
     def web_endpoint(self, request: dict):

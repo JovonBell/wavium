@@ -212,14 +212,14 @@ export default function PaywallScreen() {
         <View style={styles.legalLinks}>
           <Text
             style={[styles.legalText, { color: colors.textMuted }]}
-            onPress={() => Linking.openURL(TERMS_URL)}
+            onPress={() => Linking.openURL(TERMS_URL).catch(() => {})}
           >
             Terms of Service
           </Text>
           <Text style={[styles.legalDivider, { color: colors.textMuted }]}>|</Text>
           <Text
             style={[styles.legalText, { color: colors.textMuted }]}
-            onPress={() => Linking.openURL(PRIVACY_URL)}
+            onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
           >
             Privacy Policy
           </Text>

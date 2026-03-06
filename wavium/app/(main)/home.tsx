@@ -100,6 +100,9 @@ export default function HomeScreen() {
       if (hideSpeechTimeoutRef.current) {
         clearTimeout(hideSpeechTimeoutRef.current);
       }
+      if (resetTapTimeoutRef.current) {
+        clearTimeout(resetTapTimeoutRef.current);
+      }
     };
   }, [timeOfDay]);
 
