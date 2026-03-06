@@ -80,6 +80,9 @@ else:
 # Serve audio files
 AUDIO_DIR = os.path.join(os.path.dirname(__file__), "audio_output")
 os.makedirs(AUDIO_DIR, exist_ok=True)
+# TODO: Audio files are stored on Railway's ephemeral disk and lost on redeploy.
+# Future fix: Upload generated audio to Supabase Storage and serve signed URLs.
+# This affects replay of saved subliminals after Railway restarts.
 app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
 
 # Serve ambient background tracks
@@ -195,6 +198,17 @@ async def api_generate_audio(request: GenerateAudioRequest):
                 voice_id=request.clone_voice_id,
                 user_id=request.user_id,
             )
+        elif request.clone_voice_id and not request.user_id:
+            # clone_voice_id was specified but user_id is missing — do NOT silently fall back
+            import logging as _logging
+            _logging.warning(
+                f"clone_voice_id={request.clone_voice_id} specified but user_id is missing. "
+                "Cannot synthesize cloned voice without user_id."
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="user_id is required when using a cloned voice (clone_voice_id was provided but user_id was missing)"
+            )
         else:
             audio_path = await generate_audio(request.affirmations, request.voice)
 
@@ -203,6 +217,8 @@ async def api_generate_audio(request: GenerateAudioRequest):
             audio_url=f"/audio/{filename}",
             voice=request.voice
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate audio: {str(e)}")
 
@@ -215,6 +231,18 @@ async def api_generate_subliminal(request: GenerateSubliminalRequest):
     """
     if not request.affirmations:
         raise HTTPException(status_code=400, detail="Affirmations list cannot be empty")
+
+    # Guard: do NOT silently fall back to edge-tts when clone_voice_id is set but user_id is missing
+    if request.clone_voice_id and not request.user_id:
+        import logging as _logging
+        _logging.warning(
+            f"clone_voice_id={request.clone_voice_id} specified but user_id is missing in generate-subliminal. "
+            "Cannot synthesize cloned voice without user_id."
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="user_id is required when using a cloned voice (clone_voice_id was provided but user_id was missing)"
+        )
 
     try:
         audio_path = await generate_subliminal(

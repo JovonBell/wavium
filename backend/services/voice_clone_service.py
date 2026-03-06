@@ -94,10 +94,24 @@ async def clone_voice(user_id: str, name: str, audio_path: str) -> str:
         None, lambda: upload_voice_sample(user_id, voice_id, wav_bytes)
     )
 
-    # Save metadata (which voice is current)
-    await loop.run_in_executor(
-        None, lambda: save_voice_metadata(user_id, voice_id, name)
-    )
+    # Save metadata — rollback storage upload if this fails
+    try:
+        await loop.run_in_executor(
+            None, lambda: save_voice_metadata(user_id, voice_id, name)
+        )
+    except Exception as e:
+        # Rollback: delete the orphaned Storage file so we don't have stale data
+        import logging
+        logging.warning(
+            f"Postgres metadata save failed for voice {voice_id}, rolling back Storage upload: {e}"
+        )
+        try:
+            await loop.run_in_executor(
+                None, lambda: delete_voice_data(user_id)
+            )
+        except Exception as rollback_err:
+            logging.error(f"Storage rollback also failed: {rollback_err}")
+        raise  # Re-raise the original error so the endpoint returns 500
 
     # Clean up temp file
     try:
