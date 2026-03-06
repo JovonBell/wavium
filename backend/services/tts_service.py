@@ -108,14 +108,12 @@ async def generate_subliminal(
     voice_path = os.path.join(TEMP_DIR, f"voice_{run_id}.mp3")
 
     if clone_voice_id and user_id:
-        # Use cloned voice via XTTS v2
-        from services.voice_clone_service import synthesize_cloned_voice
+        # Use cloned voice via Modal serverless GPU (XTTS v2)
+        from services.voice_clone_service import synthesize_cloned_voice_lines
 
-        # Join affirmations with pauses (XTTS handles pacing naturally)
-        full_text = ". ".join(working_affirmations) + "."
-        clone_wav = os.path.join(TEMP_DIR, f"voice_{run_id}.wav")
-        await synthesize_cloned_voice(
-            text=full_text,
+        # Synthesize each line individually on GPU then concatenate — 3-5x faster
+        await synthesize_cloned_voice_lines(
+            lines=working_affirmations,
             voice_id=clone_voice_id,
             user_id=user_id,
             output_filename=f"voice_{run_id}.wav",

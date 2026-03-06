@@ -32,8 +32,8 @@ import { spacing } from '../../src/theme/spacing';
 import { uploadVoiceRecording } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/useAuthStore';
 
-const MIN_DURATION_MS = 30_000; // 30 seconds minimum for good voice cloning
-const MAX_DURATION_MS = 60_000; // 60 seconds max
+const MIN_DURATION_MS = 60_000; // 60 seconds minimum for best voice cloning quality
+const MAX_DURATION_MS = 90_000; // 90 seconds max (extra buffer)
 
 export default function RecordVoiceScreen() {
   const { colors } = useThemeStore();
@@ -238,11 +238,18 @@ export default function RecordVoiceScreen() {
           {!recordingUri ? (
             <>
               <Text style={[styles.prompt, { color: colors.textSecondary }]}>
-                Read this aloud naturally:
+                Read this aloud in your natural voice:
               </Text>
               <Text style={[styles.sampleText, { color: colors.textPrimary }]}>
-                "I am becoming the best version of myself. Every day I grow stronger, more confident, and more aligned with my true purpose. I release all doubt and step into my power. My mind is clear, my heart is open, and I attract abundance in every area of my life. I am worthy of love, success, and everything I desire."
+                "I am becoming the best version of myself. Every day I grow stronger, more confident, and more aligned with my true purpose. I release all doubt and step into my power. My mind is clear, my heart is open, and I attract abundance in every area of my life. I am worthy of love, success, and everything I desire. The universe supports me in all that I do. I trust the process, and I know that everything is unfolding perfectly for me. Who am I? I am unstoppable."
               </Text>
+              <View style={styles.tipsContainer}>
+                <Text style={[styles.tipText, { color: colors.textMuted }]}>
+                  Find a quiet spot with no background noise.{'\n'}
+                  Speak naturally — like you're talking to a friend.{'\n'}
+                  Vary your tone — don't read it flat or robotic.
+                </Text>
+              </View>
 
               {/* Record button */}
               <Animated.View style={pulseStyle}>
@@ -356,6 +363,14 @@ const styles = StyleSheet.create({
     ...typography.affirmation,
     textAlign: 'center',
     paddingHorizontal: spacing.md,
+  },
+  tipsContainer: {
+    paddingHorizontal: spacing.lg,
+  },
+  tipText: {
+    ...typography.bodySmall,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   recordButton: {
     minWidth: 200,

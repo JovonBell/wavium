@@ -179,11 +179,10 @@ async def api_generate_audio(request: GenerateAudioRequest):
 
     try:
         if request.clone_voice_id and request.user_id:
-            # Use cloned voice via XTTS v2
-            from services.voice_clone_service import synthesize_cloned_voice
-            full_text = ". ".join(request.affirmations) + "."
-            audio_path = await synthesize_cloned_voice(
-                text=full_text,
+            # Use cloned voice via Modal serverless GPU (XTTS v2)
+            from services.voice_clone_service import synthesize_cloned_voice_lines
+            audio_path = await synthesize_cloned_voice_lines(
+                lines=request.affirmations,
                 voice_id=request.clone_voice_id,
                 user_id=request.user_id,
             )
