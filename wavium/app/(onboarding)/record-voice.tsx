@@ -74,6 +74,12 @@ export default function RecordVoiceScreen() {
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      // Release audio session on unmount to prevent leaks
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current = null;
+      }
+      Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
     };
   }, []);
 
@@ -111,6 +117,14 @@ export default function RecordVoiceScreen() {
     }
 
     try {
+      // Release any existing recording first to avoid iOS session conflicts
+      if (recordingRef.current) {
+        try { await recordingRef.current.stopAndUnloadAsync(); } catch {}
+        recordingRef.current = null;
+      }
+
+      // Reset audio mode first, then set to recording mode
+      try { await Audio.setAudioModeAsync({ allowsRecordingIOS: false }); } catch {}
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -191,7 +205,7 @@ export default function RecordVoiceScreen() {
     console.log('[VoiceClone] Upload result:', result);
 
     if (result.voiceId) {
-      setCustomVoice(result.voiceId);
+      setCustomVoice(result.voiceId, recordingUri);
       setSpeechMessage("I've learned your voice! Let's continue.");
       setShowSpeech(true);
       setCurrentState('excited');
