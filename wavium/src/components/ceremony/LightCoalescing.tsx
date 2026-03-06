@@ -3,7 +3,7 @@
  * Particles of light coalesce to birth Mindi
  */
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { View, StyleSheet, Dimensions, Text } from 'react-native';
 import {
   Canvas,
@@ -149,6 +149,9 @@ export default function LightCoalescing({
   const [particlesComplete, setParticlesComplete] = useState(0);
   const [showMindi, setShowMindi] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const onBirthCompleteRef = useRef(onBirthComplete);
+  useEffect(() => { onBirthCompleteRef.current = onBirthComplete; }, [onBirthComplete]);
+  const hasCompletedRef = useRef(false);
 
   // Generate particles
   const particles = useMemo(() => {
@@ -199,15 +202,18 @@ export default function LightCoalescing({
         setShowWelcome(true);
         textOpacity.value = withDelay(500, withTiming(1, { duration: 800 }));
 
-        // Complete callback
-        setTimeout(() => {
-          onBirthComplete?.();
-        }, 2500);
+        // Complete callback — use ref + one-shot guard to prevent double-fire
+        if (!hasCompletedRef.current) {
+          hasCompletedRef.current = true;
+          setTimeout(() => {
+            onBirthCompleteRef.current?.();
+          }, 2500);
+        }
       }
 
       return newCount;
     });
-  }, [particles.length, showMindi, showWelcome, onBirthComplete]);
+  }, [particles.length, showMindi, showWelcome]);
 
   const mindiStyle = useAnimatedStyle(() => ({
     transform: [{ scale: mindiScale.value }],
