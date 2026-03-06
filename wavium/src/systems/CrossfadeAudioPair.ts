@@ -21,26 +21,22 @@ export class CrossfadeAudioPair {
   private crossfadeInterval: ReturnType<typeof setInterval> | null = null;
   private statusUpdateAttached = false;
 
-  /** Load a URI and start playing it on soundA */
+  /** Load a URI and start playing it on soundA. Throws on failure. */
   async load(uri: string, volume: number): Promise<void> {
     this.currentUri = uri;
     this.currentVolume = volume;
     this.activeIsA = true;
     this.crossfading = false;
 
-    try {
-      if (this.soundA) {
-        await this.soundA.unloadAsync().catch(() => {});
-      }
-      const { sound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: true, volume, isLooping: false }
-      );
-      this.soundA = sound;
-      this._attachStatusUpdate(sound, true);
-    } catch (e) {
-      console.warn('[CrossfadeAudioPair] load failed:', e);
+    if (this.soundA) {
+      await this.soundA.unloadAsync().catch(() => {});
     }
+    const { sound } = await Audio.Sound.createAsync(
+      { uri },
+      { shouldPlay: true, volume, isLooping: false }
+    );
+    this.soundA = sound;
+    this._attachStatusUpdate(sound, true);
   }
 
   /** Set volume on the currently active sound */

@@ -267,7 +267,7 @@ export default function TracksScreen() {
       let warmupTimeout: ReturnType<typeof setTimeout> | null = null;
       if (isClonedVoice) {
         warmupTimeout = setTimeout(() => {
-          setGenerationMessage('GPU is warming up — this may take up to a minute...');
+          setGenerationMessage('GPU is warming up — first generation can take 2-3 minutes...');
         }, 10000);
       }
 

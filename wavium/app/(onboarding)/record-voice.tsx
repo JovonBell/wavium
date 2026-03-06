@@ -50,6 +50,12 @@ export default function RecordVoiceScreen() {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // One-shot navigation guard — prevents accidental double-navigation
+  // (e.g. iOS permission dialog touch falling through to "Skip" button)
+  const hasNavigatedRef = useRef(false);
+  // Track when a permission dialog is showing to disable other buttons
+  const [requestingPermission, setRequestingPermission] = useState(false);
+
   // Animations
   const contentOpacity = useSharedValue(0);
   const pulseScale = useSharedValue(1);
@@ -108,10 +114,19 @@ export default function RecordVoiceScreen() {
 
   const startRecording = async () => {
     if (!permissionGranted) {
-      const { granted } = await Audio.requestPermissionsAsync();
-      setPermissionGranted(granted);
-      if (!granted) {
-        Alert.alert('Microphone Access', 'Please enable microphone access in Settings.');
+      try {
+        setRequestingPermission(true);
+        const { granted } = await Audio.requestPermissionsAsync();
+        setRequestingPermission(false);
+        setPermissionGranted(granted);
+        if (!granted) {
+          Alert.alert('Microphone Access', 'Please enable microphone access in Settings.');
+          return;
+        }
+      } catch (e) {
+        setRequestingPermission(false);
+        console.warn('Permission request failed:', e);
+        Alert.alert('Error', 'Could not request microphone access. Please try again.');
         return;
       }
     }
@@ -211,7 +226,10 @@ export default function RecordVoiceScreen() {
       setCurrentState('excited');
 
       setTimeout(() => {
-        router.push('/(onboarding)/paywall');
+        if (!hasNavigatedRef.current) {
+          hasNavigatedRef.current = true;
+          router.push('/(onboarding)/paywall');
+        }
       }, 1500);
     } else {
       Alert.alert('Upload Failed', result.error || 'Please try again or skip for now.');
@@ -221,6 +239,8 @@ export default function RecordVoiceScreen() {
   };
 
   const handleSkip = () => {
+    if (hasNavigatedRef.current || requestingPermission) return;
+    hasNavigatedRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(onboarding)/paywall');
   };
@@ -335,7 +355,7 @@ export default function RecordVoiceScreen() {
       </Animated.View>
 
       {/* Skip button */}
-      {!uploading && (
+      {!uploading && !requestingPermission && (
         <View style={styles.skipContainer}>
           <HapticButton
             onPress={handleSkip}

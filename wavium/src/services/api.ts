@@ -80,8 +80,11 @@ export async function generateVoiceAudio(
   cloneVoiceId?: string | null,
   userId?: string | null
 ): Promise<{ audioUrl: string; error?: string }> {
+  // Cloned voice uses Modal GPU (cold start + per-line synthesis can take 2-4 min)
+  // Edge-tts is fast, 120s is plenty
+  const timeoutMs = cloneVoiceId ? 300000 : 120000;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-audio`, {
@@ -110,7 +113,9 @@ export async function generateVoiceAudio(
     if (error instanceof Error && error.name === 'AbortError') {
       return {
         audioUrl: '',
-        error: 'Generation timed out after 2 minutes. The GPU may be cold-starting — please try again.',
+        error: cloneVoiceId
+          ? 'Generation timed out after 5 minutes. The GPU may be cold-starting — please try again.'
+          : 'Generation timed out after 2 minutes. Make sure the backend server is running.',
       };
     }
     return {

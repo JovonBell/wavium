@@ -239,12 +239,21 @@ async def synthesize_cloned_voice_lines(
 
     audio_bytes = base64.b64decode(result["audio_b64"])
 
+    if len(audio_bytes) < 1000:
+        raise RuntimeError(
+            f"Modal returned suspiciously small audio ({len(audio_bytes)} bytes) — "
+            "synthesis may have failed silently"
+        )
+
     if output_filename is None:
         output_filename = f"clone_tts_{uuid.uuid4().hex[:8]}.wav"
     output_path = str(AUDIO_DIR / output_filename)
 
     with open(output_path, "wb") as f:
         f.write(audio_bytes)
+
+    import logging
+    logging.info(f"[VoiceClone] Saved synthesized audio: {output_path} ({len(audio_bytes)} bytes)")
 
     return output_path
 

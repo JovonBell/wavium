@@ -299,11 +299,13 @@ export default function VoidContainer({
     // --- Voice stream ---
     if (audioUrl) {
       // We have a pre-generated voice TTS file from the backend
+      console.log('[VoidContainer] Loading voice audio:', audioUrl, 'volume:', voiceVolume);
       try {
         await voiceCrossfade.current.load(audioUrl, voiceVolume);
         usingPreRecordedVoice.current = true;
+        console.log('[VoidContainer] Voice audio loaded successfully');
       } catch (error) {
-        console.warn('Voice audio failed, falling back to live TTS:', error);
+        console.warn('[VoidContainer] Voice audio FAILED, falling back to live TTS:', error);
         usingPreRecordedVoice.current = false;
         const voicePreset = (track in VOICE_PRESETS ? track : 'ocean-waves') as keyof typeof VOICE_PRESETS;
         speakAffirmations(

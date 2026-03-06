@@ -140,17 +140,24 @@ class VoiceSynthesizer:
                         f.write(f"file '{silence_path}'\n")
 
             final_path = f"/tmp/output_{run_id}.wav"
-            subprocess.run(
+            concat_result = subprocess.run(
                 [
                     "ffmpeg", "-y", "-f", "concat", "-safe", "0",
                     "-i", concat_list, "-c", "copy", final_path,
                 ],
                 capture_output=True,
+                text=True,
             )
+            if concat_result.returncode != 0:
+                raise RuntimeError(f"FFmpeg concat failed: {concat_result.stderr[-500:]}")
 
             with open(final_path, "rb") as f:
                 result = f.read()
 
+            if len(result) < 1000:
+                raise RuntimeError(f"Concatenated audio too small ({len(result)} bytes)")
+
+            print(f"[XTTS] Synthesized {len(lines)} lines → {len(result)} bytes")
             return result
         finally:
             # Clean up all temp files
