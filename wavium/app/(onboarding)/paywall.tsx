@@ -1,6 +1,7 @@
 /**
  * WAVIUM - Paywall Screen
- * Subscription screen with Apple compliance (restore, terms, privacy, skip)
+ * Premium subscription with outcome-driven copy, dual pricing, social proof,
+ * trial timeline, and Apple compliance (restore, terms, privacy, skip).
  */
 
 import React, { useEffect, useState } from 'react';
@@ -11,6 +12,7 @@ import {
   Linking,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import Animated, {
@@ -26,6 +28,7 @@ import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore } from '../../src/stores/useMindiStore';
 import { useAuthStore } from '../../src/stores/useAuthStore';
 import { useSubscriptionStore } from '../../src/stores/useSubscriptionStore';
+import { SubscriptionTier } from '../../src/lib/revenuecat';
 import { supabase } from '../../src/lib/supabase';
 import { HapticButton, SafeContainer, GlassmorphicCard, GlowText } from '../../src/components/ui';
 import { MindiRenderer } from '../../src/components/mindi';
@@ -35,39 +38,46 @@ import { spacing } from '../../src/theme/spacing';
 const TERMS_URL = 'https://wavium-production.up.railway.app/terms';
 const PRIVACY_URL = 'https://wavium-production.up.railway.app/privacy';
 
-const FEATURES = [
-  { icon: 'infinite' as const, text: 'Unlimited subliminal generation' },
-  { icon: 'mic' as const, text: 'Voice cloning with your own voice' },
-  { icon: 'musical-notes' as const, text: '10+ ambient soundscapes' },
-  { icon: 'sparkles' as const, text: 'AI-crafted personalized affirmations' },
+const BENEFITS = [
+  { icon: 'ear' as const, text: 'Hear affirmations in YOUR voice — 10x more powerful' },
+  { icon: 'moon' as const, text: 'Reprogram your subconscious while you sleep' },
+  { icon: 'infinite' as const, text: 'Unlimited custom sessions for any goal' },
+  { icon: 'musical-notes' as const, text: '10+ ambient soundscapes for deep absorption' },
 ];
 
 export default function PaywallScreen() {
   const { colors } = useThemeStore();
-  const { setUserId, setUserName, userName } = useMindiStore();
+  const { setUserId, userName } = useMindiStore();
   const { purchase, restore, loading } = useSubscriptionStore();
 
   const [restoring, setRestoring] = useState(false);
-  // Store userName for deferred Supabase update
+  const [selectedTier, setSelectedTier] = useState<SubscriptionTier>('annual');
+  const [showSkip, setShowSkip] = useState(false);
   const savedUserNameRef = React.useRef(userName);
 
-  // Animations
+  // Staggered entrance animations
   const headerOpacity = useSharedValue(0);
-  const featuresOpacity = useSharedValue(0);
+  const benefitsOpacity = useSharedValue(0);
+  const pricingOpacity = useSharedValue(0);
   const ctaOpacity = useSharedValue(0);
 
   useEffect(() => {
     const ease = Easing.out(Easing.cubic);
     headerOpacity.value = withDelay(300, withTiming(1, { duration: 600, easing: ease }));
-    featuresOpacity.value = withDelay(700, withTiming(1, { duration: 600, easing: ease }));
-    ctaOpacity.value = withDelay(1100, withTiming(1, { duration: 600, easing: ease }));
+    benefitsOpacity.value = withDelay(600, withTiming(1, { duration: 600, easing: ease }));
+    pricingOpacity.value = withDelay(900, withTiming(1, { duration: 600, easing: ease }));
+    ctaOpacity.value = withDelay(1200, withTiming(1, { duration: 600, easing: ease }));
+
+    // Delay skip button appearance by 4 seconds
+    const skipTimer = setTimeout(() => setShowSkip(true), 4000);
+    return () => clearTimeout(skipTimer);
   }, []);
 
   const headerStyle = useAnimatedStyle(() => ({ opacity: headerOpacity.value }));
-  const featuresStyle = useAnimatedStyle(() => ({ opacity: featuresOpacity.value }));
+  const benefitsStyle = useAnimatedStyle(() => ({ opacity: benefitsOpacity.value }));
+  const pricingStyle = useAnimatedStyle(() => ({ opacity: pricingOpacity.value }));
   const ctaStyle = useAnimatedStyle(() => ({ opacity: ctaOpacity.value }));
 
-  /** Complete onboarding: set userId, navigate to home, update Supabase */
   const completeOnboarding = () => {
     const authState = useAuthStore.getState();
     const supabaseUserId = authState.session?.user?.id ?? authState.user?.id;
@@ -75,18 +85,15 @@ export default function PaywallScreen() {
       setUserId(supabaseUserId);
       router.replace('/(main)/home');
 
-      // Deferred Supabase metadata update (safe after setUserId)
       if (savedUserNameRef.current) {
-        supabase.auth.updateUser({ data: { display_name: savedUserNameRef.current } }).catch((err) => {
-          console.warn('Failed to update user metadata:', err);
-        });
+        supabase.auth.updateUser({ data: { display_name: savedUserNameRef.current } }).catch(() => {});
       }
     }
   };
 
   const handleSubscribe = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    const result = await purchase();
+    const result = await purchase(selectedTier);
 
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -116,115 +123,231 @@ export default function PaywallScreen() {
     completeOnboarding();
   };
 
+  const isAnnual = selectedTier === 'annual';
+
   return (
     <SafeContainer style={styles.container}>
-      {/* Header with Mindi */}
-      <Animated.View style={[styles.header, headerStyle]}>
-        <MindiRenderer size={100} showParticles={false} />
-        <GlowText variant="h2" glowIntensity={1.5} animate>
-          Unlock Your Mind
-        </GlowText>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Start your 7-day free trial
-        </Text>
-      </Animated.View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* Header */}
+        <Animated.View style={[styles.header, headerStyle]}>
+          <MindiRenderer size={90} showParticles={false} />
+          <GlowText variant="h2" glowIntensity={1.5} animate>
+            Your Voice. Your Transformation.
+          </GlowText>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Rewire your mind with subliminals spoken in your own voice
+          </Text>
+        </Animated.View>
 
-      {/* Feature list */}
-      <Animated.View style={[styles.features, featuresStyle]}>
-        <GlassmorphicCard style={styles.featureCard}>
-          {FEATURES.map((feature) => (
-            <View key={feature.text} style={styles.featureRow}>
-              <View style={[styles.featureIcon, { backgroundColor: colors.primary + '20' }]}>
-                <Ionicons name={feature.icon} size={18} color={colors.primary} />
+        {/* Benefits */}
+        <Animated.View style={[styles.benefits, benefitsStyle]}>
+          <GlassmorphicCard style={styles.benefitCard}>
+            {BENEFITS.map((b) => (
+              <View key={b.text} style={styles.benefitRow}>
+                <View style={[styles.benefitIcon, { backgroundColor: colors.primary + '20' }]}>
+                  <Ionicons name={b.icon} size={16} color={colors.primary} />
+                </View>
+                <Text style={[styles.benefitText, { color: colors.textPrimary }]}>
+                  {b.text}
+                </Text>
               </View>
-              <Text style={[styles.featureText, { color: colors.textPrimary }]}>
-                {feature.text}
-              </Text>
+            ))}
+          </GlassmorphicCard>
+        </Animated.View>
+
+        {/* Social proof */}
+        <Animated.View style={[styles.socialProof, benefitsStyle]}>
+          <Ionicons name="star" size={14} color="#fbbf24" />
+          <Ionicons name="star" size={14} color="#fbbf24" />
+          <Ionicons name="star" size={14} color="#fbbf24" />
+          <Ionicons name="star" size={14} color="#fbbf24" />
+          <Ionicons name="star" size={14} color="#fbbf24" />
+          <Text style={[styles.socialText, { color: colors.textSecondary }]}>
+            Join 1,000+ people transforming their mindset
+          </Text>
+        </Animated.View>
+
+        {/* Pricing cards */}
+        <Animated.View style={[styles.pricing, pricingStyle]}>
+          {/* Annual — Best Value */}
+          <HapticButton
+            onPress={() => { setSelectedTier('annual'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            variant="ghost"
+            size="large"
+            style={styles.tierButtonWrapper}
+          >
+            <View
+              style={[
+                styles.tierCard,
+                {
+                  borderColor: isAnnual ? colors.primary : colors.glassBorder,
+                  borderWidth: isAnnual ? 2 : 1,
+                  backgroundColor: isAnnual ? colors.primary + '10' : 'transparent',
+                },
+              ]}
+            >
+              {/* Best Value badge */}
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.badgeText}>BEST VALUE</Text>
+              </View>
+              <View style={styles.tierContent}>
+                <View style={styles.tierLeft}>
+                  <View style={[styles.radio, { borderColor: isAnnual ? colors.primary : colors.textMuted }]}>
+                    {isAnnual && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
+                  </View>
+                  <View>
+                    <Text style={[styles.tierName, { color: colors.textPrimary }]}>Annual</Text>
+                    <Text style={[styles.tierSave, { color: colors.primary }]}>Save 17%</Text>
+                  </View>
+                </View>
+                <View style={styles.tierRight}>
+                  <Text style={[styles.tierPrice, { color: colors.textPrimary }]}>$49.99</Text>
+                  <Text style={[styles.tierPer, { color: colors.textSecondary }]}>per year</Text>
+                </View>
+              </View>
             </View>
-          ))}
-        </GlassmorphicCard>
-      </Animated.View>
-
-      {/* CTA section */}
-      <Animated.View style={[styles.cta, ctaStyle]}>
-        {/* Price */}
-        <View style={styles.priceContainer}>
-          <Text style={[styles.price, { color: colors.textPrimary }]}>
-            $2.99
-          </Text>
-          <Text style={[styles.priceDetail, { color: colors.textSecondary }]}>
-            /month after 7-day free trial
-          </Text>
-        </View>
-
-        {/* Subscribe button */}
-        <HapticButton
-          onPress={handleSubscribe}
-          variant="primary"
-          size="large"
-          fullWidth
-          haptic="heavy"
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            'Start Free Trial'
-          )}
-        </HapticButton>
-
-        {/* Auto-renewal disclosure (Apple requirement) */}
-        <Text style={[styles.disclosure, { color: colors.textMuted }]}>
-          Payment will be charged to your Apple ID account at the confirmation of purchase.
-          Subscription automatically renews unless it is canceled at least 24 hours before
-          the end of the current period. Your account will be charged for renewal within
-          24 hours prior to the end of the current period. You can manage and cancel your
-          subscriptions in your App Store account settings.
-        </Text>
-
-        {/* Restore + Skip */}
-        <View style={styles.secondaryActions}>
-          <HapticButton
-            onPress={handleRestore}
-            variant="ghost"
-            size="small"
-            haptic="light"
-            disabled={restoring}
-          >
-            <Text style={[styles.linkText, { color: colors.textSecondary }]}>
-              {restoring ? 'Restoring...' : 'Restore Purchases'}
-            </Text>
           </HapticButton>
 
+          {/* Monthly */}
           <HapticButton
-            onPress={handleSkip}
+            onPress={() => { setSelectedTier('monthly'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             variant="ghost"
-            size="small"
-            haptic="light"
+            size="large"
+            style={styles.tierButtonWrapper}
           >
-            <Text style={[styles.linkText, { color: colors.textMuted }]}>
-              Skip
-            </Text>
+            <View
+              style={[
+                styles.tierCard,
+                {
+                  borderColor: !isAnnual ? colors.primary : colors.glassBorder,
+                  borderWidth: !isAnnual ? 2 : 1,
+                  backgroundColor: !isAnnual ? colors.primary + '10' : 'transparent',
+                },
+              ]}
+            >
+              <View style={styles.tierContent}>
+                <View style={styles.tierLeft}>
+                  <View style={[styles.radio, { borderColor: !isAnnual ? colors.primary : colors.textMuted }]}>
+                    {!isAnnual && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
+                  </View>
+                  <View>
+                    <Text style={[styles.tierName, { color: colors.textPrimary }]}>Monthly</Text>
+                  </View>
+                </View>
+                <View style={styles.tierRight}>
+                  <Text style={[styles.tierPrice, { color: colors.textPrimary }]}>$4.99</Text>
+                  <Text style={[styles.tierPer, { color: colors.textSecondary }]}>per month</Text>
+                </View>
+              </View>
+            </View>
           </HapticButton>
-        </View>
+        </Animated.View>
 
-        {/* Terms & Privacy */}
-        <View style={styles.legalLinks}>
-          <Text
-            style={[styles.legalText, { color: colors.textMuted }]}
-            onPress={() => Linking.openURL(TERMS_URL).catch(() => {})}
-          >
-            Terms of Service
+        {/* Trial timeline */}
+        <Animated.View style={[styles.timeline, pricingStyle]}>
+          <View style={styles.timelineRow}>
+            <View style={[styles.timelineDot, { backgroundColor: colors.primary }]} />
+            <View style={[styles.timelineLine, { backgroundColor: colors.glassBorder }]} />
+            <View style={[styles.timelineDot, { backgroundColor: colors.textMuted }]} />
+            <View style={[styles.timelineLine, { backgroundColor: colors.glassBorder }]} />
+            <View style={[styles.timelineDot, { backgroundColor: colors.textMuted }]} />
+          </View>
+          <View style={styles.timelineLabels}>
+            <View style={styles.timelineLabel}>
+              <Text style={[styles.timelineBold, { color: colors.primary }]}>Today</Text>
+              <Text style={[styles.timelineSmall, { color: colors.textMuted }]}>Full access</Text>
+            </View>
+            <View style={styles.timelineLabel}>
+              <Text style={[styles.timelineBold, { color: colors.textSecondary }]}>Day 5</Text>
+              <Text style={[styles.timelineSmall, { color: colors.textMuted }]}>Reminder</Text>
+            </View>
+            <View style={styles.timelineLabel}>
+              <Text style={[styles.timelineBold, { color: colors.textSecondary }]}>Day 7</Text>
+              <Text style={[styles.timelineSmall, { color: colors.textMuted }]}>Billing starts</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* CTA */}
+        <Animated.View style={[styles.cta, ctaStyle]}>
+          {/* Trust text */}
+          <Text style={[styles.trustText, { color: colors.textSecondary }]}>
+            No payment due now  ·  Cancel anytime
           </Text>
-          <Text style={[styles.legalDivider, { color: colors.textMuted }]}>|</Text>
-          <Text
-            style={[styles.legalText, { color: colors.textMuted }]}
-            onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
+
+          <HapticButton
+            onPress={handleSubscribe}
+            variant="primary"
+            size="large"
+            fullWidth
+            haptic="heavy"
+            disabled={loading}
           >
-            Privacy Policy
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              'Start My Free Trial'
+            )}
+          </HapticButton>
+
+          {/* Apple disclosure */}
+          <Text style={[styles.disclosure, { color: colors.textMuted }]}>
+            Payment will be charged to your Apple ID account at the confirmation of purchase.
+            Subscription automatically renews unless canceled at least 24 hours before
+            the end of the current period. You can manage and cancel your subscriptions
+            in your App Store account settings.
           </Text>
-        </View>
-      </Animated.View>
+
+          {/* Secondary actions */}
+          <View style={styles.secondaryActions}>
+            <HapticButton
+              onPress={handleRestore}
+              variant="ghost"
+              size="small"
+              haptic="light"
+              disabled={restoring}
+            >
+              <Text style={[styles.linkText, { color: colors.textSecondary }]}>
+                {restoring ? 'Restoring...' : 'Restore Purchases'}
+              </Text>
+            </HapticButton>
+
+            {showSkip && (
+              <HapticButton
+                onPress={handleSkip}
+                variant="ghost"
+                size="small"
+                haptic="light"
+              >
+                <Text style={[styles.linkText, { color: colors.textMuted, fontSize: 11 }]}>
+                  Skip
+                </Text>
+              </HapticButton>
+            )}
+          </View>
+
+          {/* Legal */}
+          <View style={styles.legalLinks}>
+            <Text
+              style={[styles.legalText, { color: colors.textMuted }]}
+              onPress={() => Linking.openURL(TERMS_URL).catch(() => {})}
+            >
+              Terms of Service
+            </Text>
+            <Text style={[styles.legalDivider, { color: colors.textMuted }]}>|</Text>
+            <Text
+              style={[styles.legalText, { color: colors.textMuted }]}
+              onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
+            >
+              Privacy Policy
+            </Text>
+          </View>
+        </Animated.View>
+      </ScrollView>
     </SafeContainer>
   );
 }
@@ -233,57 +356,180 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: spacing.lg,
+  },
+  // Header
   header: {
     alignItems: 'center',
     paddingTop: spacing.xl,
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   subtitle: {
     ...typography.body,
     textAlign: 'center',
+    paddingHorizontal: spacing.md,
   },
-  features: {
-    flex: 1,
-    justifyContent: 'center',
+  // Benefits
+  benefits: {
     paddingHorizontal: spacing.lg,
+    marginTop: spacing.lg,
   },
-  featureCard: {
-    padding: spacing.lg,
-    gap: spacing.md,
+  benefitCard: {
+    padding: spacing.md,
+    gap: spacing.sm,
   },
-  featureRow: {
+  benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  featureIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  benefitIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  featureText: {
-    ...typography.body,
+  benefitText: {
+    ...typography.bodySmall,
     flex: 1,
   },
+  // Social proof
+  socialProof: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    marginTop: spacing.md,
+  },
+  socialText: {
+    ...typography.bodySmall,
+    fontSize: 12,
+    marginLeft: spacing.xs,
+  },
+  // Pricing
+  pricing: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  tierButtonWrapper: {
+    width: '100%',
+  },
+  tierCard: {
+    borderRadius: 16,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    width: '100%',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  tierContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  tierLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  tierRight: {
+    alignItems: 'flex-end',
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  tierName: {
+    ...typography.button,
+    fontSize: 15,
+  },
+  tierSave: {
+    ...typography.caption,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tierPrice: {
+    ...typography.displayHeading,
+    fontSize: 20,
+    letterSpacing: 0,
+  },
+  tierPer: {
+    ...typography.caption,
+    fontSize: 11,
+  },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderBottomLeftRadius: 10,
+    borderTopRightRadius: 14,
+  },
+  badgeText: {
+    ...typography.label,
+    fontSize: 9,
+    color: '#fff',
+    letterSpacing: 1,
+  },
+  // Trial timeline
+  timeline: {
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.lg,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  timelineLine: {
+    flex: 1,
+    height: 2,
+  },
+  timelineLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  timelineLabel: {
+    alignItems: 'center',
+  },
+  timelineBold: {
+    ...typography.label,
+    fontSize: 11,
+  },
+  timelineSmall: {
+    ...typography.caption,
+    fontSize: 10,
+  },
+  // CTA
   cta: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    marginTop: spacing.lg,
   },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    gap: spacing.xs,
-  },
-  price: {
-    ...typography.displayHeading,
-    fontSize: 28,
-  },
-  priceDetail: {
+  trustText: {
     ...typography.bodySmall,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   disclosure: {
     ...typography.bodySmall,

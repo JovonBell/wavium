@@ -11,8 +11,9 @@ import Purchases, {
 import { Platform } from 'react-native';
 
 const APPLE_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY || '';
-const PRODUCT_ID = 'com.jovonbell.wavium.monthly';
 const ENTITLEMENT_ID = 'premium';
+
+export type SubscriptionTier = 'monthly' | 'annual';
 
 let initialized = false;
 
@@ -57,13 +58,16 @@ export async function identifyUser(userId: string): Promise<void> {
 }
 
 /**
- * Get the monthly subscription package
+ * Get a subscription package by tier
  */
-export async function getMonthlyPackage(): Promise<PurchasesPackage | null> {
+export async function getPackage(tier: SubscriptionTier): Promise<PurchasesPackage | null> {
   if (!initialized) return null;
 
   try {
     const offerings = await Purchases.getOfferings();
+    if (tier === 'annual') {
+      return offerings.current?.annual ?? null;
+    }
     return offerings.current?.monthly ?? null;
   } catch (e) {
     console.warn('[RevenueCat] Failed to get offerings:', e);
@@ -71,9 +75,11 @@ export async function getMonthlyPackage(): Promise<PurchasesPackage | null> {
   }
 }
 
-/**
- * Purchase the monthly subscription
- */
+/** @deprecated Use getPackage('monthly') */
+export async function getMonthlyPackage(): Promise<PurchasesPackage | null> {
+  return getPackage('monthly');
+}
+
 /**
  * Whether RevenueCat is configured and ready
  */
@@ -81,7 +87,10 @@ export function isRevenueCatReady(): boolean {
   return initialized;
 }
 
-export async function purchaseMonthly(): Promise<{
+/**
+ * Purchase a subscription by tier
+ */
+export async function purchaseSubscription(tier: SubscriptionTier = 'monthly'): Promise<{
   success: boolean;
   customerInfo?: CustomerInfo;
   error?: string;
@@ -92,7 +101,7 @@ export async function purchaseMonthly(): Promise<{
   }
 
   try {
-    const pkg = await getMonthlyPackage();
+    const pkg = await getPackage(tier);
     if (!pkg) {
       return { success: false, error: 'No subscription package available' };
     }
@@ -106,6 +115,11 @@ export async function purchaseMonthly(): Promise<{
     }
     return { success: false, error: e.message || 'Purchase failed' };
   }
+}
+
+/** @deprecated Use purchaseSubscription('monthly') */
+export async function purchaseMonthly() {
+  return purchaseSubscription('monthly');
 }
 
 /**

@@ -7,9 +7,10 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  purchaseMonthly,
+  purchaseSubscription,
   restorePurchases,
   getSubscriptionStatus,
+  SubscriptionTier,
 } from '../lib/revenuecat';
 
 interface SubscriptionState {
@@ -19,7 +20,7 @@ interface SubscriptionState {
 
   // Actions
   checkSubscription: () => Promise<void>;
-  purchase: () => Promise<{ success: boolean; error?: string }>;
+  purchase: (tier?: SubscriptionTier) => Promise<{ success: boolean; error?: string }>;
   restore: () => Promise<{ success: boolean; isPremium: boolean; error?: string }>;
   setPremium: (isPremium: boolean) => void;
 }
@@ -46,10 +47,10 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         }
       },
 
-      purchase: async () => {
+      purchase: async (tier: SubscriptionTier = 'annual') => {
         set({ loading: true });
         try {
-          const result = await purchaseMonthly();
+          const result = await purchaseSubscription(tier);
           if (result.success) {
             set({ isPremium: true });
           }
