@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "wavium",
+    "name": "Wavium",
     "slug": "wavium",
     "scheme": "wavium",
     "version": "1.0.0",
@@ -14,15 +14,16 @@
     },
     "ios": {
       "bundleIdentifier": "com.jovonbell.wavium",
-      "buildNumber": "2",
-      "supportsTablet": false,
+      "buildNumber": "4",
+      "supportsTablet": true,
       "infoPlist": {
+        "NSMicrophoneUsageDescription": "Wavium uses your microphone to record a voice sample for creating personalized subliminal affirmations in your own voice.",
         "NSMotionUsageDescription": "Wavium uses motion sensors to create immersive parallax effects during your listening experience.",
         "UIBackgroundModes": [
-          "audio",
           "audio"
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIRequiresFullScreen": true
       }
     },
     "android": {
@@ -70,6 +71,14 @@
                 },
                 {
                   "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+                  "NSPrivacyCollectedDataTypeLinked": true,
+                  "NSPrivacyCollectedDataTypeTracking": false,
+                  "NSPrivacyCollectedDataTypePurposes": [
+                    "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+                  ]
+                },
+                {
+                  "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeAudioData",
                   "NSPrivacyCollectedDataTypeLinked": true,
                   "NSPrivacyCollectedDataTypeTracking": false,
                   "NSPrivacyCollectedDataTypePurposes": [

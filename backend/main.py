@@ -4,8 +4,10 @@ FastAPI server for AI affirmation generation and subliminal audio mixing
 """
 
 import os
+import shutil
+import tempfile
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -18,6 +20,7 @@ import httpx
 
 from services.groq_service import generate_affirmations
 from services.tts_service import generate_audio, generate_subliminal, get_available_voices, generate_voice_preview
+from services.elevenlabs_service import clone_voice
 
 load_dotenv()
 
@@ -261,32 +264,38 @@ async def api_delete_account(request: Request, body: DeleteAccountRequest):
     if not supabase_url or not service_role_key:
         raise HTTPException(status_code=500, detail="Server configuration error: Supabase credentials not set")
 
-    # Verify the access token by fetching the user from Supabase
-    async with httpx.AsyncClient() as client:
-        verify_resp = await client.get(
-            f"{supabase_url}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "apikey": service_role_key,
-            },
-        )
+    try:
+        # Verify the access token by fetching the user from Supabase
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            verify_resp = await client.get(
+                f"{supabase_url}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "apikey": service_role_key,
+                },
+            )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to verify token with Supabase: {str(e)}")
 
     if verify_resp.status_code != 200:
-        raise HTTPException(status_code=401, detail="Invalid or expired access token")
+        raise HTTPException(status_code=401, detail=f"Invalid or expired access token (Supabase returned {verify_resp.status_code})")
 
     verified_user = verify_resp.json()
     if verified_user.get("id") != body.user_id:
         raise HTTPException(status_code=403, detail="Forbidden: user_id does not match authenticated user")
 
-    # Delete the user via Supabase Admin API
-    async with httpx.AsyncClient() as client:
-        delete_resp = await client.delete(
-            f"{supabase_url}/auth/v1/admin/users/{body.user_id}",
-            headers={
-                "Authorization": f"Bearer {service_role_key}",
-                "apikey": service_role_key,
-            },
-        )
+    try:
+        # Delete the user via Supabase Admin API
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            delete_resp = await client.delete(
+                f"{supabase_url}/auth/v1/admin/users/{body.user_id}",
+                headers={
+                    "Authorization": f"Bearer {service_role_key}",
+                    "apikey": service_role_key,
+                },
+            )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to delete user via Supabase: {str(e)}")
 
     if delete_resp.status_code not in (200, 204):
         detail = "Failed to delete account"
@@ -298,6 +307,39 @@ async def api_delete_account(request: Request, body: DeleteAccountRequest):
         raise HTTPException(status_code=delete_resp.status_code, detail=detail)
 
     return {"detail": "Account deleted successfully"}
+
+
+@app.post("/api/voice/clone")
+@limiter.limit("5/hour")
+async def api_clone_voice(
+    request: Request,
+    audio: UploadFile = File(...),
+    name: str = Form("My Voice"),
+    user_id: str = Form(...),
+):
+    """
+    Clone a user's voice from an audio recording.
+    Returns the ElevenLabs voice ID for future TTS generation.
+    """
+    if not audio.content_type or not audio.content_type.startswith("audio/"):
+        raise HTTPException(status_code=400, detail="File must be an audio file")
+
+    # Save uploaded file temporarily
+    suffix = ".m4a" if "m4a" in (audio.content_type or "") else ".wav"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    try:
+        shutil.copyfileobj(audio.file, tmp)
+        tmp.close()
+
+        voice_id = await clone_voice(
+            name=f"wavium_{user_id}_{name}",
+            audio_path=tmp.name,
+        )
+        return {"voice_id": voice_id, "name": name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Voice cloning failed: {str(e)}")
+    finally:
+        os.unlink(tmp.name)
 
 
 if __name__ == "__main__":

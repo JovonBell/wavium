@@ -27,6 +27,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore, SoundTrack, SOUND_TRACKS, VoiceId, VOICES } from '../../src/stores/useMindiStore';
+
+// Extended voice type that includes custom voice option
+type VoiceOption = VoiceId | 'custom';
+
 import { GlassmorphicCard, HapticButton, GlowText, LoadingOverlay } from '../../src/components/ui';
 import { typography } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
@@ -78,12 +82,12 @@ const TRACK_ICONS: Record<SoundTrack, string> = {
 export default function TracksScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useThemeStore();
-  const { creation, setSelectedTrack, setSelectedVoice, saveSubliminal } = useMindiStore();
+  const { creation, setSelectedTrack, setSelectedVoice, saveSubliminal, hasCustomVoice, customVoiceId, userName } = useMindiStore();
 
   const [selectedTrackId, setSelectedTrackId] = useState<SoundTrack | null>(
     creation.selectedTrack
   );
-  const [selectedVoiceId, setSelectedVoiceIdLocal] = useState<VoiceId | null>(creation.selectedVoice);
+  const [selectedVoiceId, setSelectedVoiceIdLocal] = useState<VoiceOption | null>(creation.selectedVoice);
   const [isCreating, setIsCreating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState('');
@@ -153,15 +157,20 @@ export default function TracksScreen() {
 
   const isLoadingVoicePreview = useRef(false);
 
-  const handleSelectVoice = async (voiceId: VoiceId) => {
+  const handleSelectVoice = async (voiceId: VoiceOption) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedVoiceIdLocal(voiceId);
-    setSelectedVoice(voiceId);
+    if (voiceId !== 'custom') {
+      setSelectedVoice(voiceId);
+    }
 
     // Clear any existing preview timeout
     if (previewTimeoutRef.current) {
       clearTimeout(previewTimeoutRef.current);
     }
+
+    // No preview for custom cloned voice
+    if (voiceId === 'custom') return;
 
     if (isLoadingVoicePreview.current) return;
     isLoadingVoicePreview.current = true;
@@ -200,6 +209,7 @@ export default function TracksScreen() {
   const handleCreateSubliminal = async () => {
     if (!selectedTrackId || !selectedVoiceId) return;
     if (!creation.intention || !creation.affirmations?.length) {
+
       router.replace('/(main)/create');
       return;
     }
@@ -209,8 +219,10 @@ export default function TracksScreen() {
     setGenerationProgress(10);
     setGenerationMessage('Generating your subliminal audio...');
 
-    // Use the independently selected voice
-    const voice = selectedVoiceId || 'ava';
+    // Use custom cloned voice or selected preset voice
+    const voice = selectedVoiceId === 'custom' && customVoiceId
+      ? customVoiceId
+      : (selectedVoiceId || 'ava');
 
     try {
       setGenerationProgress(30);
@@ -308,6 +320,73 @@ export default function TracksScreen() {
         </Animated.View>
 
         <View style={styles.voicesSection}>
+          {/* Custom cloned voice option */}
+          {hasCustomVoice && customVoiceId && (
+            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+              <TouchableOpacity
+                onPress={() => handleSelectVoice('custom')}
+                activeOpacity={0.8}
+              >
+                <GlassmorphicCard
+                  style={StyleSheet.flatten([
+                    styles.voiceCard,
+                    selectedVoiceId === 'custom' && {
+                      borderWidth: 2,
+                      borderColor: colors.primary,
+                    },
+                  ])}
+                >
+                  <View style={styles.voiceContent}>
+                    <View
+                      style={[
+                        styles.voiceIcon,
+                        {
+                          backgroundColor: selectedVoiceId === 'custom'
+                            ? colors.primary + '30'
+                            : colors.surface,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="mic"
+                        size={22}
+                        color={selectedVoiceId === 'custom' ? colors.primary : colors.textSecondary}
+                      />
+                    </View>
+                    <View style={styles.voiceInfo}>
+                      <Text
+                        style={[
+                          styles.voiceName,
+                          { color: colors.textPrimary },
+                          selectedVoiceId === 'custom' && { color: colors.primary },
+                        ]}
+                      >
+                        My Voice
+                      </Text>
+                      <Text style={[styles.voiceDescription, { color: colors.textSecondary }]}>
+                        {userName ? `${userName}'s cloned voice` : 'Your cloned voice'}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.radioOuter,
+                        {
+                          borderColor: selectedVoiceId === 'custom' ? colors.primary : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {selectedVoiceId === 'custom' && (
+                        <View
+                          style={[styles.radioInner, { backgroundColor: colors.primary }]}
+                        />
+                      )}
+                    </View>
+                  </View>
+                </GlassmorphicCard>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
           {(Object.keys(VOICES) as VoiceId[]).map((voiceId, index) => {
             const voice = VOICES[voiceId];
             const isSelected = selectedVoiceId === voiceId;

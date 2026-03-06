@@ -127,6 +127,10 @@ interface MindiStoreState {
   userId: string | null;
   userName: string;
 
+  // Custom voice clone
+  hasCustomVoice: boolean;
+  customVoiceId: string | null;
+
   // Mindi state
   currentState: MindiState;
 
@@ -147,6 +151,8 @@ interface MindiStoreState {
   setName: (name: string) => void;
   setUserId: (id: string) => void;
   setUserName: (name: string) => void;
+  setCustomVoice: (voiceId: string) => void;
+  clearCustomVoice: () => void;
   setVoiceVolume: (v: number) => void;
   setBackgroundVolume: (v: number) => void;
   setCurrentState: (state: MindiState) => void;
@@ -203,6 +209,8 @@ export const useMindiStore = create<MindiStoreState>()(
       name: 'Mindi',
       userId: null,
       userName: '',
+      hasCustomVoice: false,
+      customVoiceId: null,
       currentState: 'idle',
       voiceVolume: 0.15,
       backgroundVolume: 0.7,
@@ -214,6 +222,8 @@ export const useMindiStore = create<MindiStoreState>()(
       setName: (name) => set({ name }),
       setUserId: (id) => set({ userId: id }),
       setUserName: (name) => set({ userName: name }),
+      setCustomVoice: (voiceId) => set({ hasCustomVoice: true, customVoiceId: voiceId }),
+      clearCustomVoice: () => set({ hasCustomVoice: false, customVoiceId: null }),
       setCurrentState: (state) => set({ currentState: state }),
       setVoiceVolume: (v) => set({ voiceVolume: v }),
       setBackgroundVolume: (v) => set({ backgroundVolume: v }),
@@ -319,6 +329,8 @@ export const useMindiStore = create<MindiStoreState>()(
         userId: null,
         userName: '',
         name: 'Mindi',
+        hasCustomVoice: false,
+        customVoiceId: null,
         subliminals: [],
         creation: { ...initialCreation },
         streak: { ...initialStreak },

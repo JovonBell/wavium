@@ -16,6 +16,7 @@ import { useMindiStore } from '../src/stores/useMindiStore';
 import { useAuthStore } from '../src/stores/useAuthStore';
 import { ErrorBoundary } from '../src/components/ui';
 import { AIConsentModal } from '../src/components/AIConsentModal';
+import { initRevenueCat, identifyUser } from '../src/lib/revenuecat';
 
 // Keep splash screen visible while loading
 SplashScreen.preventAutoHideAsync();
@@ -66,6 +67,14 @@ export default function RootLayout() {
 
         // Initialize Supabase auth (restore session from AsyncStorage)
         await useAuthStore.getState().initialize();
+
+        // Initialize RevenueCat for subscriptions
+        const authState = useAuthStore.getState();
+        const rcUserId = authState.session?.user?.id;
+        await initRevenueCat(rcUserId || undefined);
+        if (rcUserId) {
+          await identifyUser(rcUserId).catch(() => {});
+        }
 
         // Minimum splash time for smooth transition
         await new Promise(resolve => setTimeout(resolve, 500));

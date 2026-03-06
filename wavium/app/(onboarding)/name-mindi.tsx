@@ -22,8 +22,6 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore } from '../../src/stores/useMindiStore';
-import { useAuthStore } from '../../src/stores/useAuthStore';
-import { supabase } from '../../src/lib/supabase';
 import { MindiRenderer, MindiSpeech } from '../../src/components/mindi';
 import { HapticButton, SafeContainer } from '../../src/components/ui';
 import { typography } from '../../src/theme/typography';
@@ -31,7 +29,7 @@ import { spacing } from '../../src/theme/spacing';
 
 export default function NameMindiScreen() {
   const { colors } = useThemeStore();
-  const { setName, setUserId, setUserName, setCurrentState } = useMindiStore();
+  const { setName, setUserName, setCurrentState } = useMindiStore();
 
   // Two-step flow: first ask user's name, then companion's name
   const [step, setStep] = useState<'user' | 'companion'>('user');
@@ -42,8 +40,6 @@ export default function NameMindiScreen() {
 
   // Prevent double-submit
   const isCompletingRef = useRef(false);
-  // Store the user's display name to update Supabase after navigation
-  const savedUserNameRef = useRef('');
 
   // Animation values
   const contentOpacity = useSharedValue(0);
@@ -72,8 +68,6 @@ export default function NameMindiScreen() {
 
       // Store the user's own name in Zustand (local only)
       setUserName(trimmedUserName);
-      // Save for deferred Supabase update (after onboarding completes)
-      savedUserNameRef.current = trimmedUserName;
 
       // NOTE: We do NOT call supabase.auth.updateUser() here because it
       // triggers onAuthStateChange, which creates a new session object
@@ -122,26 +116,9 @@ export default function NameMindiScreen() {
       setShowSpeech(true);
     }, 300);
 
-    // Complete onboarding: set userId FIRST (marks onboarding as done),
-    // then navigate directly, then update Supabase metadata in the background.
+    // Continue to voice recording screen (onboarding completion deferred to paywall)
     setTimeout(() => {
-      const authState = useAuthStore.getState();
-      const supabaseUserId = authState.session?.user?.id ?? authState.user?.id;
-      if (supabaseUserId) {
-        // 1. Set userId synchronously in Zustand — this marks onboarding complete
-        setUserId(supabaseUserId);
-
-        // 2. Navigate directly to home — don't rely on the route guard
-        router.replace('/(main)/home');
-
-        // 3. Now it's safe to update Supabase metadata (even if onAuthStateChange
-        //    fires, the route guard will see userId is set and won't redirect)
-        if (savedUserNameRef.current) {
-          supabase.auth.updateUser({ data: { display_name: savedUserNameRef.current } }).catch((err) => {
-            console.warn('Failed to update user metadata:', err);
-          });
-        }
-      }
+      router.push('/(onboarding)/record-voice');
     }, 1500);
   };
 

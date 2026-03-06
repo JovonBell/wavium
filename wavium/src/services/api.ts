@@ -122,6 +122,44 @@ export async function getVoicePreviewUrl(voiceId: string): Promise<string | null
 }
 
 /**
+ * Upload a voice recording for cloning via ElevenLabs
+ */
+export async function uploadVoiceRecording(
+  audioUri: string,
+  userId: string,
+  name: string = 'My Voice'
+): Promise<{ voiceId: string; error?: string }> {
+  try {
+    const formData = new FormData();
+    formData.append('audio', {
+      uri: audioUri,
+      type: 'audio/m4a',
+      name: 'voice_sample.m4a',
+    } as any);
+    formData.append('name', name);
+    formData.append('user_id', userId);
+
+    const response = await fetch(`${API_BASE_URL}/api/voice/clone`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { voiceId: '', error: errorData.detail || `Server error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    return { voiceId: data.voice_id };
+  } catch (error) {
+    return {
+      voiceId: '',
+      error: error instanceof Error ? error.message : 'Failed to upload voice',
+    };
+  }
+}
+
+/**
  * Check if the backend is reachable
  */
 export async function checkBackendHealth(): Promise<boolean> {

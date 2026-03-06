@@ -45,7 +45,7 @@ export default function WelcomeScreen() {
 
   const handleBegin = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/(onboarding)/breath');
+    router.push('/(onboarding)/benefits');
   };
 
   const titleStyle = useAnimatedStyle(() => ({

@@ -16,11 +16,14 @@ export default function OnboardingLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="benefits" />
       <Stack.Screen name="breath" />
       <Stack.Screen name="void-entry" />
       <Stack.Screen name="mindi-birth" />
       <Stack.Screen name="intention" />
       <Stack.Screen name="name-mindi" />
+      <Stack.Screen name="record-voice" />
+      <Stack.Screen name="paywall" />
     </Stack>
   );
 }
