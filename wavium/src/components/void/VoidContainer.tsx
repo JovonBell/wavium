@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, StyleSheet, Dimensions, StatusBar, Text } from 'react-native';
+import { View, StyleSheet, StatusBar, Text, useWindowDimensions } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -29,8 +29,6 @@ import AffirmationSpirals from './AffirmationSpirals';
 import PlayerControls from './PlayerControls';
 import { MindiRenderer } from '../mindi';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
 interface VoidContainerProps {
   audioUrl: string;
   affirmations: string[];
@@ -52,6 +50,7 @@ export default function VoidContainer({
   onComplete,
   onToggleScript,
 }: VoidContainerProps) {
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { colors } = useThemeStore();
   const {
@@ -405,7 +404,7 @@ export default function VoidContainer({
     <Animated.View
       style={[
         styles.container,
-        { backgroundColor: colors.background },
+        { backgroundColor: colors.background, width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
         containerStyle,
       ]}
     >
@@ -427,7 +426,7 @@ export default function VoidContainer({
         </Animated.View>
 
         {/* Layer 4: Mindi — upper third, translucent */}
-        <Animated.View style={styles.mindiContainer} entering={FadeIn.delay(600).duration(800)}>
+        <Animated.View style={[styles.mindiContainer, { top: SCREEN_HEIGHT * 0.18 }]} entering={FadeIn.delay(600).duration(800)}>
           <MindiRenderer size={180} showParticles={true} audioLevel={audioLevel} opacity={0.7} />
           <View style={styles.progressRing}>
             <SkiaProgressRing progress={progress} size={220} strokeWidth={3} color={colors.primaryGradient[1]} />
@@ -562,15 +561,12 @@ function SkiaProgressRing({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
   },
   layer: {
     ...StyleSheet.absoluteFillObject,
   },
   mindiContainer: {
     position: 'absolute',
-    top: SCREEN_HEIGHT * 0.18,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -587,7 +583,7 @@ const styles = StyleSheet.create({
   },
   sessionCompleteText: {
     fontSize: 28,
-    fontFamily: 'EditorialNew-Regular',
+    fontFamily: 'CormorantGaramond_400Regular',
     letterSpacing: 2,
     textShadowColor: 'rgba(255,255,255,0.4)',
     textShadowOffset: { width: 0, height: 0 },

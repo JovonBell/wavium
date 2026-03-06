@@ -227,8 +227,27 @@ class OfflineSystem {
   }
 }
 
-// Export singleton instance
-export const offline = new OfflineSystem();
+// Lazy singleton — only instantiate on first use, not at module parse time.
+// This prevents native FileSystem calls (getInfoAsync, makeDirectoryAsync)
+// from firing before the TurboModule bridge is ready (~230ms after launch).
+let _offlineInstance: OfflineSystem | null = null;
+export function getOffline(): OfflineSystem {
+  if (!_offlineInstance) {
+    _offlineInstance = new OfflineSystem();
+  }
+  return _offlineInstance;
+}
+// Backward-compatible export via Proxy (lazy access)
+// IMPORTANT: bind methods so `this` inside them is the real instance, not the proxy
+export const offline = new Proxy({} as OfflineSystem, {
+  get(_target, prop) {
+    const value = (getOffline() as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(getOffline());
+    }
+    return value;
+  },
+});
 
 // React hook for offline system
 import { useState, useEffect, useCallback } from 'react';

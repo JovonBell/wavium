@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useMemo } from 'react';
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import {
   Canvas,
   Rect,
@@ -23,16 +23,15 @@ import { useThemeStore } from '../../stores/useThemeStore';
 import { TimeOfDay } from '../../theme/colors';
 import { timing } from '../../theme/animations';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
 interface TimeShiftingBackgroundProps {
   children?: React.ReactNode;
 }
 
-// Generate stable star positions once
+// Generate stable star positions lazily (not at module scope)
+// Using ratios 0-1 that are multiplied by actual dimensions at render time
 const STARS = Array.from({ length: 30 }, (_, i) => ({
-  cx: Math.random() * SCREEN_WIDTH,
-  cy: Math.random() * SCREEN_HEIGHT * 0.5,
+  cxRatio: Math.random(),
+  cyRatio: Math.random() * 0.5,
   r: Math.random() * 1 + 0.5,
   opacity: Math.random() * 0.4 + 0.2,
 }));
@@ -40,6 +39,7 @@ const STARS = Array.from({ length: 30 }, (_, i) => ({
 export default function TimeShiftingBackground({
   children,
 }: TimeShiftingBackgroundProps) {
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
   const { timeOfDay, colors } = useThemeStore();
 
   // Transition progress
@@ -102,8 +102,8 @@ export default function TimeShiftingBackground({
             {STARS.map((star, i) => (
               <Circle
                 key={i}
-                cx={star.cx}
-                cy={star.cy}
+                cx={star.cxRatio * SCREEN_WIDTH}
+                cy={star.cyRatio * SCREEN_HEIGHT}
                 r={star.r}
                 color={`rgba(255, 255, 255, ${star.opacity})`}
               />

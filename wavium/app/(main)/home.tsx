@@ -12,7 +12,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore, Subliminal } from '../../src/stores/useMindiStore';
-import { useAuthStore } from '../../src/stores/useAuthStore';
 import { MindiRenderer, MindiSpeech } from '../../src/components/mindi';
 import { GlassmorphicCard, HapticButton, GlowText, StreakCard } from '../../src/components/ui';
 import { typography, fontFamilies, textStyles } from '../../src/theme/typography';
@@ -104,59 +103,9 @@ export default function HomeScreen() {
     };
   }, [timeOfDay]);
 
-  const handleLogout = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert(
-      'Log Out?',
-      'You will need to sign in again to use Wavium.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            await useAuthStore.getState().signOut();
-          },
-        },
-      ]
-    );
-  };
-
-  const handleDeleteAccount = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert(
-      'Delete Account?',
-      'This will permanently delete your account and all your data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            // Double confirmation
-            Alert.alert(
-              'Are you sure?',
-              'All your subliminals, streaks, and account data will be permanently deleted.',
-              [
-                { text: 'Keep Account', style: 'cancel' },
-                {
-                  text: 'Delete Forever',
-                  style: 'destructive',
-                  onPress: async () => {
-                    const { error } = await useAuthStore.getState().deleteAccount();
-                    if (error) {
-                      Alert.alert('Error', error);
-                    } else {
-                      resetOnboarding();
-                    }
-                  },
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
+  const handleOpenSettings = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/(main)/settings');
   };
 
   const handleCreateNew = () => {
@@ -200,26 +149,15 @@ export default function HomeScreen() {
               </GlowText>
             </TouchableOpacity>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              onPress={handleDeleteAccount}
-              style={[styles.headerButton, { backgroundColor: colors.surface }]}
-              activeOpacity={0.7}
-              accessibilityLabel="Delete account"
-              accessibilityRole="button"
-            >
-              <Ionicons name="trash-outline" size={18} color={colors.error || '#ff4444'} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleLogout}
-              style={[styles.headerButton, { backgroundColor: colors.surface }]}
-              activeOpacity={0.7}
-              accessibilityLabel="Log out"
-              accessibilityRole="button"
-            >
-              <Ionicons name="log-out-outline" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={handleOpenSettings}
+            style={[styles.headerButton, { backgroundColor: colors.surface }]}
+            activeOpacity={0.7}
+            accessibilityLabel="Settings"
+            accessibilityRole="button"
+          >
+            <Ionicons name="settings-outline" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -342,11 +280,6 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
   },
   headerButton: {
     width: 36,

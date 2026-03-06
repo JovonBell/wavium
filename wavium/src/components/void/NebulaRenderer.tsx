@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useMemo } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import {
   Canvas,
   vec,
@@ -25,8 +25,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useThemeStore } from '../../stores/useThemeStore';
 import { nebula } from '../../theme/animations';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface NebulaRendererProps {
   audioLevel: SharedValue<number>;
@@ -78,6 +76,7 @@ export default function NebulaRenderer({
   gyroX,
   gyroY,
 }: NebulaRendererProps) {
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
   const { colors } = useThemeStore();
   const [nebulaP, nebulaS, nebulaT] = colors.primaryGradient;
 
@@ -153,7 +152,7 @@ export default function NebulaRenderer({
       blur: 50,
       parallaxFactor: 0.18,
     },
-  ], [nebulaP, nebulaS, nebulaT]);
+  ], [nebulaP, nebulaS, nebulaT, SCREEN_WIDTH, SCREEN_HEIGHT]);
 
   // Calculate cloud positions with gyro offset
   const getCloudPosition = (cloud: typeof clouds[0]) => {

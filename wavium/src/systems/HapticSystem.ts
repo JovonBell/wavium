@@ -194,5 +194,23 @@ class HapticSystem {
   }
 }
 
-// Export singleton instance
-export const haptics = new HapticSystem();
+// Lazy singleton — only instantiate on first use, not at module parse time.
+// Prevents any potential native module access before the bridge is ready.
+let _hapticsInstance: HapticSystem | null = null;
+export function getHaptics(): HapticSystem {
+  if (!_hapticsInstance) {
+    _hapticsInstance = new HapticSystem();
+  }
+  return _hapticsInstance;
+}
+// Backward-compatible export via Proxy (lazy access)
+// IMPORTANT: bind methods so `this` inside them is the real instance, not the proxy
+export const haptics = new Proxy({} as HapticSystem, {
+  get(_target, prop) {
+    const value = (getHaptics() as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(getHaptics());
+    }
+    return value;
+  },
+});

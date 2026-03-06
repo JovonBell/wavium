@@ -237,8 +237,26 @@ class AudioSystem {
   }
 }
 
-// Export singleton instance
-export const audio = new AudioSystem();
+// Lazy singleton — only instantiate on first use, not at module parse time
+// This prevents native TurboModule calls before the bridge is ready
+let _audioInstance: AudioSystem | null = null;
+export function getAudio(): AudioSystem {
+  if (!_audioInstance) {
+    _audioInstance = new AudioSystem();
+  }
+  return _audioInstance;
+}
+// Keep backward-compatible export as a getter
+// IMPORTANT: bind methods so `this` inside them is the real instance, not the proxy
+export const audio = new Proxy({} as AudioSystem, {
+  get(_target, prop) {
+    const value = (getAudio() as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(getAudio());
+    }
+    return value;
+  },
+});
 
 // React hook for audio system
 import { useState, useEffect, useCallback } from 'react';

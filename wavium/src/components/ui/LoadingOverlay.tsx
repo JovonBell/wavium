@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Text, Dimensions } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
@@ -26,8 +26,6 @@ import {
 } from '@shopify/react-native-skia';
 import { useThemeStore } from '../../stores/useThemeStore';
 import { typography } from '../../theme/typography';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface LoadingOverlayProps {
   visible: boolean;

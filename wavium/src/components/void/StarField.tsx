@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo, useEffect, useState } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import {
   Canvas,
   Circle,
@@ -27,12 +27,12 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { starField } from '../../theme/animations';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
 interface Star {
   id: number;
-  x: number;
-  y: number;
+  /** 0-1 ratio, multiply by screen width + padding at render time */
+  xRatio: number;
+  /** 0-1 ratio, multiply by screen height + padding at render time */
+  yRatio: number;
   size: number;
   opacity: number;
   twinkleOffset: number;
@@ -46,7 +46,7 @@ interface StarFieldProps {
   audioLevel?: SharedValue<number>;
 }
 
-// Generate stars for a layer
+// Generate stars for a layer — uses 0-1 ratios so positions are screen-independent
 function generateStars(layer: 'deep' | 'medium' | 'near'): Star[] {
   const config = {
     deep: {
@@ -68,8 +68,8 @@ function generateStars(layer: 'deep' | 'medium' | 'near'): Star[] {
 
   return Array.from({ length: config.count }, (_, i) => ({
     id: i,
-    x: Math.random() * (SCREEN_WIDTH + 100) - 50,
-    y: Math.random() * (SCREEN_HEIGHT + 100) - 50,
+    xRatio: Math.random(),
+    yRatio: Math.random(),
     size: config.minSize + Math.random() * (config.maxSize - config.minSize),
     opacity: starField.twinkleMinOpacity +
       Math.random() * (starField.twinkleMaxOpacity - starField.twinkleMinOpacity),
@@ -82,12 +82,19 @@ function generateStars(layer: 'deep' | 'medium' | 'near'): Star[] {
 // Individual twinkling star
 const TwinklingStar = ({
   star,
+  screenW,
+  screenH,
   audioLevel,
 }: {
   star: Star;
+  screenW: number;
+  screenH: number;
   audioLevel?: SharedValue<number>;
 }) => {
   const opacity = useSharedValue(star.opacity);
+  // Convert 0-1 ratios to pixel positions (with 100px padding zone)
+  const x = star.xRatio * (screenW + 100) - 50;
+  const y = star.yRatio * (screenH + 100) - 50;
 
   useEffect(() => {
     // Random twinkle animation
@@ -117,8 +124,8 @@ const TwinklingStar = ({
       style={[
         {
           position: 'absolute',
-          left: star.x,
-          top: star.y,
+          left: x,
+          top: y,
           width: star.size * 2,
           height: star.size * 2,
         },
@@ -217,6 +224,8 @@ export default function StarField({
   gyroY,
   audioLevel,
 }: StarFieldProps) {
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
+
   // Memoize stars so they don't regenerate on every render
   const stars = useMemo(() => generateStars(layer), [layer]);
 
@@ -249,7 +258,7 @@ export default function StarField({
 
     const intervalRef = { current: scheduleNext() };
     return () => clearTimeout(intervalRef.current);
-  }, [layer]);
+  }, [layer, SCREEN_WIDTH, SCREEN_HEIGHT]);
 
   // Get parallax multiplier for this layer
   const parallaxMultiplier = {
@@ -272,6 +281,8 @@ export default function StarField({
         <TwinklingStar
           key={star.id}
           star={star}
+          screenW={SCREEN_WIDTH}
+          screenH={SCREEN_HEIGHT}
           audioLevel={audioLevel}
         />
       ))}

@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -18,8 +18,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useThemeStore } from '../../stores/useThemeStore';
 import { fontFamilies } from '../../theme/typography';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -45,6 +43,7 @@ export default function AffirmationSpirals({
   audioLevel,
   currentIndex = 0,
 }: AffirmationSpiralsProps) {
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const { colors } = useThemeStore();
   const glowColor = colors.primaryGradient[0];
 
@@ -157,7 +156,7 @@ export default function AffirmationSpirals({
       <Animated.Text
         style={[
           styles.affirmationText,
-          { color: colors.textPrimary, textShadowColor: glowColor },
+          { color: colors.textPrimary, textShadowColor: glowColor, top: SCREEN_HEIGHT * 0.60 },
           styleA,
         ]}
         numberOfLines={3}
@@ -169,7 +168,7 @@ export default function AffirmationSpirals({
       <Animated.Text
         style={[
           styles.affirmationText,
-          { color: colors.textPrimary, textShadowColor: glowColor },
+          { color: colors.textPrimary, textShadowColor: glowColor, top: SCREEN_HEIGHT * 0.60 },
           styleB,
         ]}
         numberOfLines={3}
@@ -189,7 +188,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: SCREEN_HEIGHT * 0.60,
     paddingHorizontal: 40,
     fontFamily: fontFamilies.editorialRegular,
     fontSize: 22,

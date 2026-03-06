@@ -9,7 +9,7 @@ import { Slot, router, usePathname } from 'expo-router';
 import { TabBar, DEFAULT_TABS, TimeShiftingBackground, HomeAmbientPlayer } from '../../src/components/ui';
 
 // Screens that should hide the tab bar (creation flow)
-const SCREENS_WITHOUT_TABS = ['/script', '/tracks'];
+const SCREENS_WITHOUT_TABS = ['/script', '/tracks', '/settings'];
 
 export default function MainLayout() {
   const pathname = usePathname();

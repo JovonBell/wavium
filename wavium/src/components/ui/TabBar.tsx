@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -20,8 +20,6 @@ import { useThemeStore } from '../../stores/useThemeStore';
 import { typography } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { springs } from '../../theme/animations';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface TabItem {
   key: string;
