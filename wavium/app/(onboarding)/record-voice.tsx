@@ -32,8 +32,8 @@ import { spacing } from '../../src/theme/spacing';
 import { uploadVoiceRecording } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/useAuthStore';
 
-const MIN_DURATION_MS = 60_000; // 60 seconds minimum for best voice cloning quality
-const MAX_DURATION_MS = 90_000; // 90 seconds max (extra buffer)
+const MIN_DURATION_MS = 30_000; // 30 seconds minimum for voice cloning
+const MAX_DURATION_MS = 90_000; // 90 seconds max
 
 export default function RecordVoiceScreen() {
   const { colors } = useThemeStore();
@@ -186,7 +186,9 @@ export default function RecordVoiceScreen() {
       return;
     }
 
+    console.log('[VoiceClone] Uploading recording...', { uri: recordingUri, userId });
     const result = await uploadVoiceRecording(recordingUri, userId, userName || 'My Voice');
+    console.log('[VoiceClone] Upload result:', result);
 
     if (result.voiceId) {
       setCustomVoice(result.voiceId);
