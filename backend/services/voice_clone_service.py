@@ -245,17 +245,35 @@ async def synthesize_cloned_voice_lines(
             "synthesis may have failed silently"
         )
 
-    if output_filename is None:
-        output_filename = f"clone_tts_{uuid.uuid4().hex[:8]}.wav"
-    output_path = str(AUDIO_DIR / output_filename)
-
-    with open(output_path, "wb") as f:
+    # Save WAV temporarily, then convert to MP3 for iOS AVPlayer compatibility
+    # (iOS AVFoundation error -11850 when streaming raw WAV from StaticFiles)
+    run_id = uuid.uuid4().hex[:8]
+    wav_path = str(AUDIO_DIR / f"clone_tts_{run_id}.wav")
+    with open(wav_path, "wb") as f:
         f.write(audio_bytes)
 
-    import logging
-    logging.info(f"[VoiceClone] Saved synthesized audio: {output_path} ({len(audio_bytes)} bytes)")
+    if output_filename is None:
+        output_filename = f"clone_tts_{run_id}.mp3"
+    mp3_path = str(AUDIO_DIR / output_filename)
 
-    return output_path
+    result = subprocess.run(
+        ["ffmpeg", "-y", "-i", wav_path, "-q:a", "2", mp3_path],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"WAV→MP3 conversion failed: {result.stderr[-500:]}")
+
+    # Clean up intermediate WAV
+    try:
+        os.remove(wav_path)
+    except OSError:
+        pass
+
+    import logging
+    mp3_size = os.path.getsize(mp3_path)
+    logging.info(f"[VoiceClone] Saved synthesized audio: {mp3_path} ({mp3_size} bytes, converted from {len(audio_bytes)} WAV bytes)")
+
+    return mp3_path
 
 
 def get_user_voice_id(user_id: str) -> str | None:
