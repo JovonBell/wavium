@@ -80,6 +80,9 @@ export async function generateVoiceAudio(
   cloneVoiceId?: string | null,
   userId?: string | null
 ): Promise<{ audioUrl: string; error?: string }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-audio`, {
       method: 'POST',
@@ -90,6 +93,7 @@ export async function generateVoiceAudio(
         ...(cloneVoiceId ? { clone_voice_id: cloneVoiceId } : {}),
         ...(userId ? { user_id: userId } : {}),
       }),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -103,11 +107,19 @@ export async function generateVoiceAudio(
     const data = await response.json();
     return { audioUrl: `${API_BASE_URL}${data.audio_url}` };
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        audioUrl: '',
+        error: 'Generation timed out after 2 minutes. The GPU may be cold-starting — please try again.',
+      };
+    }
     return {
       audioUrl: '',
       error:
         error instanceof Error ? error.message : 'Failed to connect to server',
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

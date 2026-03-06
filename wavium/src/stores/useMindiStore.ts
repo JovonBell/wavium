@@ -130,6 +130,7 @@ interface MindiStoreState {
   // Custom voice clone
   hasCustomVoice: boolean;
   customVoiceId: string | null;
+  recordingUri: string | null;
 
   // Mindi state
   currentState: MindiState;
@@ -151,7 +152,8 @@ interface MindiStoreState {
   setName: (name: string) => void;
   setUserId: (id: string) => void;
   setUserName: (name: string) => void;
-  setCustomVoice: (voiceId: string) => void;
+  setCustomVoice: (voiceId: string, recordingUri?: string) => void;
+  setRecordingUri: (uri: string) => void;
   clearCustomVoice: () => void;
   setVoiceVolume: (v: number) => void;
   setBackgroundVolume: (v: number) => void;
@@ -211,6 +213,7 @@ export const useMindiStore = create<MindiStoreState>()(
       userName: '',
       hasCustomVoice: false,
       customVoiceId: null,
+      recordingUri: null,
       currentState: 'idle',
       voiceVolume: 0.15,
       backgroundVolume: 0.7,
@@ -222,8 +225,9 @@ export const useMindiStore = create<MindiStoreState>()(
       setName: (name) => set({ name }),
       setUserId: (id) => set({ userId: id }),
       setUserName: (name) => set({ userName: name }),
-      setCustomVoice: (voiceId) => set({ hasCustomVoice: true, customVoiceId: voiceId }),
-      clearCustomVoice: () => set({ hasCustomVoice: false, customVoiceId: null }),
+      setCustomVoice: (voiceId, recordingUri) => set({ hasCustomVoice: true, customVoiceId: voiceId, ...(recordingUri ? { recordingUri } : {}) }),
+      setRecordingUri: (uri) => set({ recordingUri: uri }),
+      clearCustomVoice: () => set({ hasCustomVoice: false, customVoiceId: null, recordingUri: null }),
       setCurrentState: (state) => set({ currentState: state }),
       setVoiceVolume: (v) => set({ voiceVolume: v }),
       setBackgroundVolume: (v) => set({ backgroundVolume: v }),
@@ -331,6 +335,7 @@ export const useMindiStore = create<MindiStoreState>()(
         name: 'Mindi',
         hasCustomVoice: false,
         customVoiceId: null,
+        recordingUri: null,
         subliminals: [],
         creation: { ...initialCreation },
         streak: { ...initialStreak },

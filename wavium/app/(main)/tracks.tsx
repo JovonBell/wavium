@@ -27,6 +27,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '../../src/stores/useThemeStore';
 import { useMindiStore, SoundTrack, SOUND_TRACKS, VoiceId, VOICES } from '../../src/stores/useMindiStore';
+import { useAuthStore } from '../../src/stores/useAuthStore';
 
 // Extended voice type that includes custom voice option
 type VoiceOption = VoiceId | 'custom';
@@ -82,12 +83,15 @@ const TRACK_ICONS: Record<SoundTrack, string> = {
 export default function TracksScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useThemeStore();
-  const { creation, setSelectedTrack, setSelectedVoice, saveSubliminal, hasCustomVoice, customVoiceId, userName, userId } = useMindiStore();
+  const { creation, setSelectedTrack, setSelectedVoice, saveSubliminal, hasCustomVoice, customVoiceId, recordingUri, userName, userId } = useMindiStore();
+  const authUser = useAuthStore((s) => s.user);
 
   const [selectedTrackId, setSelectedTrackId] = useState<SoundTrack | null>(
     creation.selectedTrack
   );
-  const [selectedVoiceId, setSelectedVoiceIdLocal] = useState<VoiceOption | null>(creation.selectedVoice);
+  const [selectedVoiceId, setSelectedVoiceIdLocal] = useState<VoiceOption | null>(
+    creation.selectedVoice ?? (hasCustomVoice && customVoiceId ? 'custom' : null)
+  );
   const [isCreating, setIsCreating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState('');
@@ -169,8 +173,25 @@ export default function TracksScreen() {
       clearTimeout(previewTimeoutRef.current);
     }
 
-    // No preview for custom cloned voice
-    if (voiceId === 'custom') return;
+    // Custom cloned voice: play the raw recording as preview
+    if (voiceId === 'custom') {
+      if (!recordingUri) return;
+      if (isLoadingVoicePreview.current) return;
+      isLoadingVoicePreview.current = true;
+      try {
+        try { await audio.stop(); } catch {}
+        const loaded = await audio.load(recordingUri);
+        if (!loaded) { isLoadingVoicePreview.current = false; return; }
+        await audio.setVolume(0.8);
+        await audio.play();
+        previewTimeoutRef.current = setTimeout(() => { audio.stop().catch(() => {}); }, 6000);
+      } catch (error) {
+        console.warn('Could not play voice preview:', error);
+      } finally {
+        isLoadingVoicePreview.current = false;
+      }
+      return;
+    }
 
     if (isLoadingVoicePreview.current) return;
     isLoadingVoicePreview.current = true;
@@ -231,12 +252,33 @@ export default function TracksScreen() {
       // Generate voice-only TTS audio (player handles background separately)
       // If using custom cloned voice, pass clone ID and user ID for XTTS v2 synthesis
       const isClonedVoice = selectedVoiceId === 'custom' && customVoiceId;
+
+      // Resolve userId — fall back to auth store if MindiStore userId is null
+      const resolvedUserId = userId || authUser?.id || null;
+      if (isClonedVoice && !resolvedUserId) {
+        Alert.alert('Error', 'Could not identify your account. Please sign out and sign in again.');
+        setIsCreating(false);
+        setGenerationProgress(0);
+        setGenerationMessage('');
+        return;
+      }
+
+      // Show GPU warming message after 10s for cloned voice synthesis
+      let warmupTimeout: ReturnType<typeof setTimeout> | null = null;
+      if (isClonedVoice) {
+        warmupTimeout = setTimeout(() => {
+          setGenerationMessage('GPU is warming up — this may take up to a minute...');
+        }, 10000);
+      }
+
       const { audioUrl, error } = await generateVoiceAudio(
         creation.affirmations,
         voice,
         isClonedVoice ? customVoiceId : null,
-        isClonedVoice ? userId : null,
+        isClonedVoice ? resolvedUserId : null,
       );
+
+      if (warmupTimeout) clearTimeout(warmupTimeout);
 
       if (error || !audioUrl) {
         throw new Error(error || 'No audio URL returned');

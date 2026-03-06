@@ -3,16 +3,38 @@
  * Simple tab navigation: Home and Create
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Slot, router, usePathname } from 'expo-router';
 import { TabBar, DEFAULT_TABS, TimeShiftingBackground, HomeAmbientPlayer } from '../../src/components/ui';
+import { useMindiStore } from '../../src/stores/useMindiStore';
+import { useAuthStore } from '../../src/stores/useAuthStore';
+import { getVoiceCloneStatus } from '../../src/services/api';
 
 // Screens that should hide the tab bar (creation flow)
 const SCREENS_WITHOUT_TABS = ['/script', '/tracks', '/settings'];
 
 export default function MainLayout() {
   const pathname = usePathname();
+
+  // Rehydrate voice clone status from backend for returning users (Bug 3)
+  const userId = useMindiStore((s) => s.userId);
+  const hasCustomVoice = useMindiStore((s) => s.hasCustomVoice);
+  const setCustomVoice = useMindiStore((s) => s.setCustomVoice);
+  const authUserId = useAuthStore((s) => s.user?.id);
+
+  useEffect(() => {
+    const effectiveUserId = userId || authUserId;
+    if (effectiveUserId && !hasCustomVoice) {
+      getVoiceCloneStatus(effectiveUserId).then(({ hasVoice, voiceId }) => {
+        if (hasVoice && voiceId) {
+          setCustomVoice(voiceId);
+        }
+      }).catch(() => {
+        // Silently fail — voice status is a nice-to-have on load
+      });
+    }
+  }, [userId, authUserId]);
 
   // Check if we should show tabs
   const shouldShowTabs = !SCREENS_WITHOUT_TABS.some((screen) =>
