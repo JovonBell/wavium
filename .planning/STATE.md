@@ -83,6 +83,9 @@ Recent decisions affecting current work:
 - [Quick-3]: Supabase credentials read from env vars (EXPO_PUBLIC_*) not hardcoded
 - [Quick-3]: Auth store is runtime-only (Supabase handles session persistence internally via AsyncStorage)
 - [Quick-3]: Three-state route guard: no session -> auth, session no userId -> onboarding, both -> main
+- [Quick-4]: Modal web_endpoint is a class method on VoiceSynthesizer so self.tts is always loaded via @modal.enter()
+- [Quick-4]: 120s AbortController timeout on generateVoiceAudio with GPU warming message after 10s
+- [Quick-4]: Voice status rehydration fires on layout mount only when !hasCustomVoice to avoid redundant API calls
 
 ### Pending Todos
 
@@ -101,9 +104,10 @@ None yet.
 | 1 | Add 5 selectable human-sounding voices instead of single default Mindi voice | 2026-03-02 | a3630d1 | [1-add-5-selectable-human-sounding-voices-i](./quick/1-add-5-selectable-human-sounding-voices-i/) |
 | 2 | Player UX overhaul: crossfade audio, one-at-a-time affirmations, Mindi upper third, shooting stars, glassmorphic controls, vignette, home ambient | 2026-03-02 | b8dcd24 | [2-player-ux-overhaul](./quick/2-player-ux-overhaul/) |
 | 3 | Full Supabase auth integration: sign-up, sign-in, forgot password, session persistence, route protection, logout | 2026-03-02 | 1b1e4ad | [3-build-full-supabase-auth-integration](./quick/3-build-full-supabase-auth-integration/) |
+| 4 | Fix all 10 voice cloning bugs: Modal endpoint architecture crash, voice preview, rehydration, 120s timeout, selection persistence, userId guard, storage atomicity, ephemeral disk TODO, silent fallback, temp file races | 2026-03-06 | 98838e6 | [4-fix-all-voice-cloning-bugs-modal-endpoin](./quick/4-fix-all-voice-cloning-bugs-modal-endpoin/) |
 
 ## Session Continuity
 
-Last session: 2026-03-02
-Stopped at: Completed quick task 3: Full Supabase Auth Integration
+Last session: 2026-03-06
+Stopped at: Completed quick task 4: Fix All Voice Cloning Bugs (Modal Endpoint)
 Resume file: None
