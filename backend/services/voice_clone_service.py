@@ -37,11 +37,16 @@ TEMP_DIR.mkdir(exist_ok=True)
 
 def _get_modal_endpoint() -> str:
     """Get the Modal serverless endpoint URL."""
-    url = os.getenv("MODAL_ENDPOINT_URL", "")
+    url = os.getenv("MODAL_ENDPOINT_URL", "").strip()
     if not url:
         raise RuntimeError(
             "MODAL_ENDPOINT_URL not set. Deploy the Modal function first: "
             "modal deploy backend/modal_tts/app.py"
+        )
+    if not url.startswith("https://") and not url.startswith("http://"):
+        raise RuntimeError(
+            f"MODAL_ENDPOINT_URL is malformed (missing https://): '{url}'. "
+            "Expected: https://jovonbell--wavium-voice-clone-synthesize-endpoint.modal.run"
         )
     return url
 
@@ -139,10 +144,16 @@ async def synthesize_cloned_voice(
         "reference_audio_b64": base64.b64encode(ref_audio).decode(),
     }
 
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        response = await client.post(modal_url, json=payload)
-        response.raise_for_status()
-        result = response.json()
+    try:
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            response = await client.post(modal_url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+    except httpx.ConnectError as e:
+        raise RuntimeError(
+            f"Cannot reach Modal endpoint '{modal_url}': {e}. "
+            "Check MODAL_ENDPOINT_URL env var on Railway and ensure the Modal app is deployed."
+        ) from e
 
     # Decode returned audio
     audio_bytes = base64.b64decode(result["audio_b64"])
@@ -184,10 +195,16 @@ async def synthesize_cloned_voice_lines(
         "reference_audio_b64": base64.b64encode(ref_audio).decode(),
     }
 
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        response = await client.post(modal_url, json=payload)
-        response.raise_for_status()
-        result = response.json()
+    try:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            response = await client.post(modal_url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+    except httpx.ConnectError as e:
+        raise RuntimeError(
+            f"Cannot reach Modal endpoint '{modal_url}': {e}. "
+            "Check MODAL_ENDPOINT_URL env var on Railway and ensure the Modal app is deployed."
+        ) from e
 
     audio_bytes = base64.b64decode(result["audio_b64"])
 

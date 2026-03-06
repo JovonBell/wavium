@@ -26,6 +26,15 @@ load_dotenv()
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
+# Log critical env vars at startup so Railway logs make misconfigurations obvious
+import logging
+logging.basicConfig(level=logging.INFO)
+_logger = logging.getLogger("wavium.startup")
+_supabase_url_val = os.getenv("SUPABASE_URL", "")
+_modal_url_val = os.getenv("MODAL_ENDPOINT_URL", "")
+_logger.info(f"[startup] SUPABASE_URL = '{_supabase_url_val[:40]}...' " if len(_supabase_url_val) > 40 else f"[startup] SUPABASE_URL = '{_supabase_url_val}' ({'OK' if _supabase_url_val.startswith('https://') else 'MISSING/BROKEN'})")
+_logger.info(f"[startup] MODAL_ENDPOINT_URL = '{_modal_url_val[:60]}...' " if len(_modal_url_val) > 60 else f"[startup] MODAL_ENDPOINT_URL = '{_modal_url_val}' ({'OK' if _modal_url_val.startswith('https://') else 'MISSING/BROKEN'})")
+
 # Patch httpx to accept deprecated `proxies` kwarg (groq SDK compat)
 import httpx as _httpx
 _orig_client_init = _httpx.Client.__init__
