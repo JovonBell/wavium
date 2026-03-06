@@ -21,12 +21,12 @@ def _get_client() -> ElevenLabs:
 
 async def clone_voice(name: str, audio_path: str) -> str:
     """
-    Clone a voice from an audio sample.
+    Clone a voice from an audio sample using Instant Voice Cloning.
     Returns the ElevenLabs voice ID.
     """
     client = _get_client()
     with open(audio_path, "rb") as f:
-        voice = client.clone(
+        voice = client.voices.ivc.create(
             name=name,
             files=[f],
             description=f"Wavium user voice clone: {name}",
