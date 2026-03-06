@@ -27,16 +27,21 @@ export async function initRevenueCat(userId?: string): Promise<void> {
     return;
   }
 
-  Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+  try {
+    Purchases.setLogLevel(LOG_LEVEL.DEBUG);
 
-  if (Platform.OS === 'ios') {
-    await Purchases.configure({
-      apiKey: APPLE_API_KEY,
-      appUserID: userId || undefined,
-    });
+    if (Platform.OS === 'ios') {
+      await Purchases.configure({
+        apiKey: APPLE_API_KEY,
+        appUserID: userId || undefined,
+      });
+    }
+
+    initialized = true;
+  } catch (e) {
+    console.warn('[RevenueCat] Failed to configure:', e);
+    // Don't block app — subscriptions just won't work
   }
-
-  initialized = true;
 }
 
 /**
@@ -44,7 +49,11 @@ export async function initRevenueCat(userId?: string): Promise<void> {
  */
 export async function identifyUser(userId: string): Promise<void> {
   if (!initialized) return;
-  await Purchases.logIn(userId);
+  try {
+    await Purchases.logIn(userId);
+  } catch (e) {
+    console.warn('[RevenueCat] Failed to identify user:', e);
+  }
 }
 
 /**
