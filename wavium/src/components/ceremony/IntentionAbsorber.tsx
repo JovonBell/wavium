@@ -138,6 +138,13 @@ export default function IntentionAbsorber({
   const [speechMessage, setSpeechMessage] = useState('');
 
   const inputRef = useRef<TextInput>(null);
+  // Ref to the latest onComplete callback — avoids it appearing in effect deps,
+  // which would re-fire the "words absorbed" effect whenever the parent
+  // re-renders and passes a new function reference, causing double navigation.
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+  // Guard: once we've called onComplete, never call it again for this mount.
+  const hasCompletedRef = useRef(false);
 
   const centerX = SCREEN_WIDTH / 2;
   const centerY = SCREEN_HEIGHT * 0.35;
@@ -187,9 +194,14 @@ export default function IntentionAbsorber({
     setWordsComplete(prev => prev + 1);
   }, []);
 
-  // React to all words being absorbed — outside of setState updater
+  // React to all words being absorbed — outside of setState updater.
+  // Uses onCompleteRef (not onComplete prop) so a new callback reference from
+  // the parent never re-triggers this effect with wordsComplete already > 0,
+  // which would call router.push a second time and corrupt the nav stack.
+  // hasCompletedRef ensures we fire onComplete exactly once per mount.
   useEffect(() => {
-    if (wordsComplete > 0 && wordsComplete === words.length) {
+    if (wordsComplete > 0 && wordsComplete === words.length && !hasCompletedRef.current) {
+      hasCompletedRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCurrentState('happy');
 
@@ -200,11 +212,11 @@ export default function IntentionAbsorber({
 
         // Complete after showing message
         setTimeout(() => {
-          onComplete?.(intention);
+          onCompleteRef.current?.(intention);
         }, 2000);
       }, 500);
     }
-  }, [wordsComplete, words.length, intention, onComplete]);
+  }, [wordsComplete, words.length, intention]);
 
   const inputContainerStyle = useAnimatedStyle(() => ({
     opacity: inputOpacity.value,

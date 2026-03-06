@@ -12,6 +12,7 @@ export default function OnboardingLayout() {
       screenOptions={{
         headerShown: false,
         animation: 'fade',
+        gestureEnabled: false,
         contentStyle: { backgroundColor: 'transparent' },
       }}
     >

@@ -49,9 +49,15 @@ export default function RootLayout() {
     // Check immediately
     checkHydration();
 
-    // Also listen for hydration finish
+    // Also listen for hydration finish.
+    // NOTE: onFinishHydration fires on EVERY Zustand persist write, not just
+    // the initial hydration from AsyncStorage. Guard with a check so we only
+    // call setIsHydrated(true) once — repeated calls during onboarding (from
+    // setUserName, setCurrentState, setIntention, etc.) were causing extra
+    // render cycles in React Native that interfered with Expo Router's
+    // navigation stack evaluation.
     const unsubscribe = useMindiStore.persist.onFinishHydration(() => {
-      setIsHydrated(true);
+      setIsHydrated((prev) => (prev ? prev : true));
     });
 
     return () => {
