@@ -82,7 +82,7 @@ const TRACK_ICONS: Record<SoundTrack, string> = {
 export default function TracksScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useThemeStore();
-  const { creation, setSelectedTrack, setSelectedVoice, saveSubliminal, hasCustomVoice, customVoiceId, userName } = useMindiStore();
+  const { creation, setSelectedTrack, setSelectedVoice, saveSubliminal, hasCustomVoice, customVoiceId, userName, userId } = useMindiStore();
 
   const [selectedTrackId, setSelectedTrackId] = useState<SoundTrack | null>(
     creation.selectedTrack
@@ -229,9 +229,13 @@ export default function TracksScreen() {
       setGenerationMessage('Creating whispered affirmations...');
 
       // Generate voice-only TTS audio (player handles background separately)
+      // If using custom cloned voice, pass clone ID and user ID for XTTS v2 synthesis
+      const isClonedVoice = selectedVoiceId === 'custom' && customVoiceId;
       const { audioUrl, error } = await generateVoiceAudio(
         creation.affirmations,
         voice,
+        isClonedVoice ? customVoiceId : null,
+        isClonedVoice ? userId : null,
       );
 
       if (error || !audioUrl) {

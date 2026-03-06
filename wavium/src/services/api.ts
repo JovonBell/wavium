@@ -29,7 +29,9 @@ export async function generateSubliminalAudio(
   voice: string = 'ava',
   track: string = 'ocean-waves',
   durationSecs: number = 1800,
-  userName?: string
+  userName?: string,
+  cloneVoiceId?: string | null,
+  userId?: string | null
 ): Promise<{ audioUrl: string; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-subliminal`, {
@@ -43,6 +45,8 @@ export async function generateSubliminalAudio(
         bg_volume: 0.85,
         duration_secs: durationSecs,
         ...(userName ? { user_name: userName } : {}),
+        ...(cloneVoiceId ? { clone_voice_id: cloneVoiceId } : {}),
+        ...(userId ? { user_id: userId } : {}),
       }),
     });
 
@@ -72,13 +76,20 @@ export async function generateSubliminalAudio(
  */
 export async function generateVoiceAudio(
   affirmations: string[],
-  voice: string = 'ava'
+  voice: string = 'ava',
+  cloneVoiceId?: string | null,
+  userId?: string | null
 ): Promise<{ audioUrl: string; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-audio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ affirmations, voice }),
+      body: JSON.stringify({
+        affirmations,
+        voice,
+        ...(cloneVoiceId ? { clone_voice_id: cloneVoiceId } : {}),
+        ...(userId ? { user_id: userId } : {}),
+      }),
     });
 
     if (!response.ok) {
@@ -122,7 +133,7 @@ export async function getVoicePreviewUrl(voiceId: string): Promise<string | null
 }
 
 /**
- * Upload a voice recording for cloning via ElevenLabs
+ * Upload a voice recording for voice cloning (self-hosted XTTS v2)
  */
 export async function uploadVoiceRecording(
   audioUri: string,
@@ -183,5 +194,21 @@ export async function getVoices(): Promise<VoiceInfo[]> {
     return await response.json();
   } catch {
     return [];
+  }
+}
+
+/**
+ * Check if a user has a cloned voice available on the backend
+ */
+export async function getVoiceCloneStatus(
+  userId: string
+): Promise<{ hasVoice: boolean; voiceId: string | null }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/voice/status/${userId}`);
+    if (!response.ok) return { hasVoice: false, voiceId: null };
+    const data = await response.json();
+    return { hasVoice: data.has_voice, voiceId: data.voice_id };
+  } catch {
+    return { hasVoice: false, voiceId: null };
   }
 }

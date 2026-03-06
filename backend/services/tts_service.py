@@ -79,16 +79,20 @@ async def generate_subliminal(
     voice_volume: float = 0.12,
     bg_volume: float = 0.85,
     duration_secs: int = 300,
+    clone_voice_id: str | None = None,
+    user_id: str | None = None,
 ) -> str:
     """
     Generate a complete subliminal audio file:
-    1. Generate whisper-like TTS from affirmations using edge-tts
-    2. Download/cache the ambient background track
+    1. Generate whisper-like TTS from affirmations (edge-tts or cloned voice)
+    2. Get the ambient background track
     3. Mix voice (low volume, looped) under background using FFmpeg
+
+    If clone_voice_id and user_id are provided, uses the user's cloned voice
+    via XTTS v2 instead of edge-tts preset voices.
 
     Returns path to the final mixed MP3.
     """
-    voice_id = VOICES.get(voice.lower(), VOICES["ava"])
     run_id = uuid.uuid4().hex[:8]
 
     # --- Step 1: Generate whisper TTS ---
@@ -100,17 +104,40 @@ async def generate_subliminal(
         working_affirmations = working_affirmations + extra
         working_affirmations = working_affirmations[:30]
     random.shuffle(working_affirmations)
-    # Join affirmations with long pauses for a breathing, natural feel
-    full_text = " ..... ".join(working_affirmations) + " ....."
+
     voice_path = os.path.join(TEMP_DIR, f"voice_{run_id}.mp3")
 
-    communicate = edge_tts.Communicate(
-        full_text,
-        voice_id,
-        rate="+8%",
-        pitch="-3Hz",
-    )
-    await communicate.save(voice_path)
+    if clone_voice_id and user_id:
+        # Use cloned voice via XTTS v2
+        from services.voice_clone_service import synthesize_cloned_voice
+
+        # Join affirmations with pauses (XTTS handles pacing naturally)
+        full_text = ". ".join(working_affirmations) + "."
+        clone_wav = os.path.join(TEMP_DIR, f"voice_{run_id}.wav")
+        await synthesize_cloned_voice(
+            text=full_text,
+            voice_id=clone_voice_id,
+            user_id=user_id,
+            output_filename=f"voice_{run_id}.wav",
+        )
+        # Convert WAV to MP3 for FFmpeg mixing pipeline
+        _run_ffmpeg(["-i", os.path.join(OUTPUT_DIR, f"voice_{run_id}.wav"), "-q:a", "2", voice_path])
+        # Clean up intermediate WAV
+        try:
+            os.remove(os.path.join(OUTPUT_DIR, f"voice_{run_id}.wav"))
+        except OSError:
+            pass
+    else:
+        # Use edge-tts preset voice
+        voice_id = VOICES.get(voice.lower(), VOICES["ava"])
+        full_text = " ..... ".join(working_affirmations) + " ....."
+        communicate = edge_tts.Communicate(
+            full_text,
+            voice_id,
+            rate="+8%",
+            pitch="-3Hz",
+        )
+        await communicate.save(voice_path)
 
     # --- Step 2: Get ambient background track ---
     ambient_path = _get_ambient_track(track)

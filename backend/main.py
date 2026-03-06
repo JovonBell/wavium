@@ -20,7 +20,7 @@ import httpx
 
 from services.groq_service import generate_affirmations
 from services.tts_service import generate_audio, generate_subliminal, get_available_voices, generate_voice_preview
-from services.elevenlabs_service import clone_voice
+from services.voice_clone_service import clone_voice, get_user_voice_id, delete_user_voice
 
 load_dotenv()
 
@@ -93,6 +93,8 @@ class GenerateAffirmationsResponse(BaseModel):
 class GenerateAudioRequest(BaseModel):
     affirmations: list[str]
     voice: str = "ava"
+    clone_voice_id: str | None = None  # User's cloned voice ID
+    user_id: str | None = None         # Required when using clone_voice_id
 
 
 class GenerateAudioResponse(BaseModel):
@@ -107,6 +109,8 @@ class GenerateSubliminalRequest(BaseModel):
     voice_volume: float = 0.12
     bg_volume: float = 0.85
     duration_secs: int = 300
+    clone_voice_id: str | None = None  # User's cloned voice ID (from /api/voice/clone)
+    user_id: str | None = None         # Required when using clone_voice_id
 
 
 class GenerateSubliminalResponse(BaseModel):
@@ -169,12 +173,23 @@ async def api_generate_affirmations(request: Request, body: GenerateAffirmations
 
 @app.post("/api/generate-audio", response_model=GenerateAudioResponse)
 async def api_generate_audio(request: GenerateAudioRequest):
-    """Generate basic TTS audio from affirmations"""
+    """Generate basic TTS audio from affirmations (edge-tts or cloned voice)"""
     if not request.affirmations:
         raise HTTPException(status_code=400, detail="Affirmations list cannot be empty")
 
     try:
-        audio_path = await generate_audio(request.affirmations, request.voice)
+        if request.clone_voice_id and request.user_id:
+            # Use cloned voice via XTTS v2
+            from services.voice_clone_service import synthesize_cloned_voice
+            full_text = ". ".join(request.affirmations) + "."
+            audio_path = await synthesize_cloned_voice(
+                text=full_text,
+                voice_id=request.clone_voice_id,
+                user_id=request.user_id,
+            )
+        else:
+            audio_path = await generate_audio(request.affirmations, request.voice)
+
         filename = os.path.basename(audio_path)
         return GenerateAudioResponse(
             audio_url=f"/audio/{filename}",
@@ -201,6 +216,8 @@ async def api_generate_subliminal(request: GenerateSubliminalRequest):
             voice_volume=request.voice_volume,
             bg_volume=request.bg_volume,
             duration_secs=request.duration_secs,
+            clone_voice_id=request.clone_voice_id,
+            user_id=request.user_id,
         )
         filename = os.path.basename(audio_path)
         return GenerateSubliminalResponse(
@@ -319,7 +336,8 @@ async def api_clone_voice(
 ):
     """
     Clone a user's voice from an audio recording.
-    Returns the ElevenLabs voice ID for future TTS generation.
+    Saves the reference audio locally and returns a voice ID for future TTS.
+    Uses self-hosted XTTS v2 — no external API costs.
     """
     if not audio.content_type or not audio.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="File must be an audio file")
@@ -332,7 +350,8 @@ async def api_clone_voice(
         tmp.close()
 
         voice_id = await clone_voice(
-            name=f"wavium_{user_id}_{name}",
+            user_id=user_id,
+            name=name,
             audio_path=tmp.name,
         )
         return {"voice_id": voice_id, "name": name}
@@ -340,6 +359,13 @@ async def api_clone_voice(
         raise HTTPException(status_code=500, detail=f"Voice cloning failed: {str(e)}")
     finally:
         os.unlink(tmp.name)
+
+
+@app.get("/api/voice/status/{user_id}")
+async def api_voice_status(user_id: str):
+    """Check if a user has a cloned voice available."""
+    voice_id = get_user_voice_id(user_id)
+    return {"has_voice": voice_id is not None, "voice_id": voice_id}
 
 
 if __name__ == "__main__":
