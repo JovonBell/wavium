@@ -32,8 +32,8 @@ import { spacing } from '../../src/theme/spacing';
 import { uploadVoiceRecording } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/useAuthStore';
 
-const MIN_DURATION_MS = 10_000; // 10 seconds minimum
-const MAX_DURATION_MS = 30_000; // 30 seconds max
+const MIN_DURATION_MS = 30_000; // 30 seconds minimum for good voice cloning
+const MAX_DURATION_MS = 60_000; // 60 seconds max
 
 export default function RecordVoiceScreen() {
   const { colors } = useThemeStore();
@@ -57,11 +57,12 @@ export default function RecordVoiceScreen() {
   useEffect(() => {
     contentOpacity.value = withDelay(300, withTiming(1, { duration: 600 }));
 
-    // Request mic permission
-    (async () => {
-      const { granted } = await Audio.requestPermissionsAsync();
+    // Check if permission already granted (don't prompt yet — the dialog
+    // causes an app state change that re-triggers the route guard and loops
+    // back to onboarding start since userId is still null)
+    Audio.getPermissionsAsync().then(({ granted }) => {
       setPermissionGranted(granted);
-    })();
+    });
 
     setTimeout(() => {
       setSpeechMessage(
@@ -101,8 +102,12 @@ export default function RecordVoiceScreen() {
 
   const startRecording = async () => {
     if (!permissionGranted) {
-      Alert.alert('Microphone Access', 'Please enable microphone access in Settings.');
-      return;
+      const { granted } = await Audio.requestPermissionsAsync();
+      setPermissionGranted(granted);
+      if (!granted) {
+        Alert.alert('Microphone Access', 'Please enable microphone access in Settings.');
+        return;
+      }
     }
 
     try {
@@ -236,7 +241,7 @@ export default function RecordVoiceScreen() {
                 Read this aloud naturally:
               </Text>
               <Text style={[styles.sampleText, { color: colors.textPrimary }]}>
-                "I am becoming the best version of myself. Every day I grow stronger, more confident, and more aligned with my true purpose."
+                "I am becoming the best version of myself. Every day I grow stronger, more confident, and more aligned with my true purpose. I release all doubt and step into my power. My mind is clear, my heart is open, and I attract abundance in every area of my life. I am worthy of love, success, and everything I desire."
               </Text>
 
               {/* Record button */}

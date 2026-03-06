@@ -8,16 +8,15 @@ import tempfile
 from pathlib import Path
 from elevenlabs.client import ElevenLabs
 
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-
 AUDIO_DIR = Path(__file__).parent.parent / "audio_output"
 AUDIO_DIR.mkdir(exist_ok=True)
 
 
 def _get_client() -> ElevenLabs:
-    if not ELEVENLABS_API_KEY:
+    api_key = os.getenv("ELEVENLABS_API_KEY", "")
+    if not api_key:
         raise RuntimeError("ELEVENLABS_API_KEY not set")
-    return ElevenLabs(api_key=ELEVENLABS_API_KEY)
+    return ElevenLabs(api_key=api_key)
 
 
 async def clone_voice(name: str, audio_path: str) -> str:
