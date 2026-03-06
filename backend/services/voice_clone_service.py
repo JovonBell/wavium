@@ -1,11 +1,12 @@
 """
 WAVIUM - Voice Cloning Service
-Orchestrates voice cloning via Modal serverless GPU + Cloudflare R2 storage.
+Orchestrates voice cloning via Modal serverless GPU + Supabase storage.
 
 Architecture:
-- Voice reference audio stored on R2 (persistent, shared across Railway instances)
+- Voice reference audio stored on Supabase Storage (persistent, shared across Railway instances)
+- Voice metadata stored in Supabase Postgres (voice_profiles table)
 - TTS synthesis runs on Modal (serverless T4 GPU, ~$0.003/call)
-- Railway backend just orchestrates: convert audio → store on R2 → call Modal → return result
+- Railway backend just orchestrates: convert audio → store on Supabase → call Modal → return result
 
 No GPU required on Railway. No XTTS model loaded here.
 """
@@ -19,7 +20,7 @@ import base64
 import httpx
 from pathlib import Path
 
-from services.r2_service import (
+from services.supabase_storage_service import (
     upload_voice_sample,
     download_voice_sample,
     save_voice_metadata,
@@ -65,7 +66,7 @@ def _convert_to_wav(input_path: str, output_path: str) -> None:
 
 async def clone_voice(user_id: str, name: str, audio_path: str) -> str:
     """
-    Clone a user's voice by converting and storing their reference audio on R2.
+    Clone a user's voice by converting and storing their reference audio on Supabase.
 
     No GPU work here — XTTS v2 uses the reference audio at inference time.
     We just store a clean WAV copy.
@@ -80,7 +81,7 @@ async def clone_voice(user_id: str, name: str, audio_path: str) -> str:
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, lambda: _convert_to_wav(audio_path, wav_path))
 
-    # Read the WAV and upload to R2
+    # Read the WAV and upload to Supabase Storage
     with open(wav_path, "rb") as f:
         wav_bytes = f.read()
 
@@ -90,7 +91,7 @@ async def clone_voice(user_id: str, name: str, audio_path: str) -> str:
 
     # Save metadata (which voice is current)
     await loop.run_in_executor(
-        None, lambda: save_voice_metadata(user_id, voice_id)
+        None, lambda: save_voice_metadata(user_id, voice_id, name)
     )
 
     # Clean up temp file
@@ -111,7 +112,7 @@ async def synthesize_cloned_voice(
     """
     Generate TTS audio using a user's cloned voice.
 
-    1. Downloads reference audio from R2
+    1. Downloads reference audio from Supabase
     2. Sends text + reference to Modal serverless GPU
     3. Saves output locally and returns path
 
@@ -126,7 +127,7 @@ async def synthesize_cloned_voice(
     """
     loop = asyncio.get_event_loop()
 
-    # Download reference audio from R2
+    # Download reference audio from Supabase
     ref_audio = await loop.run_in_executor(
         None, lambda: download_voice_sample(user_id, voice_id)
     )
@@ -171,7 +172,7 @@ async def synthesize_cloned_voice_lines(
     """
     loop = asyncio.get_event_loop()
 
-    # Download reference audio from R2
+    # Download reference audio from Supabase
     ref_audio = await loop.run_in_executor(
         None, lambda: download_voice_sample(user_id, voice_id)
     )
@@ -201,11 +202,11 @@ async def synthesize_cloned_voice_lines(
 
 
 def get_user_voice_id(user_id: str) -> str | None:
-    """Get the current voice clone ID for a user from R2."""
+    """Get the current voice clone ID for a user from Supabase."""
     return get_voice_metadata(user_id)
 
 
 async def delete_user_voice(user_id: str) -> bool:
-    """Delete all voice clone data for a user from R2."""
+    """Delete all voice clone data for a user from Supabase."""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, lambda: delete_voice_data(user_id))

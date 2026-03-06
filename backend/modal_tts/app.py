@@ -20,9 +20,12 @@ image = (
     .apt_install("ffmpeg")
     .pip_install(
         "TTS>=0.22.0",
-        "torch>=2.0.0",
+        "torch>=2.0.0,<2.6.0",
         "numpy<2",
+        "transformers<4.40",
+        "fastapi[standard]",
     )
+    .env({"COQUI_TOS_AGREED": "1"})
     .run_commands(
         # Pre-download XTTS v2 model into the image so cold starts are fast
         "python -c \"from TTS.api import TTS; TTS('tts_models/multilingual/multi-dataset/xtts_v2', gpu=False)\""
@@ -35,9 +38,9 @@ app = modal.App("wavium-voice-clone", image=image)
 @app.cls(
     gpu="T4",
     timeout=300,
-    container_idle_timeout=60,  # Keep warm for 60s after last call (saves on cold starts)
-    allow_concurrent_inputs=4,  # Handle up to 4 concurrent requests per container
+    scaledown_window=60,  # Keep warm for 60s after last call (saves on cold starts)
 )
+@modal.concurrent(max_inputs=4)  # Handle up to 4 concurrent requests per container
 class VoiceSynthesizer:
     """XTTS v2 voice synthesizer running on T4 GPU."""
 
@@ -146,11 +149,11 @@ class VoiceSynthesizer:
 @app.function(
     gpu="T4",
     timeout=300,
-    container_idle_timeout=60,
-    allow_concurrent_inputs=4,
+    scaledown_window=60,
     image=image,
 )
-@modal.web_endpoint(method="POST")
+@modal.concurrent(max_inputs=4)
+@modal.fastapi_endpoint(method="POST")
 def synthesize_endpoint(request: dict):
     """
     HTTP endpoint for voice synthesis.

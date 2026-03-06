@@ -322,6 +322,12 @@ async def api_delete_account(request: Request, body: DeleteAccountRequest):
             pass
         raise HTTPException(status_code=delete_resp.status_code, detail=detail)
 
+    # Clean up voice clone data (storage files + DB rows)
+    try:
+        await delete_user_voice(body.user_id)
+    except Exception:
+        pass  # Non-critical — user account already deleted
+
     return {"detail": "Account deleted successfully"}
 
 
