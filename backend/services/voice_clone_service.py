@@ -17,6 +17,7 @@ import asyncio
 import subprocess
 import tempfile
 import base64
+import logging
 import httpx
 from pathlib import Path
 
@@ -26,13 +27,18 @@ from services.supabase_storage_service import (
     save_voice_metadata,
     get_voice_metadata,
     delete_voice_data,
+    delete_specific_voice_file,
 )
+
+_logger = logging.getLogger("wavium.voice_clone")
 
 AUDIO_DIR = Path(__file__).parent.parent / "audio_output"
 AUDIO_DIR.mkdir(exist_ok=True)
 
 TEMP_DIR = Path(tempfile.gettempdir()) / "wavium"
 TEMP_DIR.mkdir(exist_ok=True)
+
+MAX_REF_AUDIO_BYTES = 20 * 1024 * 1024  # 20MB
 
 
 def _get_modal_endpoint() -> str:
@@ -78,6 +84,15 @@ async def clone_voice(user_id: str, name: str, audio_path: str) -> str:
 
     Returns a voice_id string for future TTS calls.
     """
+    # Fix #12: Clean up old voice data before creating new voice_id (idempotent uploads)
+    try:
+        existing_voice_id = await get_voice_metadata(user_id)
+        if existing_voice_id:
+            _logger.info(f"[VoiceClone] Cleaning up existing voice {existing_voice_id} for user {user_id}")
+            await delete_voice_data(user_id)
+    except Exception as e:
+        _logger.warning(f"[VoiceClone] Could not clean up old voice data: {e}")
+
     voice_id = f"clone_{user_id}_{uuid.uuid4().hex[:8]}"
 
     # Convert uploaded audio to WAV format
@@ -90,27 +105,20 @@ async def clone_voice(user_id: str, name: str, audio_path: str) -> str:
     with open(wav_path, "rb") as f:
         wav_bytes = f.read()
 
-    await loop.run_in_executor(
-        None, lambda: upload_voice_sample(user_id, voice_id, wav_bytes)
-    )
+    await upload_voice_sample(user_id, voice_id, wav_bytes)
 
     # Save metadata — rollback storage upload if this fails
     try:
-        await loop.run_in_executor(
-            None, lambda: save_voice_metadata(user_id, voice_id, name)
-        )
+        await save_voice_metadata(user_id, voice_id, name)
     except Exception as e:
-        # Rollback: delete the orphaned Storage file so we don't have stale data
-        import logging
-        logging.warning(
+        # Fix #9: Targeted rollback — only delete the specific failed file, not ALL user data
+        _logger.warning(
             f"Postgres metadata save failed for voice {voice_id}, rolling back Storage upload: {e}"
         )
         try:
-            await loop.run_in_executor(
-                None, lambda: delete_voice_data(user_id)
-            )
+            await delete_specific_voice_file(user_id, voice_id)
         except Exception as rollback_err:
-            logging.error(f"Storage rollback also failed: {rollback_err}")
+            _logger.error(f"Storage rollback also failed: {rollback_err}")
         raise  # Re-raise the original error so the endpoint returns 500
 
     # Clean up temp file
@@ -134,22 +142,15 @@ async def synthesize_cloned_voice(
     1. Downloads reference audio from Supabase
     2. Sends text + reference to Modal serverless GPU
     3. Saves output locally and returns path
-
-    Args:
-        text: The text to synthesize (or joined affirmations)
-        voice_id: The voice clone ID (from clone_voice)
-        user_id: The user's ID
-        output_filename: Optional custom filename
-
-    Returns:
-        Path to the generated audio file (WAV)
     """
-    loop = asyncio.get_event_loop()
-
     # Download reference audio from Supabase
-    ref_audio = await loop.run_in_executor(
-        None, lambda: download_voice_sample(user_id, voice_id)
-    )
+    ref_audio = await download_voice_sample(user_id, voice_id)
+
+    # Fix #10: Validate ref audio size before base64-encoding for Modal
+    if len(ref_audio) > MAX_REF_AUDIO_BYTES:
+        raise RuntimeError(
+            f"Reference audio too large ({len(ref_audio)} bytes, max {MAX_REF_AUDIO_BYTES})"
+        )
 
     # Call Modal serverless endpoint
     modal_url = _get_modal_endpoint()
@@ -171,7 +172,15 @@ async def synthesize_cloned_voice(
                 raise RuntimeError(
                     f"Modal synthesis failed (HTTP {response.status_code}): {error_msg}"
                 )
-            result = response.json()
+            # Fix #11: Validate Modal JSON response
+            try:
+                result = response.json()
+            except Exception as e:
+                raise RuntimeError(f"Modal returned invalid JSON: {e}")
+            if "audio_b64" not in result:
+                raise RuntimeError(
+                    f"Modal response missing 'audio_b64' key. Keys: {list(result.keys())}"
+                )
     except httpx.ConnectError as e:
         raise RuntimeError(
             f"Cannot reach Modal endpoint '{modal_url}': {e}. "
@@ -202,14 +211,16 @@ async def synthesize_cloned_voice_lines(
     Synthesize multiple affirmation lines individually then concatenate.
     Faster than one giant text block — each line is ~1-2 sec GPU.
 
-    Returns path to the generated audio file (WAV).
+    Returns path to the generated audio file (MP3).
     """
-    loop = asyncio.get_event_loop()
-
     # Download reference audio from Supabase
-    ref_audio = await loop.run_in_executor(
-        None, lambda: download_voice_sample(user_id, voice_id)
-    )
+    ref_audio = await download_voice_sample(user_id, voice_id)
+
+    # Fix #10: Validate ref audio size before base64-encoding for Modal
+    if len(ref_audio) > MAX_REF_AUDIO_BYTES:
+        raise RuntimeError(
+            f"Reference audio too large ({len(ref_audio)} bytes, max {MAX_REF_AUDIO_BYTES})"
+        )
 
     # Call Modal with lines array (triggers per-line synthesis + concat)
     modal_url = _get_modal_endpoint()
@@ -230,7 +241,15 @@ async def synthesize_cloned_voice_lines(
                 raise RuntimeError(
                     f"Modal synthesis failed (HTTP {response.status_code}): {error_msg}"
                 )
-            result = response.json()
+            # Fix #11: Validate Modal JSON response
+            try:
+                result = response.json()
+            except Exception as e:
+                raise RuntimeError(f"Modal returned invalid JSON: {e}")
+            if "audio_b64" not in result:
+                raise RuntimeError(
+                    f"Modal response missing 'audio_b64' key. Keys: {list(result.keys())}"
+                )
     except httpx.ConnectError as e:
         raise RuntimeError(
             f"Cannot reach Modal endpoint '{modal_url}': {e}. "
@@ -269,19 +288,17 @@ async def synthesize_cloned_voice_lines(
     except OSError:
         pass
 
-    import logging
     mp3_size = os.path.getsize(mp3_path)
-    logging.info(f"[VoiceClone] Saved synthesized audio: {mp3_path} ({mp3_size} bytes, converted from {len(audio_bytes)} WAV bytes)")
+    _logger.info(f"[VoiceClone] Saved synthesized audio: {mp3_path} ({mp3_size} bytes, converted from {len(audio_bytes)} WAV bytes)")
 
     return mp3_path
 
 
-def get_user_voice_id(user_id: str) -> str | None:
+async def get_user_voice_id(user_id: str) -> str | None:
     """Get the current voice clone ID for a user from Supabase."""
-    return get_voice_metadata(user_id)
+    return await get_voice_metadata(user_id)
 
 
 async def delete_user_voice(user_id: str) -> bool:
     """Delete all voice clone data for a user from Supabase."""
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, lambda: delete_voice_data(user_id))
+    return await delete_voice_data(user_id)

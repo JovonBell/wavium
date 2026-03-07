@@ -94,6 +94,7 @@ export default function VoidContainer({
   // Refs for timeout cleanup
   const tapHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   // Configure audio mode on mount
   useEffect(() => {
@@ -162,17 +163,21 @@ export default function VoidContainer({
 
     if (isPlaying) {
       levelInterval = setInterval(() => {
+        if (!isMountedRef.current) return;
         audioLevel.value = 0.3 + Math.random() * 0.4;
       }, 100);
 
       // Poll real audio position from background sound (most reliable)
       positionInterval = setInterval(async () => {
+        if (!isMountedRef.current) return;
         try {
           const status = await bgCrossfade.current.getStatusAsync();
+          if (!isMountedRef.current) return;
           if (status?.isLoaded && status.positionMillis != null) {
             setCurrentTime(Math.floor(status.positionMillis / 1000));
           }
         } catch {
+          if (!isMountedRef.current) return;
           // Fallback: increment manually if polling fails
           setCurrentTime((prev) => {
             if (prev >= actualDuration && !sessionComplete) {
@@ -212,9 +217,10 @@ export default function VoidContainer({
 
     // Poll voice audio position to determine which affirmation we're on
     affirmationCycleRef.current = setInterval(async () => {
+      if (!isMountedRef.current) return;
       try {
         const status = await voiceCrossfade.current.getStatusAsync();
-        if (!status?.isLoaded) return;
+        if (!isMountedRef.current || !status?.isLoaded) return;
 
         const pos = status.positionMillis ?? 0;
         const dur = status.durationMillis ?? 0;
@@ -244,6 +250,7 @@ export default function VoidContainer({
   // Cleanup all audio on unmount
   useEffect(() => {
     return () => {
+      isMountedRef.current = false;
       stopSpeaking();
       audioLoadedRef.current = false;
       bgCrossfade.current.unload().catch(() => {});

@@ -156,8 +156,8 @@ export default function RootLayout() {
     <ErrorBoundary>
       <AIConsentModal
         visible={aiConsentGiven === false && initialized && appReady}
-        onAccept={() => {
-          AsyncStorage.setItem('wavium-ai-consent', 'true');
+        onAccept={async () => {
+          await AsyncStorage.setItem('wavium-ai-consent', 'true');
           setAiConsentGiven(true);
         }}
         onDecline={() => {

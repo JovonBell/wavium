@@ -81,13 +81,18 @@ export default function PaywallScreen() {
   const completeOnboarding = () => {
     const authState = useAuthStore.getState();
     const supabaseUserId = authState.session?.user?.id ?? authState.user?.id;
-    if (supabaseUserId) {
-      setUserId(supabaseUserId);
-      router.replace('/(main)/home');
+    if (!supabaseUserId) {
+      // Fix #16: Handle missing auth — redirect to sign-in
+      Alert.alert('Session Expired', 'Please sign in again to continue.', [
+        { text: 'OK', onPress: () => router.replace('/(auth)/sign-in') },
+      ]);
+      return;
+    }
+    setUserId(supabaseUserId);
+    router.replace('/(main)/home');
 
-      if (savedUserNameRef.current) {
-        supabase.auth.updateUser({ data: { display_name: savedUserNameRef.current } }).catch(() => {});
-      }
+    if (savedUserNameRef.current) {
+      supabase.auth.updateUser({ data: { display_name: savedUserNameRef.current } }).catch(() => {});
     }
   };
 
@@ -334,14 +339,20 @@ export default function PaywallScreen() {
           <View style={styles.legalLinks}>
             <Text
               style={[styles.legalText, { color: colors.textMuted }]}
-              onPress={() => Linking.openURL(TERMS_URL).catch(() => {})}
+              onPress={() => Linking.openURL(TERMS_URL).catch((err) => {
+                if (__DEV__) console.warn('Failed to open Terms URL:', err);
+                Alert.alert('Could not open link', 'Please visit our website for Terms of Service.');
+              })}
             >
               Terms of Service
             </Text>
             <Text style={[styles.legalDivider, { color: colors.textMuted }]}>|</Text>
             <Text
               style={[styles.legalText, { color: colors.textMuted }]}
-              onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
+              onPress={() => Linking.openURL(PRIVACY_URL).catch((err) => {
+                if (__DEV__) console.warn('Failed to open Privacy URL:', err);
+                Alert.alert('Could not open link', 'Please visit our website for our Privacy Policy.');
+              })}
             >
               Privacy Policy
             </Text>

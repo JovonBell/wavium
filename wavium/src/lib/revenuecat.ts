@@ -29,7 +29,7 @@ export async function initRevenueCat(userId?: string): Promise<void> {
   }
 
   try {
-    Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
 
     if (Platform.OS === 'ios') {
       await Purchases.configure({

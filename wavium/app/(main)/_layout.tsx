@@ -23,10 +23,13 @@ export default function MainLayout() {
   const setCustomVoice = useMindiStore((s) => s.setCustomVoice);
   const authUserId = useAuthStore((s) => s.user?.id);
 
+  const session = useAuthStore((s) => s.session);
+
   useEffect(() => {
     const effectiveUserId = userId || authUserId;
     if (effectiveUserId && !hasCustomVoice) {
-      getVoiceCloneStatus(effectiveUserId).then(({ hasVoice, voiceId }) => {
+      const accessToken = session?.access_token ?? null;
+      getVoiceCloneStatus(effectiveUserId, accessToken).then(({ hasVoice, voiceId }) => {
         if (hasVoice && voiceId) {
           setCustomVoice(voiceId);
         }
@@ -34,7 +37,7 @@ export default function MainLayout() {
         // Silently fail — voice status is a nice-to-have on load
       });
     }
-  }, [userId, authUserId]);
+  }, [userId, authUserId, session]);
 
   // Check if we should show tabs
   const shouldShowTabs = !SCREENS_WITHOUT_TABS.some((screen) =>

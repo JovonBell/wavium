@@ -96,6 +96,7 @@ export default function TracksScreen() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMessage, setGenerationMessage] = useState('');
   const previewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isAnyPreviewLoading = useRef(false);
 
   // Mood color tint overlay (VOID-06)
   const [moodTint, setMoodTint] = useState('transparent');
@@ -104,6 +105,15 @@ export default function TracksScreen() {
   const moodStyle = useAnimatedStyle(() => ({
     opacity: moodOpacity.value,
   }));
+
+  /** Stop any current preview (timeout + audio) before starting a new one */
+  const stopCurrentPreview = async () => {
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+    try { await audio.stop(); } catch {}
+  };
 
   // Cleanup audio when leaving screen
   useEffect(() => {
@@ -115,8 +125,6 @@ export default function TracksScreen() {
     };
   }, []);
 
-  const isLoadingPreview = useRef(false);
-
   const handleSelectTrack = async (trackId: SoundTrack) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTrackId(trackId);
@@ -127,22 +135,17 @@ export default function TracksScreen() {
     setMoodTint(mood);
     moodOpacity.value = withTiming(1, { duration: 800 });
 
-    // Clear any existing preview timeout
-    if (previewTimeoutRef.current) {
-      clearTimeout(previewTimeoutRef.current);
-    }
-
     // Prevent overlapping load/play operations
-    if (isLoadingPreview.current) return;
-    isLoadingPreview.current = true;
+    if (isAnyPreviewLoading.current) return;
+    isAnyPreviewLoading.current = true;
 
     // Play audio preview
     try {
+      await stopCurrentPreview();
       const previewUrl = BEAT_AUDIO_URLS[trackId];
-      try { await audio.stop(); } catch {}
       const loaded = await audio.load(previewUrl);
       if (!loaded) {
-        isLoadingPreview.current = false;
+        isAnyPreviewLoading.current = false;
         return;
       }
       await audio.setVolume(0.85);
@@ -155,11 +158,9 @@ export default function TracksScreen() {
     } catch (error) {
       console.warn('Could not play track preview:', error);
     } finally {
-      isLoadingPreview.current = false;
+      isAnyPreviewLoading.current = false;
     }
   };
-
-  const isLoadingVoicePreview = useRef(false);
 
   const handleSelectVoice = async (voiceId: VoiceOption) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -168,46 +169,28 @@ export default function TracksScreen() {
       setSelectedVoice(voiceId);
     }
 
-    // Clear any existing preview timeout
-    if (previewTimeoutRef.current) {
-      clearTimeout(previewTimeoutRef.current);
-    }
+    // Prevent overlapping load/play operations
+    if (isAnyPreviewLoading.current) return;
+    isAnyPreviewLoading.current = true;
 
-    // Custom cloned voice: play the raw recording as preview
-    if (voiceId === 'custom') {
-      if (!recordingUri) return;
-      if (isLoadingVoicePreview.current) return;
-      isLoadingVoicePreview.current = true;
-      try {
-        try { await audio.stop(); } catch {}
+    try {
+      await stopCurrentPreview();
+
+      // Custom cloned voice: play the raw recording as preview
+      if (voiceId === 'custom') {
+        if (!recordingUri) return;
         const loaded = await audio.load(recordingUri);
-        if (!loaded) { isLoadingVoicePreview.current = false; return; }
+        if (!loaded) return;
         await audio.setVolume(0.8);
         await audio.play();
         previewTimeoutRef.current = setTimeout(() => { audio.stop().catch(() => {}); }, 6000);
-      } catch (error) {
-        console.warn('Could not play voice preview:', error);
-      } finally {
-        isLoadingVoicePreview.current = false;
+        return;
       }
-      return;
-    }
 
-    if (isLoadingVoicePreview.current) return;
-    isLoadingVoicePreview.current = true;
-
-    try {
       const previewUrl = await getVoicePreviewUrl(voiceId);
-      if (!previewUrl) {
-        isLoadingVoicePreview.current = false;
-        return;
-      }
-      try { await audio.stop(); } catch {}
+      if (!previewUrl) return;
       const loaded = await audio.load(previewUrl);
-      if (!loaded) {
-        isLoadingVoicePreview.current = false;
-        return;
-      }
+      if (!loaded) return;
       await audio.setVolume(0.8);
       await audio.play();
 
@@ -218,7 +201,7 @@ export default function TracksScreen() {
     } catch (error) {
       console.warn('Could not play voice preview:', error);
     } finally {
-      isLoadingVoicePreview.current = false;
+      isAnyPreviewLoading.current = false;
     }
   };
 

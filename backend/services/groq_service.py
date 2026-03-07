@@ -4,6 +4,7 @@ Groq AI Service for generating affirmations
 
 import os
 import re
+import asyncio
 from groq import Groq
 from dotenv import load_dotenv
 
@@ -17,7 +18,7 @@ def _get_client():
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
             raise RuntimeError("GROQ_API_KEY environment variable not set")
-        _client = Groq(api_key=api_key)
+        _client = Groq(api_key=api_key, timeout=30.0)
     return _client
 
 SYSTEM_PROMPT = """You are an expert at creating powerful, positive affirmations for subliminal audio. Given a user's intention, generate 25-30 personalized affirmations that:
@@ -35,16 +36,25 @@ Return ONLY the affirmations, one per line. No numbering, no bullet points, just
 
 async def generate_affirmations(intention: str, user_name: str = "") -> list[str]:
     """
-    Generate personalized affirmations based on user's intention
+    Generate personalized affirmations based on user's intention.
+    Runs sync Groq call in executor with 30s timeout.
     """
-    chat_completion = _get_client().chat.completions.create(
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Create affirmations for someone who wants to: {intention}."}
-        ],
-        model="llama-3.1-8b-instant",
-        temperature=0.7,
-        max_tokens=1024,
+    loop = asyncio.get_event_loop()
+
+    def _sync_call():
+        return _get_client().chat.completions.create(
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Create affirmations for someone who wants to: {intention}."}
+            ],
+            model="llama-3.1-8b-instant",
+            temperature=0.7,
+            max_tokens=1024,
+        )
+
+    chat_completion = await asyncio.wait_for(
+        loop.run_in_executor(None, _sync_call),
+        timeout=30.0,
     )
 
     response_text = chat_completion.choices[0].message.content

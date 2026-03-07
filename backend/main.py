@@ -4,14 +4,14 @@ FastAPI server for AI affirmation generation and subliminal audio mixing
 """
 
 import os
-import shutil
+import re
 import tempfile
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -29,7 +29,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 # Log critical env vars at startup so Railway logs make misconfigurations obvious
 import logging
 logging.basicConfig(level=logging.INFO)
-_logger = logging.getLogger("wavium.startup")
+_logger = logging.getLogger("wavium.api")
 _supabase_url_val = os.getenv("SUPABASE_URL", "")
 _modal_url_val = os.getenv("MODAL_ENDPOINT_URL", "")
 _logger.info(f"[startup] SUPABASE_URL = '{_supabase_url_val[:40]}...' " if len(_supabase_url_val) > 40 else f"[startup] SUPABASE_URL = '{_supabase_url_val}' ({'OK' if _supabase_url_val.startswith('https://') else 'MISSING/BROKEN'})")
@@ -47,6 +47,27 @@ def _patched_async_init(self, *args, **kwargs):
     _orig_async_init(self, *args, **kwargs)
 _httpx.Client.__init__ = _patched_init
 _httpx.AsyncClient.__init__ = _patched_async_init
+
+# Max upload size: 50MB
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+
+# UUID validation pattern
+UUID_PATTERN = re.compile(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE
+)
+
+
+def _safe_error(exc: Exception, context: str = "Operation failed") -> str:
+    """Log full exception server-side, return generic message to client."""
+    _logger.exception(f"{context}: {exc}")
+    return context
+
+
+def _sanitize_name(name: str, max_len: int = 50) -> str:
+    """Strip special chars from voice clone name, limit length."""
+    cleaned = re.sub(r'[^\w\s\-]', '', name).strip()
+    return cleaned[:max_len] if cleaned else "My Voice"
+
 
 app = FastAPI(
     title="Wavium API",
@@ -96,6 +117,13 @@ class GenerateAffirmationsRequest(BaseModel):
     intention: str
     user_name: str = ""
 
+    @field_validator('intention')
+    @classmethod
+    def validate_intention(cls, v: str) -> str:
+        if len(v) > 1000:
+            raise ValueError('Intention must be 1000 characters or fewer')
+        return v
+
 
 class GenerateAffirmationsResponse(BaseModel):
     affirmations: list[str]
@@ -107,6 +135,16 @@ class GenerateAudioRequest(BaseModel):
     voice: str = "ava"
     clone_voice_id: str | None = None  # User's cloned voice ID
     user_id: str | None = None         # Required when using clone_voice_id
+
+    @field_validator('affirmations')
+    @classmethod
+    def validate_affirmations(cls, v: list[str]) -> list[str]:
+        if len(v) > 50:
+            raise ValueError('Maximum 50 affirmations allowed')
+        for i, aff in enumerate(v):
+            if len(aff) > 500:
+                raise ValueError(f'Affirmation {i+1} exceeds 500 character limit')
+        return v
 
 
 class GenerateAudioResponse(BaseModel):
@@ -123,6 +161,30 @@ class GenerateSubliminalRequest(BaseModel):
     duration_secs: int = 300
     clone_voice_id: str | None = None  # User's cloned voice ID (from /api/voice/clone)
     user_id: str | None = None         # Required when using clone_voice_id
+
+    @field_validator('affirmations')
+    @classmethod
+    def validate_affirmations(cls, v: list[str]) -> list[str]:
+        if len(v) > 50:
+            raise ValueError('Maximum 50 affirmations allowed')
+        for i, aff in enumerate(v):
+            if len(aff) > 500:
+                raise ValueError(f'Affirmation {i+1} exceeds 500 character limit')
+        return v
+
+    @field_validator('duration_secs')
+    @classmethod
+    def validate_duration(cls, v: int) -> int:
+        if v < 60 or v > 3600:
+            raise ValueError('Duration must be between 60 and 3600 seconds')
+        return v
+
+    @field_validator('voice_volume', 'bg_volume')
+    @classmethod
+    def validate_volume(cls, v: float) -> float:
+        if v < 0.0 or v > 1.0:
+            raise ValueError('Volume must be between 0.0 and 1.0')
+        return v
 
 
 class GenerateSubliminalResponse(BaseModel):
@@ -180,7 +242,7 @@ async def api_generate_affirmations(request: Request, body: GenerateAffirmations
             intention=body.intention
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate affirmations: {str(e)}")
+        raise HTTPException(status_code=500, detail=_safe_error(e, "Failed to generate affirmations"))
 
 
 @app.post("/api/generate-audio", response_model=GenerateAudioResponse)
@@ -200,8 +262,7 @@ async def api_generate_audio(request: GenerateAudioRequest):
             )
         elif request.clone_voice_id and not request.user_id:
             # clone_voice_id was specified but user_id is missing — do NOT silently fall back
-            import logging as _logging
-            _logging.warning(
+            _logger.warning(
                 f"clone_voice_id={request.clone_voice_id} specified but user_id is missing. "
                 "Cannot synthesize cloned voice without user_id."
             )
@@ -220,7 +281,7 @@ async def api_generate_audio(request: GenerateAudioRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate audio: {str(e)}")
+        raise HTTPException(status_code=500, detail=_safe_error(e, "Failed to generate audio"))
 
 
 @app.post("/api/generate-subliminal", response_model=GenerateSubliminalResponse)
@@ -234,8 +295,7 @@ async def api_generate_subliminal(request: GenerateSubliminalRequest):
 
     # Guard: do NOT silently fall back to edge-tts when clone_voice_id is set but user_id is missing
     if request.clone_voice_id and not request.user_id:
-        import logging as _logging
-        _logging.warning(
+        _logger.warning(
             f"clone_voice_id={request.clone_voice_id} specified but user_id is missing in generate-subliminal. "
             "Cannot synthesize cloned voice without user_id."
         )
@@ -263,7 +323,7 @@ async def api_generate_subliminal(request: GenerateSubliminalRequest):
             duration_secs=request.duration_secs,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate subliminal: {str(e)}")
+        raise HTTPException(status_code=500, detail=_safe_error(e, "Failed to generate subliminal"))
 
 
 @app.get("/api/ambient-tracks")
@@ -285,7 +345,7 @@ async def api_voice_preview(voice_id: str):
         filename = os.path.basename(audio_path)
         return {"audio_url": f"/audio/previews/{filename}"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate preview: {str(e)}")
+        raise HTTPException(status_code=500, detail=_safe_error(e, "Failed to generate preview"))
 
 
 @app.get("/api/voices", response_model=list[VoiceInfo])
@@ -315,7 +375,7 @@ async def api_delete_account(request: Request, body: DeleteAccountRequest):
     service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
     if not supabase_url or not service_role_key:
-        raise HTTPException(status_code=500, detail="Server configuration error: Supabase credentials not set")
+        raise HTTPException(status_code=500, detail="Server configuration error")
 
     try:
         # Verify the access token by fetching the user from Supabase
@@ -328,10 +388,10 @@ async def api_delete_account(request: Request, body: DeleteAccountRequest):
                 },
             )
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to verify token with Supabase: {str(e)}")
+        raise HTTPException(status_code=502, detail=_safe_error(e, "Failed to verify token"))
 
     if verify_resp.status_code != 200:
-        raise HTTPException(status_code=401, detail=f"Invalid or expired access token (Supabase returned {verify_resp.status_code})")
+        raise HTTPException(status_code=401, detail="Invalid or expired access token")
 
     verified_user = verify_resp.json()
     if verified_user.get("id") != body.user_id:
@@ -348,7 +408,7 @@ async def api_delete_account(request: Request, body: DeleteAccountRequest):
                 },
             )
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to delete user via Supabase: {str(e)}")
+        raise HTTPException(status_code=502, detail=_safe_error(e, "Failed to delete user"))
 
     if delete_resp.status_code not in (200, 204):
         detail = "Failed to delete account"
@@ -362,8 +422,8 @@ async def api_delete_account(request: Request, body: DeleteAccountRequest):
     # Clean up voice clone data (storage files + DB rows)
     try:
         await delete_user_voice(body.user_id)
-    except Exception:
-        pass  # Non-critical — user account already deleted
+    except Exception as e:
+        _logger.warning(f"Voice data cleanup failed after account deletion: {e}")
 
     return {"detail": "Account deleted successfully"}
 
@@ -384,31 +444,59 @@ async def api_clone_voice(
     if not audio.content_type or not audio.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="File must be an audio file")
 
-    # Save uploaded file temporarily
+    # Fix #6: Sanitize voice clone name
+    safe_name = _sanitize_name(name)
+
+    # Fix #1: Chunked read with 50MB file size cap
     suffix = ".m4a" if "m4a" in (audio.content_type or "") else ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     try:
-        shutil.copyfileobj(audio.file, tmp)
+        total_bytes = 0
+        while True:
+            chunk = await audio.read(1024 * 1024)  # 1MB chunks
+            if not chunk:
+                break
+            total_bytes += len(chunk)
+            if total_bytes > MAX_UPLOAD_BYTES:
+                tmp.close()
+                os.unlink(tmp.name)
+                raise HTTPException(status_code=413, detail="File too large. Maximum upload size is 50MB.")
+            tmp.write(chunk)
         tmp.close()
 
         voice_id = await clone_voice(
             user_id=user_id,
-            name=name,
+            name=safe_name,
             audio_path=tmp.name,
         )
-        return {"voice_id": voice_id, "name": name}
+        return {"voice_id": voice_id, "name": safe_name}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Voice cloning failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=_safe_error(e, "Voice cloning failed"))
     finally:
-        os.unlink(tmp.name)
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
 
 
 @app.get("/api/voice/status/{user_id}")
-async def api_voice_status(user_id: str):
-    """Check if a user has a cloned voice available."""
+async def api_voice_status(request: Request, user_id: str):
+    """Check if a user has a cloned voice available. Requires auth."""
+    # Fix #4: Validate user_id is UUID format
+    if not UUID_PATTERN.match(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user_id format")
+
+    # Fix #4: Require Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+
     try:
-        voice_id = get_user_voice_id(user_id)
-    except Exception:
+        voice_id = await get_user_voice_id(user_id)
+    except Exception as e:
+        _logger.warning(f"Voice status check failed for user {user_id}: {e}")
         voice_id = None  # Graceful fallback if Supabase is unreachable
     return {"has_voice": voice_id is not None, "voice_id": voice_id}
 

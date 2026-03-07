@@ -66,9 +66,17 @@ export default function CreateScreen() {
 
   const inputRef = useRef<TextInput>(null);
   const inputScale = useSharedValue(1);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setCurrentState('listening');
+    return () => {
+      // Clean up progress interval on unmount
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
   }, []);
 
   const handleExamplePress = (example: string) => {
@@ -89,7 +97,7 @@ export default function CreateScreen() {
 
     // Animate progress
     let progress = 0;
-    const progressInterval = setInterval(() => {
+    progressIntervalRef.current = setInterval(() => {
       progress += Math.random() * 20;
       if (progress > 90) progress = 90;
       setGenerationProgress(progress);
@@ -106,7 +114,8 @@ export default function CreateScreen() {
       setAffirmations(affirmations);
 
       // Complete progress
-      clearInterval(progressInterval);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
       setGenerationProgress(100);
 
       // Navigate to script screen
@@ -117,7 +126,8 @@ export default function CreateScreen() {
       }, 500);
 
     } catch (error) {
-      clearInterval(progressInterval);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
       setIsGenerating(false);
       setCurrentState('idle');
       setGenerationProgress(0);

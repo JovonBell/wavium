@@ -149,7 +149,7 @@ class AudioSystem {
     await this.sound.setIsLoopingAsync(loop);
   }
 
-  // Set fade out timer
+  // Set fade out timer — guarded against sound being unloaded mid-fade
   async fadeOut(durationMs: number) {
     if (!this.sound) return;
 
@@ -158,7 +158,12 @@ class AudioSystem {
     const volumeStep = 1 / steps;
 
     for (let i = steps; i >= 0; i--) {
-      await this.sound.setVolumeAsync(i * volumeStep);
+      if (!this.sound) return;
+      try {
+        await this.sound.setVolumeAsync(i * volumeStep);
+      } catch {
+        return; // Sound was unloaded mid-fade
+      }
       await this.delay(stepDuration);
     }
 

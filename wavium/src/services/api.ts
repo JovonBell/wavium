@@ -218,13 +218,19 @@ export async function getVoices(): Promise<VoiceInfo[]> {
 }
 
 /**
- * Check if a user has a cloned voice available on the backend
+ * Check if a user has a cloned voice available on the backend.
+ * Requires an auth token for the authenticated voice status endpoint.
  */
 export async function getVoiceCloneStatus(
-  userId: string
+  userId: string,
+  accessToken?: string | null,
 ): Promise<{ hasVoice: boolean; voiceId: string | null }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/voice/status/${userId}`);
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    const response = await fetch(`${API_BASE_URL}/api/voice/status/${userId}`, { headers });
     if (!response.ok) return { hasVoice: false, voiceId: null };
     const data = await response.json();
     return { hasVoice: data.has_voice, voiceId: data.voice_id };
