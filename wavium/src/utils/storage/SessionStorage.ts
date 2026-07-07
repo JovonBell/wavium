@@ -1,50 +1,38 @@
 /**
  * Encrypted session storage for Supabase auth
- * Uses MMKV for fast storage with encryption key held in SecureStore
+ * Uses expo-secure-store for Expo Go compatibility
  *
- * Why MMKV over AsyncStorage:
- * - 30x faster read/write performance
- * - Native encryption support
- * - Sessions can exceed SecureStore's 2KB limit
+ * Note: expo-secure-store has a 2KB limit per value, which is
+ * typically sufficient for JWT tokens. For larger data, consider
+ * using react-native-mmkv in a development build.
  */
-import { createMMKV } from "react-native-mmkv"
 import * as SecureStore from "expo-secure-store"
-import * as Crypto from "expo-crypto"
-
-const ENCRYPTION_KEY_NAME = "supabase-session-key"
-
-/**
- * Get or create the encryption key for session storage.
- * Key is stored in device Keychain (iOS) / Keystore (Android).
- */
-const getOrCreateEncryptionKey = (): string => {
-  const existing = SecureStore.getItem(ENCRYPTION_KEY_NAME)
-  if (existing) return existing
-
-  // Generate new encryption key using expo-crypto
-  const key = Crypto.randomUUID()
-  SecureStore.setItem(ENCRYPTION_KEY_NAME, key)
-  return key
-}
-
-// Initialize encrypted MMKV storage
-const storage = createMMKV({
-  id: "supabase-session",
-  encryptionKey: getOrCreateEncryptionKey(),
-})
 
 /**
  * Supabase-compatible storage interface
  * Matches the Storage interface expected by @supabase/supabase-js
  */
 export const getItem = (key: string): string | null => {
-  return storage.getString(key) ?? null
+  try {
+    return SecureStore.getItem(key)
+  } catch (error) {
+    console.warn("SecureStore getItem error:", error)
+    return null
+  }
 }
 
 export const setItem = (key: string, value: string): void => {
-  storage.set(key, value)
+  try {
+    SecureStore.setItem(key, value)
+  } catch (error) {
+    console.warn("SecureStore setItem error:", error)
+  }
 }
 
 export const removeItem = (key: string): void => {
-  storage.remove(key)
+  try {
+    SecureStore.deleteItemAsync(key)
+  } catch (error) {
+    console.warn("SecureStore removeItem error:", error)
+  }
 }

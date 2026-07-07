@@ -13,7 +13,11 @@
       "backgroundColor": "#0a0a1a"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jovonbell.wavium",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,17 +32,12 @@
     },
     "plugins": [
       "expo-secure-store",
-      [
-        "expo-linking",
-        {
-          "ios": {
-            "scheme": "wavium"
-          },
-          "android": {
-            "scheme": "wavium"
-          }
-        }
-      ]
-    ]
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f0c72ed2-f6fa-4be7-abc9-48296efcffcb"
+      }
+    }
   }
 }

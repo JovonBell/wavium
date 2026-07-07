@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sectionTitle: {
-    ...typography.h4,
+    ...typography.h3,
     marginBottom: spacing.sm,
   },
   affirmationsCard: {
